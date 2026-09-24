@@ -1,0 +1,52 @@
+export const firstDayTheme = {
+  colors: {
+    canvas: "#FFFFFF",
+    surface: "#EDF1FF",
+    raised: "#FFFFFF",
+    inset: "#CAD6FF",
+    ink: "#17213A",
+    secondaryInk: "#34405B",
+    tertiaryInk: "#53617D",
+    disabledInk: "#7883A0",
+    rule: "#C4D1F3",
+    action: "#2260FF",
+    actionPressed: "#1749CB",
+    actionWash: "#CAD6FF",
+    confirmed: "#596544",
+    confirmedWash: "#E9EDDF",
+    warning: "#8B5A13",
+    warningWash: "#FFF0CB",
+    danger: "#A83B32",
+    dangerWash: "#F9E1DE",
+    info: "#283247",
+    infoWash: "#E7ECF2",
+  },
+  space: {
+    0: 0,
+    1: 4,
+    2: 8,
+    3: 12,
+    4: 16,
+    5: 20,
+    6: 24,
+    8: 32,
+    10: 40,
+    12: 48,
+  },
+  radius: {
+    small: 12,
+    medium: 20,
+    large: 28,
+    pill: 999,
+  },
+  control: {
+    minimumHeight: 44,
+  },
+  type: {
+    display: "LeagueSpartan_600SemiBold",
+    body: "LeagueSpartan_400Regular",
+    utility: "LeagueSpartan_500Medium",
+  },
+} as const;
+
+export type FirstDayTheme = typeof firstDayTheme;

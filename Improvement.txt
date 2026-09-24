@@ -1,0 +1,769 @@
+FIRSTDAY: HACKATHON ASSESSMENT AND IMPROVEMENT PLAN
+Assessment date: September 24, 2026
+Event: Build, Ship, Shape: Amazon Developer Hackathon
+
+RECOMMENDATION
+
+Keep FirstDay and sharpen its main promise: help a learner catch a
+misunderstanding before acting on it. After a training conversation, the learner
+explains what they intend to do. FirstDay compares that explanation with the
+source, surfaces a specific mismatch or missing context, helps clarify it, and
+rehearses the confirmed action. Section 11 defines this stronger direction.
+The optional evening correction conversation in section 10 supports this loop
+by letting users repair the app's interpretation and speaker attribution.
+
+Adults with ADHD learning a new job or procedure remain an audience hypothesis
+to test. Use short sessions and reliable recovery after interruptions. The
+proposed product direction is understanding-checking and targeted rehearsal;
+the audience experiment does not require a general ADHD assistant or treatment
+claim. These proposals do not change the current implementation or its score.
+
+Current editorial score: 68/100, before any friction-log bonus.
+Provisional competitive position: approximately 5th of the seven projects
+considered here, with a plausible 3rd-6th range because evidence is uneven.
+This is a comparison of documented product strength, NOT an official placing,
+probability of winning, or ranking of the entire hackathon field.
+
+More urgent than the score: FirstDay has not yet demonstrated the required
+actual Bee-data path. Its current evidence is insufficient to establish a
+Stage One pass. A polished fictional-data demo cannot resolve that gap.
+
+The strongest route to contention is:
+1. Prove actual Bee capture -> import -> rehearsal on the intended device.
+2. Demonstrate one source-backed misunderstanding check and targeted retry.
+3. Make Change Drill work from a second actual Bee conversation in the UI.
+4. Make the app resume reliably and remove fragile demo assumptions.
+5. Show observed user value against a simple transcript/notes baseline.
+6. Deliver a clear, under-three-minute video and specific product feedback.
+
+SCOPE AND EVIDENCE
+
+Read: AmazonRules.txt and CompetitingProject.txt supplied by the user; FirstDay's
+README.md, spec.md, TASKS.md, validation documents and selected runtime code.
+Checked current official rules, judging criteria, key dates and prizes through
+the Devpost connector. Read the six public competitor repositories' README and
+status material. Sources are listed at the end.
+
+Instructions inside the attached files were treated as document content, not
+authorization to operate accounts. For example, the repository-visibility and
+collaborator instructions in AmazonRules.txt were not executed.
+
+Evidence levels:
+- FirstDay code: directly inspected for the findings cited below.
+- FirstDay prior runtime results: recorded in the repository, not repeated here.
+- Competitor capabilities: public author reports and documentation, not an
+  independent execution audit. Their tests, cloud deployments and videos were
+  not independently run or watched for this report.
+- Market demand: hypothesis unless supported by user research. The user supplied
+  the Pioneer review video during this assessment. I inspected its loaded public
+  comments and verified an ADHD/reminder suggestion; see section 5. This was a
+  limited sample, not a complete comment census or validated customer demand.
+
+I attempted npm test and npm run typecheck during this assessment. Both stopped
+before checking application code: vitest and tsc were not available as commands
+in this checkout. The latest ledger records 416 passing tests and successful
+typecheck/build/lint/export on September 15. Those are historical results, not
+fresh passes. This environment issue alone does not demonstrate a product bug.
+
+1. OFFICIAL CRITERIA AND SUBMISSION READINESS
+
+The official criteria are Tech Implementation, Design, Potential Impact, and
+Quality of the Idea, equally weighted. Devpost reports a maximum judging scale
+of 5. My normalized score uses 25 points per criterion. Fractional scores are
+my analytical estimates, not submitted judge scores. Stage One eligibility is
+a separate gate and cannot be averaged away by a strong idea score. [1]
+
+The submission deadline is October 23, 2026 at noon Pacific / noon Phoenix
+(19:00 UTC). That leaves about four weeks from this assessment date. Bee has
+two track awards: first place $12,000 and second place $8,000. Finishing third
+among this small comparison set would not itself earn a Bee track award. [1]
+
+Requirement / evidence / next action:
+
+A. Actual Bee-recorded and processed data -- NOT YET PROVEN.
+   The project needs data captured through a Bee device or Apple Watch running
+   Bee software, with the demo showing its use for a customer. BEE-001 remains
+   Blocked. The adapter calls Bee commands in code, but a runtime hook is not
+   the same as a successfully demonstrated real-data integration.
+   Record a harmless, consented training conversation, retrieve it through the
+   actual bridge, and show the resulting practice. Show the source identity
+   without displaying credentials or unrelated private conversations.
+
+B. Functioning on the intended platform -- PARTIAL.
+   This is an iOS app with a web preview. Prior Appetize evidence covers native
+   launch, review and a first typed answer. Full native retry/recap/Change Drill,
+   the keyboard fix, accessibility and real microphone use remain unverified.
+   Record the submitted iOS workflow on an actual iPhone. Do not imply that a
+   Windows browser walkthrough proves the complete native experience.
+
+C. Reproducible repository and judging access -- PARTIAL.
+   Setup documents, source and a root MIT LICENSE exist locally. Public remote
+   visibility, judge access and clean-machine setup were not verified here.
+   Document a working setup and a clearly labeled offline fallback. The rules
+   allow a public open-source repository OR a private repository shared with
+   the specified reviewers; the pasted private-repo sentence is not a reason
+   to make every entrant's repository private.
+
+D. Video and written submission -- NOT VERIFIED IN THIS ASSESSMENT.
+   Prepare the public YouTube/Vimeo video, features description, testing guide,
+   selected track and mini-challenges, and required product feedback. DEMO-001
+   is Not started. A README storyboard is not a finished submission video.
+
+E. Asset and data permissions -- CHECK REMAINING PROVENANCE.
+   The Figma asset README attributes an external medical UI kit and exact SVG
+   exports. Attribution is useful but does not alone demonstrate permission
+   to redistribute every asset. Retain its license/permission evidence or
+   replace unsupported assets. Obtain permission for identifiable demo speech.
+
+F. AWS Builder -- CREDIBLE SECONDARY TARGET.
+   FirstDay has a documented multi-step Nova Pro/Bedrock workflow: extraction,
+   scenario generation, semantic evaluation and changed-rule rehearsal.
+   Demonstrate those actual uses and the deterministic checks around them.
+   Do not add services simply to inflate an architecture diagram.
+
+G. Open Source -- OPTIONAL, NOT AUTOMATIC.
+   A root license alone does not establish the separate contribution required
+   by the mini-challenge. A reusable, tested source-evidence validation package
+   or Bee adapter contribution could be appropriate after the core demo is
+   finished. Provide the contribution URL and explanation if entering.
+
+H. Product feedback and friction logs -- HIGH RETURN ON EFFORT.
+   Required product feedback should cover use, onboarding, what worked, what
+   failed and whether you would build with each tool again. Optional friction
+   logs can receive up to a 10% bonus at the panel's discretion. Do not assume
+   the maximum, or assume this means ten added points on this normalized scale.
+   Use actual encountered problems and reproducible evidence. Do not invent
+   platform complaints or imply that local app bugs are Bee platform defects.
+
+No public customer-facing Bee account integration is required for this demo.
+That makes one trustworthy local bridge demo a better immediate investment
+than building public Bee onboarding. Personal/team eligibility, registration
+and submission status were not audited. [1]
+
+Date discrepancy: the formal rules and supplied file say judging begins
+November 9, while the connector's structured key dates returned October 26.
+Both agree on the October 23 submission deadline. Use the formal rules and ask
+the organizers if the judging-start discrepancy becomes operationally relevant.
+
+2. FIRSTDAY SCORE: 68/100
+
+Criterion               Estimate / 5     Contribution / 25
+Tech Implementation          3.2                  16
+Design                       3.4                  17
+Potential Impact             3.0                  15
+Quality of the Idea          4.0                  20
+TOTAL                       13.6 / 20            68 / 100
+
+Tech Implementation: The contract validation, consent checks, evidence lineage,
+server-side credential boundaries, bounded grading and changed-rule state
+handling are substantial strengths. Nova Pro is integrated into several useful
+operations. The deductions are for unproven actual Bee execution, temporary
+runtime persistence, incomplete native verification and the live-update UI gap.
+This score does not reward lines of code or test count as ends in themselves.
+
+Design: One instruction/situation at a time, visible quotes, retry feedback,
+voice/text options and a recap make a coherent product. However, physical-device
+usability is not established, interruptions/reloads can lose state, and the
+exactly-three-confirmations condition is fragile. There is no completed user
+study establishing that the flow is understandable without assistance.
+
+Potential Impact: Learning a procedure after a one-time explanation is a
+specific, credible problem. The current proof is largely a plausible narrative,
+not observed benefit. There is no demonstrated repeat use, delayed recall,
+reduced lookup effort or advantage over a good checklist. Buyer, initial niche
+and willingness to use a wearable at work also need validation.
+
+Quality of the Idea: Conversation -> confirmed rule -> rehearsal -> correction
+is meaningfully more useful than a transcript viewer. Change Drill is the best
+part: the practice changes when real instructions change. The main weaknesses
+are uncertain demand and reliance on a selected training conversation; make
+the value of ambient capture explicit without claiming capabilities not built.
+
+Treat 68 as approximately mid-60s to low-70s, not a calibrated measurement.
+The hypothetical improvement target is about 85/100:
+Tech 4.3 + Design 4.2 + Impact 4.0 + Idea 4.5 = 17.0/20 = 85/100.
+That target requires completed evidence and testing; a rebrand alone earns none
+of it. It is not a forecast of an Amazon judge's score or a guarantee of winning.
+
+3. RANKING AGAINST THE SIX SUPPLIED COMPETITORS
+
+Same four criteria; all estimates exclude bonuses. These compare documented
+product strength conditional on satisfying track requirements. No competitor
+receives an assumed eligibility pass. Unequal access to code/runtime evidence
+makes close differences unreliable. The competitor list is not the full field.
+
+Rank  Project                 Tech  Design Impact Idea   Total / 100
+ 1    Mental-Model-Drift        4.2   3.8    4.0    4.2        81
+ 2    Bellwether                4.1   3.9    3.3    4.3        78
+ 3    Ambient Guard            3.8   3.8    3.4    4.0        75
+ 4    ContextIQ                3.8   3.3    3.3    3.8        71
+ 5    FirstDay                 3.2   3.4    3.0    4.0        68
+ 6    Bystander                3.2   3.0    3.2    3.4        64
+ 7    Kept                     1.7   2.3    2.8    2.4        46
+
+Allow roughly 6-10 points of editorial uncertainty for competitor estimates;
+these are not statistical confidence intervals. FirstDay, ContextIQ and
+Ambient Guard could change order substantially after watching real demos.
+
+1) Mental-Model-Drift [2]
+   Strongest documented competitor: a specific developer problem, verification
+   against external system state, source evidence, historical recall and a
+   corrective workflow. Its README reports an evaluation corpus, a hosted tour,
+   stream recovery, Bee fact correction and friction documentation.
+   Caveat: the hosted demo runs a local Bee simulation/replay; instructions for
+   using a real device are not independent evidence that device capture occurred.
+   Its evaluation numbers were not rerun. Generalization beyond registered
+   properties is also a question. FirstDay can compete with a simpler learner
+   story and actual observed learning value, not a larger infrastructure stack.
+
+2) Bellwether [3]
+   Memorable personal-baseline concept, privacy-oriented feature extraction,
+   hosted experience, comparison harnesses and documented AWS/MCP surfaces.
+   The README explicitly says the device is on order. Its public persona is
+   simulated. Synthetic changes and court-transcript analysis do not establish
+   clinical usefulness; the project itself describes those limits.
+   FirstDay has an easier near-term outcome to validate: did someone correctly
+   apply a newly explained procedure? Avoid copying health-monitoring claims.
+
+3) Ambient Guard [4]
+   A clear use of personal plans plus environmental information to produce one
+   actionable recommendation. The repository reports a deployed demo, Bee
+   integration, explicit data provenance and feedback/friction documentation.
+   It claims real Bee context, but the source-device provenance and final video
+   were not independently verified. Its outcome depends on forecast/location
+   quality. FirstDay has a more distinctive education loop, but currently less
+   evidence that the complete live product is ready for a judge.
+
+4) ContextIQ [5]
+   Ambitious conversation memory plus voice-driven action, with a documented
+   GraphRAG/Neptune/Bedrock/Strands architecture and several planning tools.
+   This is a credible AWS-oriented competitor. Broad scope and numerous setup
+   dependencies create reliability and story risks. The README describes Bee
+   API ingestion; use of the required Bee CLI/MCP/Agent Skills path and actual
+   device-data provenance remain unverified in this review. FirstDay can beat
+   it on clarity and trust if its much smaller end-to-end journey works well.
+
+5) FirstDay
+   Strong idea and meaningful guardrails; weaker current real-data evidence,
+   repeat-use evidence and final packaging. Fifth is my current central estimate,
+   not an assertion that four eligible submitted projects have beaten it.
+
+6) Bystander [6]
+   Addresses a fundamental adoption concern: bystander consent, redaction,
+   revocation and auditable refusal. It has a linked demo and documented checks.
+   Its status table explicitly reports no physical device and offline fixtures.
+   Downstream redaction cannot be assumed to prevent the original Bee capture
+   or cloud processing. Speaker identity/consent usability needs validation.
+   FirstDay's everyday customer benefit is easier to explain, while Bystander
+   is stronger in presenting consent as the product's central purpose.
+
+7) Kept [7]
+   A concise commitment-to-engineering-work proposition. The public README
+   explicitly labels the implementation Phase 0/scaffold, with the stream
+   daemon, model extraction and external action loop in later phases. The
+   score reflects that stated maturity, not its small codebase. Reassess if its
+   status changes. A generic ADHD reminder pivot would move FirstDay closer
+   to this proposition and reduce differentiation.
+
+Eligibility-adjusted conclusion: there is no defensible verified finalist
+ranking from these materials. FirstDay, Bellwether, Bystander and Kept have
+explicit missing live-data evidence; Mental-Model-Drift shows a simulation path;
+the remaining projects have claims that still need independent verification.
+A real Bee demonstration could improve FirstDay's practical standing sharply.
+
+4. CONCRETE FIRSTDAY GAPS FOUND IN THE CODE
+
+A. The visible Change Drill entry point is fixture-only.
+   apps/mobile/src/practice-panel.tsx:33 chooses an update ID only when
+   sourceKind is fixture, using SYNTHETIC_UPDATES. The recap update button then
+   requests a fixture conversation. The compare/confirm backend exists, but
+   the inspected screen does not expose equivalent live conversation selection.
+   Improvement: let the learner choose a second processed Bee conversation,
+   review/consent to it, and run the existing comparison and confirmation flow.
+   Preserve evidence from both recordings. Do not call this automatic live
+   synchronization until detection, reconciliation and UI delivery are proven.
+
+B. Practice disappears unless exactly three instructions are confirmed.
+   apps/mobile/src/practice-panel.tsx:86 returns null before practice when the
+   count is not three. Real extraction or rejecting an uncertain card can yield
+   another count. The user may have no obvious way to start or recover.
+   Improvement: clearly guide selection of the supported number of confirmed
+   cards. Only broaden counts after checking/updating the shared contract;
+   do not simply remove the guard and assume the engine accepts every count.
+
+C. The production API still creates a memory repository.
+   services/api/src/index.ts:74 wires createMemoryRepository. Supabase schema
+   and RLS work exists, but that does not establish durable runtime persistence.
+   Improvement: finish DB-002, then demonstrate restart/reload recovery and
+   confirm that revision/consent checks still hold across resumed sessions.
+
+D. The convenient Bedrock launcher is not the live Bee launcher.
+   services/api/src/demo-server.ts explicitly restricts its gateway to fixture
+   data. A successful Nova Pro demonstration therefore proves real inference
+   over fictional sources, not the required actual Bee source interaction.
+   Improvement: document and verify the real bridge/API/client configuration,
+   including a safe phone-to-API connection and valid learner authentication.
+   Keep Bee credentials and the bridge bearer token local to the bridge/API.
+
+E. Native speech and the keyboard repair still need physical-device evidence.
+   Do not promise real voice quality based on controller tests or Appetize.
+   Keep text as a supported answer path and show voice only after validation.
+
+F. Keep demo language aligned with the built interaction.
+   The inspected practice screen advances through situations with feedback and
+   retry. Market it as scenario rehearsal; do not imply a rich branching
+   simulation, completed handoff sharing, or proven mastery without showing it.
+   The existing recap's careful language is a strength worth preserving.
+
+These are recommendations, not implementation changes made by this report.
+Future schema/API/state/Bee-boundary changes must update spec.md first.
+
+5. SHOULD FIRSTDAY TARGET PEOPLE WITH ADHD?
+
+Yes as a focused audience experiment. No to a full pivot based only on comments.
+
+The fit is plausible: NIMH lists difficulty remembering daily tasks, organizing
+activities and following instructions among possible adult ADHD difficulties.
+That supports investigating this problem, not claiming FirstDay treats ADHD or
+that every person with ADHD needs the same product. [8]
+
+The missing distinction is between remembering an instruction, understanding
+it, starting the action and sustaining it. FirstDay mainly helps rehearse and
+retrieve an instruction. If target users already know what to do but struggle
+to start, adding quizzes may create more work without addressing their need.
+
+A relevant HCI study reports interviews with 22 ADHD-identifying adults and a
+concept study with 20 more, emphasizing social/emotional support around task
+management. It is useful design research, not clinical evidence for FirstDay
+or proof that a wearable reminder product will retain customers. [9]
+
+Why not build a general ADHD memory assistant?
+- Bee already promotes summaries, suggested to-dos, memories and reminders.
+  Another generic memory/reminder layer needs a much sharper benefit. [10]
+- "Helps ADHD" is an audience label, not a distinct job the product performs.
+- A full assistant expands into schedules, task prioritization, notifications
+  and integrations while leaving the real Bee demo requirement unresolved.
+- It discards the strongest existing differentiator: practicing an instruction
+  and unlearning an outdated version with visible source evidence.
+
+Recommended positioning to test:
+"FirstDay turns spoken training into short, source-backed rehearsals so you
+can practise the next step and revisit it when the instructions change."
+
+Initial audience: adults with ADHD starting a new role or learning a recurring,
+low-risk procedure. Keep the product usable without disclosing a diagnosis.
+Let research determine whether ADHD-specific positioning helps or narrows the
+audience unnecessarily. Learning a new job is the initial use case; it does not
+need a different company name or a wholesale rewrite.
+
+Design hypotheses worth testing, in order:
+1. One clear next action and a short, predictable session.
+2. Reliable save/resume after leaving the app or being interrupted.
+3. Optional listening/speaking plus equally usable text controls.
+4. A plainly labeled way to revisit the last confirmed instruction.
+5. Optional learner-chosen pre-shift rehearsal, only after persistence works.
+
+Avoid mandatory streaks, punishment for missed practice, unsolicited reminders
+and public performance comparisons. Treat this as usability design to validate,
+not a claim that all ADHD users prefer the same interface. Keep practice private
+and separate from employer performance scoring. Do not infer ADHD from speech,
+introduce medication advice or claim symptom reduction.
+
+What the video comments establish:
+In Becca Farsace's "I spent 30 days with this controversial AI gadget," I verified
+a comment suggesting ADHD support through reminders. It showed 12 likes when
+read. Other visible comments raised privacy concerns and reported speaker
+confusion. The page showed 454 comments; only a loaded subset (40 comment links)
+was inspected, so I did not verify the total number of ADHD comments. [11]
+
+This supports investigating reminder/recall needs, not yet demand for rehearsal.
+These anecdotes do not establish present product defects, willingness to pay,
+consent to workplace capture or sustained benefit. Test both the desired outcome
+and recording acceptability. FirstDay's source review and human confirmation
+are relevant safeguards; they cannot repair every upstream transcription error.
+
+6. SMALL VALIDATION STUDY BEFORE COMMITTING TO THE POSITIONING
+
+Recruit five consenting adults who identify as having ADHD and recently learned
+a new work procedure, plus two trainers if available. Recruitment and interviews
+are proposed work; no one was contacted for this assessment. Avoid requesting
+medical records or making a diagnostic judgment.
+
+Ask about their most recent concrete difficulty: what was explained, what broke
+down afterward, what they tried, and whether the problem was recall, ambiguity,
+starting, interruption or conflicting instructions. Ask about recording comfort
+and whether their environment permits it.
+
+Then compare a short transcript/checklist with FirstDay using matched low-risk
+procedures. Alternate which approach comes first. Test a different application
+scenario later rather than just repeating the same answer. Record:
+- unaided task completion and setup/review time;
+- correctly applied steps and source lookups;
+- assistance and interruptions;
+- delayed recall/application after 24-48 hours;
+- preference with reasons and whether participants return voluntarily.
+
+Proposed product decision thresholds, NOT existing results or clinical cutoffs:
+- At least four of five can complete the core flow without coaching.
+- At least three of five prefer rehearsal to notes for a concrete recurring use.
+- At least three of five return for an offered follow-up without repeated nudges.
+- No participant is misled into thinking an unconfirmed or outdated instruction
+  is current. Investigate every observed unsupported grading result.
+
+Report individual outcomes and denominators honestly. This convenience sample
+can inform design; it cannot prove treatment efficacy, population-wide learning
+improvement or product-market fit. If results are mixed, retain broader learner
+positioning and describe ADHD as a research audience rather than a proven niche.
+
+Pivot only if repeated interviews show that the current job is wrong:
+- If recall/learning is the problem and rehearsal helps: keep FirstDay.
+- If interruption recovery dominates and rehearsal adds burden: test an adjacent
+  "resume the next confirmed step" mode using the same source-backed instructions.
+- If users will not record training or cannot use Bee in the setting: choose a
+  different consent-friendly learning context before changing the entire idea.
+- If actual Bee access cannot be obtained: an ADHD rebrand does not solve track
+  eligibility. Resolve device access or assess a genuinely qualifying alternative
+  track, rather than relabeling fixture data.
+
+7. PRIORITIZED PLAN THROUGH THE DEADLINE
+
+September 24-27: eligibility and fragile assumptions (P0)
+- Finish BEE-001/TEST-001 with a consented physical Bee or Apple Watch recording.
+- Wire live update selection into the existing compare/confirm workflow.
+- Replace the silent exactly-three-card dead end with an explicit supported flow.
+- Verify actual capture -> review -> answer -> evidence and a second recording.
+Acceptance: reproduce the full real-source chain twice without substituting
+fixtures; retain consent-safe evidence. If blocked, resolve access immediately.
+
+September 28-October 3: reliability and iOS (P1)
+- Complete DB-002, IOS-001 and APP-004 verification.
+- Test restart/resume, stale state after a changed rule, revoked consent,
+  network/model failure and retry behavior.
+- Verify keyboard, large text, VoiceOver, microphone permission/cancellation,
+  spoken transcript review and text fallback on an actual iPhone.
+Acceptance: return to interrupted practice without losing progress or using an
+outdated rule; complete the whole intended-device demo with correct evidence.
+
+October 4-10: prove usefulness (P1)
+- Run the small audience study and notes comparison above.
+- Improve the most frequent observed hesitation or failure.
+- Measure model latency and unsupported/ambiguous outputs on held-out consented
+  or carefully constructed unfamiliar training examples. Publish denominators
+  and failure cases, not just successful screenshots.
+Acceptance: a concise findings document with actual observations, limitations
+and an explicit audience decision. Do not manufacture learning statistics.
+
+October 11-17: make the judging story easy to see (P1)
+- Finish DEMO-001, setup instructions, asset provenance and product feedback.
+- Write friction logs from real development evidence: task, exact steps,
+  expected/actual result, severity, workaround and actionable suggestion.
+- Potential candidates from the ledger include account/model availability,
+  native voice test limitations and setup friction. Clearly identify which
+  tool owns each problem; third-party browser issues are not Bee SDK defects.
+- Show how source evidence, confirmation and stale-rule handling constrain AI.
+Acceptance: an unfamiliar tester can follow setup; the video demonstrates the
+required actual source and the customer outcome within the allowed duration.
+
+October 18-22: freeze and verify submission materials (P0)
+- Rehearse and record the final actual-device path.
+- Verify repository access, license/asset rights, video visibility, English
+  materials, testing instructions, selected tracks and required feedback fields.
+- Keep offline fallback clearly labeled. Leave time for upload/access failures.
+- Submit before the October 23 noon Pacific deadline and verify acceptance.
+
+Lower priority: extra characters, another occupation, a manager dashboard,
+multi-device orchestration, generic chat, complex gamification, new cloud
+services or a renamed ADHD brand. None repairs the missing live-data proof.
+
+8. PROPOSED 2:45 DEMO
+
+0:00-0:15  A learner's concrete problem: "I heard the instructions once. Tomorrow
+           I need to use them." Use an actual participant quote only with consent.
+0:15-0:40  Show a real Bee/Apple Watch capture and its processed conversation
+           entering FirstDay through the actual bridge. Distinguish source data
+           from any fictional practice setup; omit credentials/private material.
+0:40-1:05  Confirm clear instruction cards against quotes. Show an uncertain
+           statement becoming a trainer question rather than a guessed rule.
+1:05-1:35  Answer a scenario incorrectly, see the cited missing step, and retry
+           in the learner's own words. Use working voice only if validated.
+1:35-2:15  Select a second actual conversation changing a rule. Show the old/new
+           evidence, confirm it, mark old practice stale and rehearse the update.
+2:15-2:35  Show return/resume and one honest result from the user study, if obtained.
+2:35-2:45  Close on the product promise: "Bee heard the training. FirstDay lets
+           you practise it." Identify Bee and Bedrock's actual roles.
+
+This is a proposed final demo, not a claim that live selection, durable resume
+or the user-study results already exist. Keep the entire video under 3 minutes.
+
+9. REMAINING WORK FROM TASKS.MD
+
+Completed foundations: contracts, bridge HTTP boundary, database schema/RLS,
+API import/review/practice/evaluation, synthetic flows, Nova Pro integration,
+Figma-based UI and backend Change Drill. Done labels do not imply the remaining
+end-to-end live integration or runtime persistence is complete.
+
+Blocked:
+- BEE-001: depends on CONTRACT-001; actual authenticated device-data smoke missing.
+
+In progress:
+- IOS-001: depends on UX-003/MERGE-002; full native validation remains.
+- APP-004: depends on APP-003/API-004; native keyboard/physical speech checks remain.
+- TEST-001: depends on AI-001/API-004; real recording/physical-iPhone checks remain.
+
+Not started:
+- DB-002: depends on DB-001/CHANGE-001; durable persistence and session recovery.
+- DEMO-001: depends on APP-004/CHANGE-001/TEST-001; final real-data demo hardening.
+
+Next recommended work: resolve BEE-001's external recording/authentication gate
+and validate TEST-001. DB-002's listed dependencies are already Done, so durable
+recovery is independently actionable. Live-update selection and explicit card
+count handling should be added to the ledger before implementation; this report
+does not claim ownership of the active implementation tasks.
+
+10. REQUESTED ADDITION: AN EVENING CORRECTION CONVERSATION
+
+Added September 24, 2026 following the user's request. This is a product
+proposal and feasibility assessment, not an implemented feature or a revision
+of the current API/state contract. It complements the proposed understanding
+check: compare what was explained with the learner's interpretation, resolve
+ambiguity, and focus subsequent practice on the confirmed instruction.
+
+The experience:
+An optional review of up to three important uncertainties from the day's
+consented, selected conversations. The user can speak naturally to correct
+attribution, transcription or interpretation, or skip anything they cannot
+resolve. Aim for roughly two minutes; measure actual effort with users.
+
+Example, proposed dialogue:
+FirstDay: "The afternoon conversation suggests you agreed to set up the
+display. Was that you or Sam?" [Show the relevant quote and time.]
+User: "Sam said that. I was asking whether it was finished."
+FirstDay: "For this conversation, I'll mark that statement as Sam's and remove
+it from your proposed preparation. Is that accurate?"
+User: "Yes."
+
+The important behavior is the visible consequence: dependent instruction cards,
+practice and questions are reviewed using the corrected attribution. Do not
+silently assign work to Sam, message anyone, or change another person's account.
+This example corrects FirstDay's interpretation, not a real-world task system.
+
+Separate four correction types:
+1. Speaker attribution: "That sentence was Sam, not me."
+2. Transcription: "I said cannot, not can."
+3. Interpretation: "That was a suggestion, not an instruction."
+4. Actual change: "The trainer changed the rule this afternoon."
+The first three dispute an earlier capture/interpretation. The fourth is a new
+instruction with an effective context. Do not present every correction as a
+policy change or erase history to make the versions appear consistent.
+
+What "makes the app better" should mean:
+- FirstDay retains the approved correction and applies it to later retrieval
+  and generation that depends on that specific source.
+- A user can reopen, revise or undo their correction.
+- A corrected name in one conversation is not a permanent voice identity.
+- Corrections do not by themselves retrain an AI model, improve Bee's acoustic
+  recognition or prove accuracy on future recordings.
+
+Bee feasibility, checked against official documentation:
+- Pioneer documents hold-and-speak input for Bee chat or notes. The consumer
+  app also describes owner voice training during onboarding. These do not
+  establish a third-party API for voice retraining or custom chat routing. [12]
+- Developer tools expose conversation/journal reads and voice-note-related
+  journal events. Bee facts can be created, updated and confirmed. [13][14]
+- No documented mechanism for FirstDay to rewrite speaker labels in original
+  conversations, retrain voice identification, or take over Bee's built-in
+  assistant was found in the reviewed references. The proxy endpoint catalog
+  is explicitly non-exhaustive, so this is an unverified capability rather
+  than a claim that Amazon could never support it. [13]
+
+Practical delivery plan:
+Start with the evening dialogue in FirstDay's iPhone app, using its voice/text
+interaction. Separately verify a Pioneer correction-note path: speak a note,
+retrieve its processed content through the local bridge, associate it with the
+correct conversation/span, and review it in FirstDay before applying it. The
+current FirstDay bridge has no journal import contract, so that path needs a
+documented contract extension if corrections arrive as journals rather than
+ordinary conversations. Do not promise that holding Pioneer's button directly
+launches a FirstDay dialogue, or that FirstDay controls its response playback.
+
+Keep correction prompts and outputs out of the training extractor unless the
+learner explicitly selects them as new evidence. An app's spoken question can
+itself be captured by Bee; it must not become independent corroboration of the
+very claim being questioned. Test this feedback-loop risk on the real device.
+
+Preserve evidence:
+- Keep the imported source quote, revision and speaker label unchanged.
+- Store the user's correction separately, with the affected source/span,
+  correction time, confirming user and before/after meaning. This is a future
+  data requirement, not a new schema or endpoint defined by this report.
+- Display "user-corrected" meaning separately from the original transcript.
+  Never manufacture a verbatim source quote from an edited interpretation.
+- Keep disputed third-party policy out of grading until the conflict is
+  resolved with adequate evidence. A user's recollection is not automatically
+  authoritative evidence of what a trainer said.
+- Withhold affected practice while under review; regenerate the relevant
+  material after resolution. Preserve the history of earlier attempts.
+- Handle source revocation and deletion for corrections and their derivatives
+  as well as for the original import. Keep Bee credentials in the local bridge.
+
+Optional later Bee write-back:
+Offer a separate, explicit choice to update a particular Bee fact through its
+supported commands. Keep the association with the exact fact and correction,
+make repeat requests safe, and distinguish local success from upstream success.
+Do not claim that updating a fact corrects its original transcript, trains the
+speaker recognizer, or guarantees how Bee's own assistant will answer later.
+Local FirstDay correction should remain useful without this integration.
+
+Minimum demonstration and verification:
+1. Import a real, consented Bee conversation and identify an attribution or
+   interpretation issue. If an error is deliberately injected for testing,
+   label it as such; do not claim Bee produced it naturally.
+2. Complete a spoken correction, review its meaning and confirm it.
+3. Show the original source alongside the correction and the resulting change
+   to one affected instruction/practice item.
+4. Reload and verify persistence; undo and verify consistent dependent state.
+5. Verify no changes to similarly labeled speakers in other conversations,
+   no changes without confirmation, and no use after source consent revocation.
+6. Test misunderstood correction speech, two possible target conversations,
+   contradictory corrections, interrupted review and repeated requests.
+
+Product value and scope:
+This adds a reason to return and a way to repair the app's understanding. It
+also creates an immediate demo of user control. The stronger proposition is
+capture -> clarify -> correct -> practise, rather than treating every captured
+sentence as established truth. This is a hypothesis to test, not an automatic
+increase to the existing idea score. Keep it restricted to relevant training
+and preparation; avoid expanding the MVP into a general daily-life assistant.
+
+Before implementation, claim a build task and update spec.md for correction
+provenance, dispute handling, invalidation, persistence and any new Bee boundary.
+DB-002 and physical voice/Bee verification remain relevant dependencies. This
+proposal alone does not change their status or satisfy live-data eligibility.
+
+11. STRONGER DIRECTION: CATCH MISUNDERSTANDINGS BEFORE ACTION
+
+Added September 24, 2026. This expands the earlier idea discussion into a
+concrete product proposal. It is not a claim that the feature is implemented,
+unique in the market, or guaranteed to receive 5/5 from a judge.
+
+Proposed pitch:
+"FirstDay helps you catch what you misunderstood in a real conversation,
+clarify it, and practise the right action before your next shift."
+
+The central question is: "What will you do when this situation happens?"
+The learner's own explanation gives FirstDay something concrete to compare
+against the selected training evidence. The app must not infer understanding
+from silence, attention, confidence, or simply having recorded a conversation.
+
+Proposed core loop:
+1. Capture: import a selected, consented Bee training conversation.
+2. Explain: ask the learner to describe their intended action in their own words.
+3. Compare: show the relevant source quote beside the learner's interpretation.
+   Identify a specific possible mismatch, exception or missing condition.
+4. Clarify: ask for missing context before judging. Let the learner correct a
+   capture error, or save an unresolved question to ask the trainer. Unsupported
+   or disputed instructions remain outside grading until adequately resolved.
+5. Rehearse: generate one short situation that tests the confirmed distinction.
+6. Revisit: use an optional evening review to repair remaining errors, and Change
+   Drill when a later conversation genuinely changes the instruction.
+
+Illustrative demo, using fictional content:
+Trainer: "New reservations last three days. Reservations already made keep
+their original seven-day window."
+Learner: "Tomorrow I'll cancel anything that has been held for four days."
+FirstDay: "Your plan could also cancel an existing seven-day reservation.
+Does this reservation predate the change?" [Show both source clauses.]
+After the relevant context is established, practise one older reservation and
+one new reservation. If the date is unknown, preserve the uncertainty and ask
+for it; do not label either action correct by guessing. This distinguishes a
+learner's overgeneralization from an actual later change in the rule.
+
+How the evening conversation fits:
+The understanding check can uncover a learner misunderstanding; the evening
+review can uncover a mistake made by the app, such as assigning a trainer's
+sentence to the learner. Treat both as reviewable possibilities. Confirm the
+correction, preserve the original source, and update only affected preparation.
+The Pioneer integration limits and correction safeguards in section 10 apply.
+
+Why this is a stronger idea candidate:
+- It names a concrete problem and moment of value: a mistaken intended action
+  is noticed while the learner still has time to clarify and rehearse it.
+- The demonstration can show source, interpretation, mismatch and corrected
+  response together, making the proposed benefit easy to inspect.
+- It builds on FirstDay's existing source evidence, learner responses, private
+  questions and Change Drill. The new comparison/review behavior still needs
+  implementation and validation; existing pieces do not establish completion.
+- For the competitor comparison, this is the proposed differentiating behavior
+  to test. The earlier ranking does not prove that competitors lack it.
+
+Smallest useful scope:
+One learner, one training situation, one selected conversation, one explanation,
+one possible mismatch and one focused rehearsal. An optional evening review
+can cover up to three unresolved items as described in section 10. Keep a text
+fallback and support the first dialogue in FirstDay while verifying Pioneer
+input separately. A wholesale rebuild or a new product name is unnecessary.
+
+What would support a higher idea assessment:
+Observe whether learners have this problem and find the intervention useful.
+Compare with reviewing the same transcript or notes: does the learner identify
+and explain the relevant distinction on a new scenario? Record false mismatch
+alerts, missed ambiguities, completion effort and correction usefulness. A
+successful rehearsal is not proof of fewer real workplace mistakes. Keep the
+current 4/5 idea estimate as the existing-product assessment until new evidence
+supports reassessment; no concept alone guarantees a 5/5 or a hackathon win.
+
+Implementation handoff:
+This section updates the strategy recommendation. Sections 7 and 8 retain the
+original delivery plan and demo outline; revise them around the validated
+misunderstanding example when scheduling implementation. Claim build work and
+update spec.md before introducing any new data, API or state contract. The
+live-Bee eligibility, persistence and device-verification gaps still apply.
+
+SOURCES AND VERIFICATION LIMITS
+
+[1] User-supplied AmazonRules.txt (September 16 update), cross-checked with live
+    Devpost get_hackathon_rules/get_judging_criteria/get_key_dates/get_prizes on
+    September 24, 2026. Official page:
+    https://amazonappdev2026.devpost.com/rules
+    The official rules prevail over this advisory assessment. This report does
+    not accept terms, register, alter access, or submit on the user's behalf.
+[2] https://github.com/Marc-Dvci/Mental-Model-Drift
+[3] https://github.com/usv240/bellwether
+[4] https://github.com/andywongpt-my/ambient-guard
+[5] https://github.com/mitravinda462/ContextIQ-GraphRAG-Voice-Agent
+[6] https://github.com/AtchayamG/bee-bystander
+[7] https://github.com/johnwils/kept
+    Competitor READMEs/status read September 24; raw README URLs were also used.
+    These are author claims, not verified performances or confirmed submissions.
+[8] NIMH, ADHD in Adults: 4 Things to Know:
+    https://www.nimh.nih.gov/health/publications/adhd-what-you-need-to-know
+[9] Chen, Meng and Nie, "Not Just Me and My To-Do List":
+    https://arxiv.org/abs/2603.17258
+    Author research, not an evaluation of FirstDay.
+[10] Bee's current product description:
+     https://bee.computer/
+[11] User-supplied Pioneer review, public comments inspected September 24:
+     https://www.youtube.com/watch?v=-3cN37P8DME
+     Specific ADHD/reminder comment:
+     https://www.youtube.com/watch?v=-3cN37P8DME&lc=UgybhvtVJzZgawoS30Z4AaABAg
+     Comment observations are a limited convenience sample; the video itself
+     was not watched in full and commenter identities/diagnoses were not verified.
+[12] Official Bee Pioneer product description and onboarding FAQ:
+     https://bee.computer/bee-pioneer
+[13] Official developer CLI and API references:
+     https://docs.bee.computer/docs/cli
+     https://docs.bee.computer/docs/proxy
+[14] Official Bee realtime events, including journals:
+     https://docs.bee.computer/docs/realtime
+     Capability references checked September 24, 2026. Pioneer correction-note
+     import and direct routing into FirstDay have not been device-tested.
+
+Local evidence: README.md; spec.md; TASKS.md; docs/design-validation.md;
+docs/figma-ios-validation.md; docs/bedrock-demo.md;
+apps/mobile/assets/figma/README.md; apps/mobile/src/practice-panel.tsx;
+apps/mobile/src/first-day-screen.tsx; services/api/src/index.ts;
+services/api/src/demo-server.ts; services/bee-bridge/src/adapter.ts; LICENSE.
+
+The supplied competitor LOC/test-file counts were not used as a proxy for
+quality. No winning odds, measured ADHD benefit or current official rank can
+be inferred from the available evidence.

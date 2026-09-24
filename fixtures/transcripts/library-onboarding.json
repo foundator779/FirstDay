@@ -1,0 +1,61 @@
+{
+  "id": "fixture-library-onboarding",
+  "sourceKind": "fixture",
+  "title": "Library welcome desk - synthetic training",
+  "startedAt": "2026-09-14T16:00:00.000Z",
+  "status": "processed",
+  "transcript": "Maya: This is a fictional training conversation for the FirstDay demo.\nWhen a visitor borrows a reading kit, record the kit number in the blue ledger.\nIf a visitor collects a reserved map, ask for the collection code before handing it over.\nWhenever a visitor returns a torn poster, place it in the green repair tray.\nIf a visitor asks for an extension, maybe allow another day.",
+  "utterances": [
+    {
+      "id": "library-onboarding-1",
+      "startMs": 0,
+      "endMs": 8000,
+      "text": "Maya: This is a fictional training conversation for the FirstDay demo.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    },
+    {
+      "id": "library-onboarding-2",
+      "startMs": 8000,
+      "endMs": 16000,
+      "text": "When a visitor borrows a reading kit, record the kit number in the blue ledger.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    },
+    {
+      "id": "library-onboarding-3",
+      "startMs": 16000,
+      "endMs": 24000,
+      "text": "If a visitor collects a reserved map, ask for the collection code before handing it over.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    },
+    {
+      "id": "library-onboarding-4",
+      "startMs": 24000,
+      "endMs": 32000,
+      "text": "Whenever a visitor returns a torn poster, place it in the green repair tray.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    },
+    {
+      "id": "library-onboarding-5",
+      "startMs": 32000,
+      "endMs": 40000,
+      "text": "If a visitor asks for an extension, maybe allow another day.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    }
+  ],
+  "revision": "fixture-library-onboarding-r1"
+}

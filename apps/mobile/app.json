@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "FirstDay",
+    "slug": "firstday",
+    "version": "0.1.0",
+    "scheme": "firstday",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow FirstDay to hear your practice response when you tap Start speaking.",
+          "speechRecognitionPermission": "Allow FirstDay to turn your spoken practice response into an editable transcript."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "bundleIdentifier": "app.firstday.practice",
+      "supportsTablet": true,
+      "buildNumber": "2"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7db6bfaf-bf42-46b4-a22e-527d32eba8e0"
+      }
+    },
+    "owner": "huymai1995"
+  }
+}

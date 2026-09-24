@@ -1,0 +1,31 @@
+{
+  "id": "fixture-library-policy-update",
+  "sourceKind": "fixture",
+  "title": "Library welcome desk - synthetic policy update",
+  "startedAt": "2026-09-14T16:00:00.000Z",
+  "status": "processed",
+  "transcript": "Maya: This is an explicit update to the fictional library training.\nUpdate: When a visitor borrows a reading kit, record the kit number in the orange ledger.",
+  "utterances": [
+    {
+      "id": "library-policy-update-1",
+      "startMs": 0,
+      "endMs": 8000,
+      "text": "Maya: This is an explicit update to the fictional library training.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    },
+    {
+      "id": "library-policy-update-2",
+      "startMs": 8000,
+      "endMs": 16000,
+      "text": "Update: When a visitor borrows a reading kit, record the kit number in the orange ledger.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    }
+  ],
+  "revision": "fixture-library-policy-update-r1"
+}

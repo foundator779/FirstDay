@@ -1,0 +1,488 @@
+{
+  "ids": {
+    "learnerId": "70000000-0000-4000-8000-000000000001",
+    "onboardingSourceConversationId": "10000000-0000-4000-8000-000000000001",
+    "updateSourceConversationId": "10000000-0000-4000-8000-000000000002",
+    "reservationInstructionId": "20000000-0000-4000-8000-000000000001",
+    "pickupInstructionId": "20000000-0000-4000-8000-000000000002",
+    "damagedReturnInstructionId": "20000000-0000-4000-8000-000000000003",
+    "replacementInstructionId": "20000000-0000-4000-8000-000000000004",
+    "standardPracticeSetId": "30000000-0000-4000-8000-000000000001",
+    "changeDrillPracticeSetId": "30000000-0000-4000-8000-000000000002",
+    "reservationScenarioId": "40000000-0000-4000-8000-000000000001",
+    "pickupScenarioId": "40000000-0000-4000-8000-000000000002",
+    "damagedReturnScenarioId": "40000000-0000-4000-8000-000000000003",
+    "changeDrillScenarioId": "40000000-0000-4000-8000-000000000004",
+    "changeProposalId": "60000000-0000-4000-8000-000000000001"
+  },
+  "initialExtraction": {
+    "sourceConversationId": "10000000-0000-4000-8000-000000000001",
+    "sourceRevision": "fixture-bookshop-onboarding-r1",
+    "instructionRevision": "bookshop-instructions-r1",
+    "items": [
+      {
+        "id": "20000000-0000-4000-8000-000000000001",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000001",
+        "sourceRevision": "fixture-bookshop-onboarding-r1",
+        "text": "Reservations are held for five calendar days, counting the set-aside day as day one.",
+        "situation": "A customer asks whether a reservation is still active.",
+        "expectedAction": "Count the set-aside day as day one and treat the reservation as active through day five.",
+        "exceptions": [],
+        "sourceEvidence": ["evd_3ad8265380a17c54d99d2fef34a831116de6b107550c5548034abbeafe4b2db9"],
+        "confidence": 0.99,
+        "status": "needsReview",
+        "createdAt": "2026-09-10T16:01:00.000Z",
+        "updatedAt": "2026-09-10T16:01:00.000Z"
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000002",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000001",
+        "sourceRevision": "fixture-bookshop-onboarding-r1",
+        "text": "Before handing over a reserved book, staff must ask for both the reservation name and phone number.",
+        "situation": "A customer collects a reserved book.",
+        "expectedAction": "Ask for both the reservation name and phone number before handing over the book.",
+        "exceptions": [],
+        "sourceEvidence": ["evd_a15e02216e08058798a702379fae652f234b4ce2ff9f6a3f6ccf8cbf47ab35e9"],
+        "confidence": 0.99,
+        "status": "needsReview",
+        "createdAt": "2026-09-10T16:01:00.000Z",
+        "updatedAt": "2026-09-10T16:01:00.000Z"
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000003",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000001",
+        "sourceRevision": "fixture-bookshop-onboarding-r1",
+        "text": "A damaged return goes on the red returns cart in the back room before a refund is issued.",
+        "situation": "A customer returns a damaged book.",
+        "expectedAction": "Place the book on the red returns cart in the back room before issuing the refund.",
+        "exceptions": [],
+        "sourceEvidence": ["evd_20c1b641162b6763b818f67edb6404803fd6ce2661958368404ff26860d8db19"],
+        "confidence": 0.98,
+        "status": "needsReview",
+        "createdAt": "2026-09-10T16:01:00.000Z",
+        "updatedAt": "2026-09-10T16:01:00.000Z"
+      }
+    ],
+    "openQuestions": [],
+    "sourceEvidence": [
+      {
+        "id": "evd_3ad8265380a17c54d99d2fef34a831116de6b107550c5548034abbeafe4b2db9",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000001",
+        "sourceRevision": "fixture-bookshop-onboarding-r1",
+        "startMs": 10800,
+        "endMs": 17400,
+        "quote": "We hold each customer reservation for five calendar days, counting the day we set it aside as day one.",
+        "utteranceIds": ["onboarding-003"],
+        "speakerLabel": "trainer"
+      },
+      {
+        "id": "evd_a15e02216e08058798a702379fae652f234b4ce2ff9f6a3f6ccf8cbf47ab35e9",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000001",
+        "sourceRevision": "fixture-bookshop-onboarding-r1",
+        "startMs": 21400,
+        "endMs": 27700,
+        "quote": "Before you hand over a reserved book, ask for both the reservation name and the phone number on the reservation.",
+        "utteranceIds": ["onboarding-005"],
+        "speakerLabel": "trainer"
+      },
+      {
+        "id": "evd_20c1b641162b6763b818f67edb6404803fd6ce2661958368404ff26860d8db19",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000001",
+        "sourceRevision": "fixture-bookshop-onboarding-r1",
+        "startMs": 31400,
+        "endMs": 38800,
+        "quote": "If a customer returns a damaged book, place it on the red returns cart in the back room before you issue the refund.",
+        "utteranceIds": ["onboarding-007"],
+        "speakerLabel": "trainer"
+      }
+    ]
+  },
+  "updateExtraction": {
+    "sourceConversationId": "10000000-0000-4000-8000-000000000002",
+    "sourceRevision": "fixture-bookshop-policy-update-r1",
+    "instructionRevision": "bookshop-instructions-r2",
+    "items": [
+      {
+        "id": "20000000-0000-4000-8000-000000000004",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000002",
+        "sourceRevision": "fixture-bookshop-policy-update-r1",
+        "text": "Reservations are held for seven calendar days, counting the set-aside day as day one.",
+        "situation": "A customer asks whether a reservation is still active.",
+        "expectedAction": "Count the set-aside day as day one and treat the reservation as active through day seven.",
+        "exceptions": [],
+        "sourceEvidence": ["evd_ca2da68176b9801fa54f1f43d263ac9f7ae92cc64ed73ec63c81ac44bc909347"],
+        "confidence": 0.99,
+        "status": "needsReview",
+        "supersedesId": "20000000-0000-4000-8000-000000000001",
+        "createdAt": "2026-09-17T16:01:00.000Z",
+        "updatedAt": "2026-09-17T16:01:00.000Z"
+      }
+    ],
+    "openQuestions": [],
+    "sourceEvidence": [
+      {
+        "id": "evd_ca2da68176b9801fa54f1f43d263ac9f7ae92cc64ed73ec63c81ac44bc909347",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000002",
+        "sourceRevision": "fixture-bookshop-policy-update-r1",
+        "startMs": 10400,
+        "endMs": 17400,
+        "quote": "Starting today, we hold each customer reservation for seven calendar days, counting the day we set it aside as day one.",
+        "utteranceIds": ["policy-update-003"],
+        "speakerLabel": "trainer"
+      }
+    ]
+  },
+  "standardPractice": {
+    "practiceSet": {
+      "id": "30000000-0000-4000-8000-000000000001",
+      "learnerId": "70000000-0000-4000-8000-000000000001",
+      "sourceConversationId": "10000000-0000-4000-8000-000000000001",
+      "sourceRevision": "fixture-bookshop-onboarding-r1",
+      "sourceKind": "fixture",
+      "title": "Bookshop first shift",
+      "kind": "standard",
+      "instructionRevision": "bookshop-instructions-r1",
+      "status": "ready",
+      "scenarioIds": [
+        "40000000-0000-4000-8000-000000000001",
+        "40000000-0000-4000-8000-000000000002",
+        "40000000-0000-4000-8000-000000000003"
+      ],
+      "createdAt": "2026-09-10T16:02:00.000Z",
+      "updatedAt": "2026-09-10T16:02:00.000Z"
+    },
+    "scenarios": [
+      {
+        "id": "40000000-0000-4000-8000-000000000001",
+        "practiceSetId": "30000000-0000-4000-8000-000000000001",
+        "sourceRevision": "fixture-bookshop-onboarding-r1",
+        "kind": "standard",
+        "characterId": "customer-rowan",
+        "prompt": "My book was set aside on Monday, and I can only get here on Saturday. Is it still within the reservation window?",
+        "context": "Reservation desk - Saturday afternoon",
+        "expectedRuleIds": ["20000000-0000-4000-8000-000000000001"],
+        "acceptableSignals": ["five calendar days", "day six", "outside the hold"],
+        "criticalMisses": ["still inside the hold", "weekends don't count"],
+        "retryPrompt": "Count Monday as day one. Which numbered day is Saturday, and does a five-calendar-day hold cover it?",
+        "sourceEvidence": ["evd_3ad8265380a17c54d99d2fef34a831116de6b107550c5548034abbeafe4b2db9"],
+        "order": 1
+      },
+      {
+        "id": "40000000-0000-4000-8000-000000000002",
+        "practiceSetId": "30000000-0000-4000-8000-000000000001",
+        "sourceRevision": "fixture-bookshop-onboarding-r1",
+        "kind": "standard",
+        "characterId": "customer-rowan",
+        "prompt": "I'm collecting a reserved book. I know the title, The Night Orchard. What do you need from me before you hand it over?",
+        "context": "Pickup desk - Busy afternoon",
+        "expectedRuleIds": ["20000000-0000-4000-8000-000000000002"],
+        "acceptableSignals": ["reservation name", "phone number"],
+        "criticalMisses": ["title is enough", "hand it over now"],
+        "retryPrompt": "There are two details on the reservation record. Ask me for both before handing over the book.",
+        "sourceEvidence": ["evd_a15e02216e08058798a702379fae652f234b4ce2ff9f6a3f6ccf8cbf47ab35e9"],
+        "order": 2
+      },
+      {
+        "id": "40000000-0000-4000-8000-000000000003",
+        "practiceSetId": "30000000-0000-4000-8000-000000000001",
+        "sourceRevision": "fixture-bookshop-onboarding-r1",
+        "kind": "standard",
+        "characterId": "customer-rowan",
+        "prompt": "This copy has a torn cover, and I'd like a refund. Where does the book go, and when?",
+        "context": "Returns desk - End of shift",
+        "expectedRuleIds": ["20000000-0000-4000-8000-000000000003"],
+        "acceptableSignals": ["returns cart", "red", "back room", "before", "refund"],
+        "criticalMisses": ["issue the refund first", "put it back on the shelf"],
+        "retryPrompt": "Name the cart, its location, and whether the book moves before or after the refund.",
+        "sourceEvidence": ["evd_20c1b641162b6763b818f67edb6404803fd6ce2661958368404ff26860d8db19"],
+        "order": 3
+      }
+    ],
+    "sourceEvidence": [
+      {
+        "id": "evd_3ad8265380a17c54d99d2fef34a831116de6b107550c5548034abbeafe4b2db9",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000001",
+        "sourceRevision": "fixture-bookshop-onboarding-r1",
+        "startMs": 10800,
+        "endMs": 17400,
+        "quote": "We hold each customer reservation for five calendar days, counting the day we set it aside as day one.",
+        "utteranceIds": ["onboarding-003"],
+        "speakerLabel": "trainer"
+      },
+      {
+        "id": "evd_a15e02216e08058798a702379fae652f234b4ce2ff9f6a3f6ccf8cbf47ab35e9",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000001",
+        "sourceRevision": "fixture-bookshop-onboarding-r1",
+        "startMs": 21400,
+        "endMs": 27700,
+        "quote": "Before you hand over a reserved book, ask for both the reservation name and the phone number on the reservation.",
+        "utteranceIds": ["onboarding-005"],
+        "speakerLabel": "trainer"
+      },
+      {
+        "id": "evd_20c1b641162b6763b818f67edb6404803fd6ce2661958368404ff26860d8db19",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000001",
+        "sourceRevision": "fixture-bookshop-onboarding-r1",
+        "startMs": 31400,
+        "endMs": 38800,
+        "quote": "If a customer returns a damaged book, place it on the red returns cart in the back room before you issue the refund.",
+        "utteranceIds": ["onboarding-007"],
+        "speakerLabel": "trainer"
+      }
+    ]
+  },
+  "evaluations": [
+    {
+      "scenarioId": "40000000-0000-4000-8000-000000000001",
+      "responseText": "FIVE\u00a0CALENDAR\u00a0DAYS—Monday is day one, so Saturday is DAY-SIX and OUTSIDE THE HOLD.",
+      "expected": {
+        "result": "covered",
+        "matchedRuleIds": ["20000000-0000-4000-8000-000000000001"],
+        "missedRuleIds": [],
+        "sourceEvidence": ["evd_3ad8265380a17c54d99d2fef34a831116de6b107550c5548034abbeafe4b2db9"],
+        "feedback": "You counted the five-day hold correctly: Saturday is day six."
+      }
+    },
+    {
+      "scenarioId": "40000000-0000-4000-8000-000000000001",
+      "responseText": "The reservation window is five calendar days.",
+      "expected": {
+        "result": "partial",
+        "matchedRuleIds": [],
+        "missedRuleIds": ["20000000-0000-4000-8000-000000000001"],
+        "sourceEvidence": ["evd_3ad8265380a17c54d99d2fef34a831116de6b107550c5548034abbeafe4b2db9"],
+        "feedback": "You remembered the window but did not apply it. With Monday as day one, Saturday is day six and outside the hold."
+      }
+    },
+    {
+      "scenarioId": "40000000-0000-4000-8000-000000000001",
+      "responseText": "It is still inside the hold.",
+      "expected": {
+        "result": "missed",
+        "matchedRuleIds": [],
+        "missedRuleIds": ["20000000-0000-4000-8000-000000000001"],
+        "sourceEvidence": ["evd_3ad8265380a17c54d99d2fef34a831116de6b107550c5548034abbeafe4b2db9"],
+        "feedback": "The rule uses calendar days and counts Monday as day one. Retry using the five-day source."
+      }
+    },
+    {
+      "scenarioId": "40000000-0000-4000-8000-000000000002",
+      "responseText": "I need the reservation name and phone number before handover.",
+      "expected": {
+        "result": "covered",
+        "matchedRuleIds": ["20000000-0000-4000-8000-000000000002"],
+        "missedRuleIds": [],
+        "sourceEvidence": ["evd_a15e02216e08058798a702379fae652f234b4ce2ff9f6a3f6ccf8cbf47ab35e9"],
+        "feedback": "You asked for both pickup details before handing over the book."
+      }
+    },
+    {
+      "scenarioId": "40000000-0000-4000-8000-000000000002",
+      "responseText": "What is the reservation name?",
+      "expected": {
+        "result": "partial",
+        "matchedRuleIds": [],
+        "missedRuleIds": ["20000000-0000-4000-8000-000000000002"],
+        "sourceEvidence": ["evd_a15e02216e08058798a702379fae652f234b4ce2ff9f6a3f6ccf8cbf47ab35e9"],
+        "feedback": "You asked for the name; also ask for the phone number on the reservation."
+      }
+    },
+    {
+      "scenarioId": "40000000-0000-4000-8000-000000000002",
+      "responseText": "The title is enough; I'll hand it over now.",
+      "expected": {
+        "result": "missed",
+        "matchedRuleIds": [],
+        "missedRuleIds": ["20000000-0000-4000-8000-000000000002"],
+        "sourceEvidence": ["evd_a15e02216e08058798a702379fae652f234b4ce2ff9f6a3f6ccf8cbf47ab35e9"],
+        "feedback": "The title alone is not enough. Ask for both the reservation name and phone number."
+      }
+    },
+    {
+      "scenarioId": "40000000-0000-4000-8000-000000000003",
+      "responseText": "I'll put it on the red returns cart in the back room before the refund.",
+      "expected": {
+        "result": "covered",
+        "matchedRuleIds": ["20000000-0000-4000-8000-000000000003"],
+        "missedRuleIds": [],
+        "sourceEvidence": ["evd_20c1b641162b6763b818f67edb6404803fd6ce2661958368404ff26860d8db19"],
+        "feedback": "You routed the damaged book correctly before the refund."
+      }
+    },
+    {
+      "scenarioId": "40000000-0000-4000-8000-000000000003",
+      "responseText": "I'll move it before issuing the refund.",
+      "expected": {
+        "result": "partial",
+        "matchedRuleIds": [],
+        "missedRuleIds": ["20000000-0000-4000-8000-000000000003"],
+        "sourceEvidence": ["evd_20c1b641162b6763b818f67edb6404803fd6ce2661958368404ff26860d8db19"],
+        "feedback": "You got the sequence right; specify the red returns cart in the back room."
+      }
+    },
+    {
+      "scenarioId": "40000000-0000-4000-8000-000000000003",
+      "responseText": "I'll put it back on the shelf.",
+      "expected": {
+        "result": "missed",
+        "matchedRuleIds": [],
+        "missedRuleIds": ["20000000-0000-4000-8000-000000000003"],
+        "sourceEvidence": ["evd_20c1b641162b6763b818f67edb6404803fd6ce2661958368404ff26860d8db19"],
+        "feedback": "Do not return a damaged book to the shelf. Put it on the red returns cart in the back room before the refund."
+      }
+    }
+  ],
+  "comparison": {
+    "previousSourceConversationId": "10000000-0000-4000-8000-000000000001",
+    "newSourceConversationId": "10000000-0000-4000-8000-000000000002",
+    "previousInstructionRevision": "bookshop-instructions-r1",
+    "changes": [
+      {
+        "id": "60000000-0000-4000-8000-000000000001",
+        "previousInstructionId": "20000000-0000-4000-8000-000000000001",
+        "previousSourceRevision": "fixture-bookshop-onboarding-r1",
+        "previousSourceEvidence": ["evd_3ad8265380a17c54d99d2fef34a831116de6b107550c5548034abbeafe4b2db9"],
+        "replacementInstruction": {
+          "id": "20000000-0000-4000-8000-000000000004",
+          "sourceConversationId": "10000000-0000-4000-8000-000000000002",
+          "sourceRevision": "fixture-bookshop-policy-update-r1",
+          "text": "Reservations are held for seven calendar days, counting the set-aside day as day one.",
+          "situation": "A customer asks whether a reservation is still active.",
+          "expectedAction": "Count the set-aside day as day one and treat the reservation as active through day seven.",
+          "exceptions": [],
+          "sourceEvidence": ["evd_ca2da68176b9801fa54f1f43d263ac9f7ae92cc64ed73ec63c81ac44bc909347"],
+          "confidence": 0.99,
+          "status": "needsReview",
+          "supersedesId": "20000000-0000-4000-8000-000000000001",
+          "createdAt": "2026-09-17T16:01:00.000Z",
+          "updatedAt": "2026-09-17T16:01:00.000Z"
+        },
+        "sourceRevision": "fixture-bookshop-policy-update-r1",
+        "status": "needsReview",
+        "createdAt": "2026-09-17T16:02:00.000Z",
+        "updatedAt": "2026-09-17T16:02:00.000Z"
+      }
+    ],
+    "sourceEvidence": [
+      {
+        "id": "evd_3ad8265380a17c54d99d2fef34a831116de6b107550c5548034abbeafe4b2db9",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000001",
+        "sourceRevision": "fixture-bookshop-onboarding-r1",
+        "startMs": 10800,
+        "endMs": 17400,
+        "quote": "We hold each customer reservation for five calendar days, counting the day we set it aside as day one.",
+        "utteranceIds": ["onboarding-003"],
+        "speakerLabel": "trainer"
+      },
+      {
+        "id": "evd_ca2da68176b9801fa54f1f43d263ac9f7ae92cc64ed73ec63c81ac44bc909347",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000002",
+        "sourceRevision": "fixture-bookshop-policy-update-r1",
+        "startMs": 10400,
+        "endMs": 17400,
+        "quote": "Starting today, we hold each customer reservation for seven calendar days, counting the day we set it aside as day one.",
+        "utteranceIds": ["policy-update-003"],
+        "speakerLabel": "trainer"
+      }
+    ]
+  },
+  "changeDrill": {
+    "practiceSet": {
+      "id": "30000000-0000-4000-8000-000000000002",
+      "learnerId": "70000000-0000-4000-8000-000000000001",
+      "sourceConversationId": "10000000-0000-4000-8000-000000000002",
+      "sourceRevision": "fixture-bookshop-policy-update-r1",
+      "sourceKind": "fixture",
+      "title": "Bookshop reservation update",
+      "kind": "changeDrill",
+      "instructionRevision": "bookshop-instructions-r2",
+      "status": "ready",
+      "scenarioIds": ["40000000-0000-4000-8000-000000000004"],
+      "createdAt": "2026-09-17T16:03:00.000Z",
+      "updatedAt": "2026-09-17T16:03:00.000Z"
+    },
+    "scenarios": [
+      {
+        "id": "40000000-0000-4000-8000-000000000004",
+        "practiceSetId": "30000000-0000-4000-8000-000000000002",
+        "sourceRevision": "fixture-bookshop-policy-update-r1",
+        "kind": "changeDrill",
+        "characterId": "guide-maya",
+        "prompt": "A reservation was set aside on Monday, and the customer arrives Sunday. Under the new rule, is it still held, and what changed?",
+        "context": "Policy refresh - Before the next shift",
+        "expectedRuleIds": ["20000000-0000-4000-8000-000000000004"],
+        "acceptableSignals": ["seven calendar days", "day seven", "still held", "changed from five"],
+        "criticalMisses": ["five day rule still applies", "expired before sunday"],
+        "retryPrompt": "Compare the old five-day evidence with the new seven-day evidence, then count Monday as day one.",
+        "sourceEvidence": [
+          "evd_3ad8265380a17c54d99d2fef34a831116de6b107550c5548034abbeafe4b2db9",
+          "evd_ca2da68176b9801fa54f1f43d263ac9f7ae92cc64ed73ec63c81ac44bc909347"
+        ],
+        "order": 1
+      }
+    ],
+    "sourceEvidence": [
+      {
+        "id": "evd_3ad8265380a17c54d99d2fef34a831116de6b107550c5548034abbeafe4b2db9",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000001",
+        "sourceRevision": "fixture-bookshop-onboarding-r1",
+        "startMs": 10800,
+        "endMs": 17400,
+        "quote": "We hold each customer reservation for five calendar days, counting the day we set it aside as day one.",
+        "utteranceIds": ["onboarding-003"],
+        "speakerLabel": "trainer"
+      },
+      {
+        "id": "evd_ca2da68176b9801fa54f1f43d263ac9f7ae92cc64ed73ec63c81ac44bc909347",
+        "sourceConversationId": "10000000-0000-4000-8000-000000000002",
+        "sourceRevision": "fixture-bookshop-policy-update-r1",
+        "startMs": 10400,
+        "endMs": 17400,
+        "quote": "Starting today, we hold each customer reservation for seven calendar days, counting the day we set it aside as day one.",
+        "utteranceIds": ["policy-update-003"],
+        "speakerLabel": "trainer"
+      }
+    ]
+  },
+  "changeEvaluations": [
+    {
+      "responseText": "It changed from five to seven calendar days. Sunday is day seven and still held.",
+      "expected": {
+        "result": "covered",
+        "matchedRuleIds": ["20000000-0000-4000-8000-000000000004"],
+        "missedRuleIds": [],
+        "sourceEvidence": [
+          "evd_3ad8265380a17c54d99d2fef34a831116de6b107550c5548034abbeafe4b2db9",
+          "evd_ca2da68176b9801fa54f1f43d263ac9f7ae92cc64ed73ec63c81ac44bc909347"
+        ],
+        "feedback": "You applied the seven-day update and explained what changed."
+      }
+    },
+    {
+      "responseText": "It is still held for seven calendar days.",
+      "expected": {
+        "result": "partial",
+        "matchedRuleIds": [],
+        "missedRuleIds": ["20000000-0000-4000-8000-000000000004"],
+        "sourceEvidence": [
+          "evd_3ad8265380a17c54d99d2fef34a831116de6b107550c5548034abbeafe4b2db9",
+          "evd_ca2da68176b9801fa54f1f43d263ac9f7ae92cc64ed73ec63c81ac44bc909347"
+        ],
+        "feedback": "You used part of the new rule; also state that Sunday is day seven and the window changed from five days."
+      }
+    },
+    {
+      "responseText": "The five-day rule still applies, so it expired before Sunday.",
+      "expected": {
+        "result": "missed",
+        "matchedRuleIds": [],
+        "missedRuleIds": ["20000000-0000-4000-8000-000000000004"],
+        "sourceEvidence": [
+          "evd_3ad8265380a17c54d99d2fef34a831116de6b107550c5548034abbeafe4b2db9",
+          "evd_ca2da68176b9801fa54f1f43d263ac9f7ae92cc64ed73ec63c81ac44bc909347"
+        ],
+        "feedback": "The five-day rule changed. Use the new seven-calendar-day source and count Monday as day one."
+      }
+    }
+  ]
+}

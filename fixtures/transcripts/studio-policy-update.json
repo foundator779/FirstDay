@@ -1,0 +1,31 @@
+{
+  "id": "fixture-studio-policy-update",
+  "sourceKind": "fixture",
+  "title": "Art studio reception - synthetic policy update",
+  "startedAt": "2026-09-14T16:00:00.000Z",
+  "status": "processed",
+  "transcript": "Maya: This changes one procedure from the earlier fictional training.\nUpdate: When a guest borrows a display stand, write the stand number in the checkout notebook.",
+  "utterances": [
+    {
+      "id": "studio-policy-update-1",
+      "startMs": 0,
+      "endMs": 8000,
+      "text": "Maya: This changes one procedure from the earlier fictional training.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    },
+    {
+      "id": "studio-policy-update-2",
+      "startMs": 8000,
+      "endMs": 16000,
+      "text": "Update: When a guest borrows a display stand, write the stand number in the checkout notebook.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    }
+  ],
+  "revision": "fixture-studio-policy-update-r1"
+}

@@ -1,0 +1,40 @@
+{
+  "name": "firstday",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Source-backed onboarding practice from consented Bee conversations.",
+  "packageManager": "npm@11.6.2",
+  "engines": {
+    "node": "^22.13.0 || ^24.3.0 || >=26.0.0",
+    "npm": ">=11.0.0 <12"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "build:packages": "npm run build --workspace @firstday/contracts --workspace @firstday/firstday-ui --workspace @firstday/scenario-engine",
+    "dev": "npm run dev --workspace @firstday/mobile",
+    "demo:synthetic": "node scripts/start-synthetic.mjs",
+    "demo:ios": "node scripts/start-synthetic.mjs --ios-device",
+    "demo:bedrock": "node scripts/start-bedrock.mjs",
+    "smoke:bedrock": "node --env-file=.env --conditions=development --import tsx scripts/smoke-bedrock.mjs",
+    "lint": "eslint . --max-warnings=0",
+    "postinstall": "npm run build:packages",
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json && npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "22.20.2",
+    "eslint": "10.10.0",
+    "supabase": "2.117.0",
+    "tsx": "4.23.13",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "8.70.0",
+    "vitest": "5.0.0"
+  }
+}

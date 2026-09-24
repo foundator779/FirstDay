@@ -1,0 +1,22 @@
+{
+  "name": "@firstday/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --env-file-if-exists=../../.env --conditions=development --import tsx --watch src/index.ts",
+    "lint": "eslint src --max-warnings=0",
+    "start": "node --env-file-if-exists=../../.env dist/index.js",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "@firstday/contracts": "0.1.0",
+    "@firstday/scenario-engine": "0.1.0",
+    "fastify": "5.12.3",
+    "zod": "^4.6.2"
+  }
+}

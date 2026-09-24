@@ -1,0 +1,79 @@
+{
+  "id": "fixture-bookshop-onboarding",
+  "sourceKind": "fixture",
+  "title": "Fixture - Bookshop onboarding",
+  "startedAt": "2026-09-10T16:00:00.000Z",
+  "endedAt": "2026-09-10T16:00:48.900Z",
+  "status": "processed",
+  "transcript": "I'm happy for today's onboarding conversation to be used for my private practice.\nGreat. We'll cover reservations and damaged returns for your first shift.\nWe hold each customer reservation for five calendar days, counting the day we set it aside as day one.\nWhat should I check when someone collects a reservation?\nBefore you hand over a reserved book, ask for both the reservation name and the phone number on the reservation.\nGot it: the reservation name and phone number.\nIf a customer returns a damaged book, place it on the red returns cart in the back room before you issue the refund.\nSo the damaged book goes on the red cart before the refund.\nExactly. Let's take a break before we practise the register.",
+  "utterances": [
+    {
+      "id": "onboarding-001",
+      "startMs": 0,
+      "endMs": 5200,
+      "text": "I'm happy for today's onboarding conversation to be used for my private practice.",
+      "speaker": { "label": "learner" }
+    },
+    {
+      "id": "onboarding-002",
+      "startMs": 5600,
+      "endMs": 10300,
+      "text": "Great. We'll cover reservations and damaged returns for your first shift.",
+      "speaker": { "label": "trainer", "name": "Maya" }
+    },
+    {
+      "id": "onboarding-003",
+      "startMs": 10800,
+      "endMs": 17400,
+      "text": "We hold each customer reservation for five calendar days, counting the day we set it aside as day one.",
+      "speaker": { "label": "trainer", "name": "Maya" }
+    },
+    {
+      "id": "onboarding-004",
+      "startMs": 17900,
+      "endMs": 21000,
+      "text": "What should I check when someone collects a reservation?",
+      "speaker": { "label": "learner" }
+    },
+    {
+      "id": "onboarding-005",
+      "startMs": 21400,
+      "endMs": 27700,
+      "text": "Before you hand over a reserved book, ask for both the reservation name and the phone number on the reservation.",
+      "speaker": { "label": "trainer", "name": "Maya" }
+    },
+    {
+      "id": "onboarding-006",
+      "startMs": 28200,
+      "endMs": 30900,
+      "text": "Got it: the reservation name and phone number.",
+      "speaker": { "label": "learner" }
+    },
+    {
+      "id": "onboarding-007",
+      "startMs": 31400,
+      "endMs": 38800,
+      "text": "If a customer returns a damaged book, place it on the red returns cart in the back room before you issue the refund.",
+      "speaker": { "label": "trainer", "name": "Maya" }
+    },
+    {
+      "id": "onboarding-008",
+      "startMs": 39300,
+      "endMs": 43600,
+      "text": "So the damaged book goes on the red cart before the refund.",
+      "speaker": { "label": "learner" }
+    },
+    {
+      "id": "onboarding-009",
+      "startMs": 44100,
+      "endMs": 48900,
+      "text": "Exactly. Let's take a break before we practise the register.",
+      "speaker": { "label": "trainer", "name": "Maya" }
+    }
+  ],
+  "revision": "fixture-bookshop-onboarding-r1",
+  "speakers": [
+    { "label": "learner" },
+    { "label": "trainer", "name": "Maya" }
+  ]
+}

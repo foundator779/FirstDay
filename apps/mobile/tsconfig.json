@@ -1,0 +1,25 @@
+{
+  "extends": [
+    "../../tsconfig.base.json",
+    "expo/tsconfig.base"
+  ],
+  "compilerOptions": {
+    "exactOptionalPropertyTypes": true,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noUncheckedIndexedAccess": true,
+    "strict": true,
+    "types": [
+      "react"
+    ]
+  },
+  "include": [
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "expo-env.d.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    ".expo/types/**/*.ts"
+  ]
+}

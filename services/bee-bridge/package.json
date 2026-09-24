@@ -1,0 +1,20 @@
+{
+  "name": "@firstday/bee-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --conditions=development --import tsx --watch src/index.ts",
+    "lint": "eslint src --max-warnings=0",
+    "start": "node dist/index.js",
+    "test": "vitest run src",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "@firstday/contracts": "0.1.0",
+    "fastify": "5.12.3"
+  }
+}

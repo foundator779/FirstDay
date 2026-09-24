@@ -1,0 +1,51 @@
+{
+  "id": "fixture-studio-onboarding",
+  "sourceKind": "fixture",
+  "title": "Art studio reception - synthetic training",
+  "startedAt": "2026-09-14T16:00:00.000Z",
+  "status": "processed",
+  "transcript": "Maya: These are fictional reception procedures for a practice session.\nWhenever a guest collects a sketch pack, ask for the booking reference.\nWhen a guest borrows a display stand, write the stand number on the checkout sheet.\nIf a guest returns a stained apron, place it in the yellow laundry basket.",
+  "utterances": [
+    {
+      "id": "studio-onboarding-1",
+      "startMs": 0,
+      "endMs": 8000,
+      "text": "Maya: These are fictional reception procedures for a practice session.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    },
+    {
+      "id": "studio-onboarding-2",
+      "startMs": 8000,
+      "endMs": 16000,
+      "text": "Whenever a guest collects a sketch pack, ask for the booking reference.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    },
+    {
+      "id": "studio-onboarding-3",
+      "startMs": 16000,
+      "endMs": 24000,
+      "text": "When a guest borrows a display stand, write the stand number on the checkout sheet.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    },
+    {
+      "id": "studio-onboarding-4",
+      "startMs": 24000,
+      "endMs": 32000,
+      "text": "If a guest returns a stained apron, place it in the yellow laundry basket.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    }
+  ],
+  "revision": "fixture-studio-onboarding-r1"
+}

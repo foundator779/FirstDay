@@ -1,0 +1,43 @@
+{
+  "name": "@firstday/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json",
+    "dev": "expo start",
+    "ios": "expo start --ios",
+    "android": "expo start --android",
+    "web": "expo start --web",
+    "lint": "eslint app src --max-warnings=0 --no-error-on-unmatched-pattern",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@expo-google-fonts/league-spartan": "^0.4.2",
+    "@firstday/contracts": "0.1.0",
+    "@firstday/firstday-ui": "0.1.0",
+    "@firstday/scenario-engine": "0.1.0",
+    "expo": "~57.0.21",
+    "expo-constants": "~57.0.17",
+    "expo-font": "~57.0.3",
+    "expo-linking": "~57.0.9",
+    "expo-router": "~57.0.20",
+    "expo-speech": "~57.0.3",
+    "expo-speech-recognition": "57.0.0",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-keyboard-controller": "1.21.9",
+    "react-native-reanimated": "4.5.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "^15.15.4",
+    "react-native-web": "~0.21.0",
+    "react-native-worklets": "0.10.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "id": "fixture-bookshop-policy-update",
+  "sourceKind": "fixture",
+  "title": "Fixture - Bookshop policy update",
+  "startedAt": "2026-09-17T16:00:00.000Z",
+  "endedAt": "2026-09-17T16:00:25.800Z",
+  "status": "processed",
+  "transcript": "I'm happy for this policy update to be used for my private practice.\nThere is one reservation update before today's shift.\nStarting today, we hold each customer reservation for seven calendar days, counting the day we set it aside as day one.\nDoes anything else change?\nNo. This update only changes how long reservations are held.",
+  "utterances": [
+    {
+      "id": "policy-update-001",
+      "startMs": 0,
+      "endMs": 4700,
+      "text": "I'm happy for this policy update to be used for my private practice.",
+      "speaker": { "label": "learner" }
+    },
+    {
+      "id": "policy-update-002",
+      "startMs": 5200,
+      "endMs": 9600,
+      "text": "There is one reservation update before today's shift.",
+      "speaker": { "label": "trainer", "name": "Maya" }
+    },
+    {
+      "id": "policy-update-003",
+      "startMs": 10400,
+      "endMs": 17400,
+      "text": "Starting today, we hold each customer reservation for seven calendar days, counting the day we set it aside as day one.",
+      "speaker": { "label": "trainer", "name": "Maya" }
+    },
+    {
+      "id": "policy-update-004",
+      "startMs": 17900,
+      "endMs": 20500,
+      "text": "Does anything else change?",
+      "speaker": { "label": "learner" }
+    },
+    {
+      "id": "policy-update-005",
+      "startMs": 21000,
+      "endMs": 25800,
+      "text": "No. This update only changes how long reservations are held.",
+      "speaker": { "label": "trainer", "name": "Maya" }
+    }
+  ],
+  "revision": "fixture-bookshop-policy-update-r1",
+  "speakers": [
+    { "label": "learner" },
+    { "label": "trainer", "name": "Maya" }
+  ]
+}
