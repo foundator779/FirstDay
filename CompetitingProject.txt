@@ -1,0 +1,12 @@
+Bee (6 repos found)
+Marc-Dvci/Mental-Model-Drift (Bee). Detects when what an engineer believes about a system no longer matches what the system is. 14,559 LOC, 21 test files, IaC.
+
+usv240/bellwether (Alexa+, Bee). Speech is a vital sign. Bellwether uses the Bee wristband to learn how one person normally speaks and shows them, in numbers they own, when that changes. 9,892 LOC, 14 test files, IaC.
+
+mitravinda462/ContextIQ-GraphRAG-Voice-Agent (Alexa+, Bee). Context aware Voice Assistant. A Strands agent on Amazon Nova Sonic 2 that retrieves context from a Bedrock GraphRAG knowledge base over your own… 8,681 LOC, 5 test files, IaC.
+
+andywongpt-my/ambient-guard (Bee). Ambient Guard - a Personal Environmental Agent powered by Bee. Fuses Bee wearable context with real environmental data (Open-Meteo) into grounded… 7,768 LOC, 15 test files.
+
+AtchayamG/bee-bystander (Bee). Bystander - a consent-aware capture and redaction layer for the Bee wearable. UNKNOWN is never treated as consent. Amazon Build, Ship, Shape 2026. 5,435 LOC, 11 test files.
+
+johnwils/kept (Bee). Bee remembers what you said. Kept makes sure you do it. — a Bee-powered commitment tracker for developers. 763 LOC, 6 test files, CI.
