@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import {
   createHmac,
+  createHash,
   randomBytes,
   timingSafeEqual,
 } from "node:crypto";
@@ -981,47 +982,73 @@ function normalizeFullSource(record: Record<string, unknown>, requestedId: strin
   if (!Array.isArray(rawTranscriptions) || rawTranscriptions.length === 0) {
     throw new BeeBridgeError("SOURCE_NOT_READY");
   }
-  const transcription = rawTranscriptions
-    .map(asRecord)
-    .find((candidate) => candidate !== undefined && candidate["realtime"] !== true) ??
-    asRecord(rawTranscriptions[0]);
+  const candidates = rawTranscriptions.map(asRecord);
+  if (candidates.some(candidate => candidate === undefined ||
+    (candidate["realtime"] !== undefined && typeof candidate["realtime"] !== "boolean"))) {
+    throw new BeeBridgeError("SOURCE_NOT_READY");
+  }
+  const finalCandidates = candidates.filter(candidate => candidate !== undefined && candidate["realtime"] !== true);
+  if (finalCandidates.length !== 1) throw new BeeBridgeError("SOURCE_NOT_READY");
+  const transcription = finalCandidates[0];
   const rawUtterances = transcription?.["utterances"];
   if (!Array.isArray(rawUtterances)) {
     throw new BeeBridgeError("SOURCE_NOT_READY");
   }
 
-  const utterances: BeeSource["utterances"] = [];
+  const finalUtterances: Record<string, unknown>[] = [];
   for (const rawUtterance of rawUtterances) {
     const utterance = asRecord(rawUtterance);
     if (utterance === undefined || typeof utterance["text"] !== "string") {
       throw new BeeBridgeError("SOURCE_NOT_READY");
     }
-    const text = utterance["text"];
-    if (text.trim().length === 0) {
-      continue;
-    }
-    const utteranceId = normalizeRawId(utterance["id"]);
-    const absoluteStart = normalizeEpochMilliseconds(utterance["start"]);
-    const absoluteEnd = normalizeEpochMilliseconds(utterance["end"]);
-    if (
-      utteranceId === undefined ||
-      absoluteStart === undefined ||
-      absoluteEnd === undefined ||
-      absoluteEnd <= absoluteStart ||
-      absoluteStart < startMilliseconds
-    ) {
-      throw new BeeBridgeError("SOURCE_NOT_READY");
-    }
-    utterances.push({
-      id: utteranceId,
-      startMs: absoluteStart - startMilliseconds,
-      endMs: absoluteEnd - startMilliseconds,
-      text,
-      speaker: normalizeSpeaker(utterance["speaker"]),
-    });
+    if (utterance["text"].trim().length > 0) finalUtterances.push(utterance);
   }
+  const reportedMode = finalUtterances.some(utterance => {
+    const start = normalizeEpochMilliseconds(utterance["start"]);
+    const end = normalizeEpochMilliseconds(utterance["end"]);
+    return start === undefined || end === undefined || end <= start || start < startMilliseconds;
+  });
+  if (reportedMode && transcription?.["realtime"] !== false) {
+    throw new BeeBridgeError("SOURCE_NOT_READY");
+  }
+  const utterances: BeeSource["utterances"] = finalUtterances.map(utterance => {
+    const utteranceId = normalizeRawId(utterance["id"]);
+    if (utteranceId === undefined) throw new BeeBridgeError("SOURCE_NOT_READY");
+    if (reportedMode) {
+      const spokenAt = utterance["spoken_at"];
+      const rawStart = utterance["start"];
+      const rawEnd = utterance["end"];
+      if (
+        typeof spokenAt !== "number" || !Number.isSafeInteger(spokenAt) ||
+        spokenAt < 0 || spokenAt > 8_640_000_000_000_000 ||
+        [rawStart, rawEnd].some(value => value !== undefined && value !== null &&
+          (typeof value !== "number" || !Number.isFinite(value)))
+      ) {
+        throw new BeeBridgeError("SOURCE_NOT_READY");
+      }
+      return {
+        id: utteranceId,
+        startMs: spokenAt,
+        endMs: spokenAt,
+        text: utterance["text"] as string,
+        speaker: normalizeSpeaker(utterance["speaker"]),
+        timing: {
+          basis: "reportedTimestamp" as const,
+          ...(rawStart === undefined ? {} : { rawStart: rawStart as number | null }),
+          ...(rawEnd === undefined ? {} : { rawEnd: rawEnd as number | null }),
+        },
+      };
+    }
+    return {
+      id: utteranceId,
+      startMs: normalizeEpochMilliseconds(utterance["start"])! - startMilliseconds,
+      endMs: normalizeEpochMilliseconds(utterance["end"])! - startMilliseconds,
+      text: utterance["text"] as string,
+      speaker: normalizeSpeaker(utterance["speaker"]),
+    };
+  });
   utterances.sort((left, right) =>
-    left.startMs - right.startMs || left.endMs - right.endMs || left.id.localeCompare(right.id),
+    left.startMs - right.startMs || left.endMs - right.endMs || (reportedMode ? (left.id < right.id ? -1 : left.id > right.id ? 1 : 0) : left.id.localeCompare(right.id)),
   );
   if (utterances.length === 0) {
     throw new BeeBridgeError("SOURCE_NOT_READY");
@@ -1044,7 +1071,7 @@ function normalizeFullSource(record: Record<string, unknown>, requestedId: strin
     transcript: utterances.map(({ text }) => text).join("\n"),
     utterances,
     ...(sourceUrl === undefined ? {} : { sourceUrl }),
-    revision: `bee:${id}:${updatedAt}`,
+    revision: `bee:${id}:${updatedAt}` + (reportedMode ? `:reported:${createHash("sha256").update(JSON.stringify(utterances)).digest("hex")}` : ""),
     speakers,
   };
   const parsed = beeSourceSchema.safeParse(candidate);

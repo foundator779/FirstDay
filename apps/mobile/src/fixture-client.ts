@@ -1,4 +1,7 @@
+import { excludedRangesMatchSource } from "@firstday/contracts";
 import {
+  revokeConsentRequestSchema, revokeConsentResponseSchema,
+  listSavedSourcesRequestSchema, listSavedSourcesResponseSchema, sourceSessionResponseSchema,
   beeSourceSchema,
   createOpenQuestionRequestSchema,
   createOpenQuestionResponseSchema,
@@ -107,6 +110,7 @@ function extractionWithoutExcludedEvidence(
 
 function toSummary(source: BeeSource): BeeConversationSummary {
   return {
+
     id: source.id,
     sourceKind: source.sourceKind,
     title: source.title,
@@ -123,10 +127,36 @@ function toSummary(source: BeeSource): BeeConversationSummary {
 export function createFixtureFirstDayClient(): FirstDayClient {
   const imports = new Map<string, SourceConversation>();
   const extractions = new Map<string, ExtractInstructionsResponse>();
+  const exclusions = new Map<string, { startMs: number; endMs: number }[]>();
   let questionSequence = 1;
   let reviewSequence = 1;
 
   return {
+    async revokeConsent(input) {
+      const request = revokeConsentRequestSchema.parse(input);
+      const source = [...imports.values()].find((s) => s.id === request.sourceConversationId);
+      if (!source) throw fixtureError("RESOURCE_NOT_FOUND", "Source not found.");
+      if (source.sourceRevision !== request.sourceRevision) throw fixtureError("REVISION_CONFLICT", "Source revision changed.");
+      const timestamp = new Date().toISOString();
+      const sourceConversation = source.consentStatus === "revoked" ? source : { ...source, consentStatus: "revoked" as const, consentRevokedAt: timestamp, updatedAt: timestamp };
+      imports.set(source.beeSourceId, sourceConversation); exclusions.delete(source.id);
+      return revokeConsentResponseSchema.parse({ sourceConversation, stalePracticeSetIds: [] });
+    },
+    async listSavedSources(input) {
+      const query = listSavedSourcesRequestSchema.parse(input);
+      if (query.sourceKind !== "fixture") throw fixtureError("FORBIDDEN", "Fixture sessions only.");
+      const saved = [...imports.values()].filter((s) => s.consentStatus === "confirmed").sort((a, b) => b.importedAt.localeCompare(a.importedAt) || a.id.localeCompare(b.id));
+      const offset = query.cursor ? saved.findIndex((s) => s.id === query.cursor) + 1 : 0;
+      if (query.cursor && !offset) throw fixtureError("REVISION_CONFLICT", "Reload saved sources.");
+      const items = saved.slice(offset, offset + query.limit);
+      return listSavedSourcesResponseSchema.parse({ items, nextCursor: offset + query.limit < saved.length ? items.at(-1)!.id : null });
+    },
+    async getSourceSession(id) {
+      const sourceConversation = [...imports.values()].find((source) => source.id === id);
+      if (!sourceConversation) throw fixtureError("RESOURCE_NOT_FOUND", "Import the source first.");
+      if (sourceConversation.consentStatus !== "confirmed") throw fixtureError("CONSENT_REVOKED", "Permission to use this source was revoked.");
+      return sourceSessionResponseSchema.parse({ sourceConversation, source: SOURCES.find((s) => s.id === sourceConversation.beeSourceId), excludedRanges: exclusions.get(id) ?? [], ...(extractions.has(id) ? { extraction: extractions.get(id) } : {}), practices: [], changes: [], sourceEvidence: [] });
+    },
     async health() {
       return healthResponseSchema.parse({
         ok: true,
@@ -191,6 +221,7 @@ export function createFixtureFirstDayClient(): FirstDayClient {
         throw fixtureError("REVISION_CONFLICT", "The demo source revision changed.");
       }
       const sourceConversation = imports.get(source.id) ?? sourceConversationFor(source);
+      if (sourceConversation.consentStatus !== "confirmed") throw fixtureError("CONSENT_REVOKED", "Permission to use this source was revoked.");
       imports.set(source.id, sourceConversation);
       return importConversationResponseSchema.parse({ sourceConversation });
     },
@@ -202,17 +233,21 @@ export function createFixtureFirstDayClient(): FirstDayClient {
       if (sourceConversation === undefined) {
         throw fixtureError("RESOURCE_NOT_FOUND", "Import the demo source before extraction.");
       }
+      if (sourceConversation.consentStatus !== "confirmed") throw fixtureError("CONSENT_REVOKED", "Permission to use this source was revoked.");
       if (sourceConversation.sourceRevision !== request.sourceRevision) {
         throw fixtureError("REVISION_CONFLICT", "The imported source revision changed.");
       }
       if (extractions.has(sourceConversation.id)) {
         throw fixtureError("INVALID_STATE", "This source snapshot was already extracted.");
       }
+      const source = SOURCES.find(s => s.id === sourceConversation.beeSourceId);
+      if (!source || !excludedRangesMatchSource(source, request.excludedRanges)) throw fixtureError("VALIDATION_ERROR", "Excluded selections do not match source timing.");
       const fixture = sourceConversation.beeSourceId === "fixture-bookshop-onboarding"
         ? INITIAL_EXTRACTION
         : UPDATE_EXTRACTION;
       const extraction = extractionWithoutExcludedEvidence(fixture, request.excludedRanges);
       extractions.set(sourceConversation.id, extraction);
+      exclusions.set(sourceConversation.id, request.excludedRanges);
       return extractInstructionsResponseSchema.parse(extraction);
     },
     async updateInstruction(input) {
@@ -224,6 +259,7 @@ export function createFixtureFirstDayClient(): FirstDayClient {
       if (extraction === undefined || current === undefined) {
         throw fixtureError("RESOURCE_NOT_FOUND", "That demo instruction does not exist.");
       }
+      if (![...imports.values()].some((s) => s.id === extraction.sourceConversationId && s.consentStatus === "confirmed")) throw fixtureError("CONSENT_REVOKED", "Permission to use this source was revoked.");
       if (extraction.sourceRevision !== request.sourceRevision) {
         throw fixtureError("REVISION_CONFLICT", "The instruction source revision changed.");
       }
@@ -252,6 +288,7 @@ export function createFixtureFirstDayClient(): FirstDayClient {
     async createOpenQuestion(input) {
       const request = createOpenQuestionRequestSchema.parse(input);
       const extraction = extractions.get(request.sourceConversationId);
+      if (![...imports.values()].some((s) => s.id === request.sourceConversationId && s.consentStatus === "confirmed")) throw fixtureError("CONSENT_REVOKED", "Permission to use this source was revoked.");
       if (extraction === undefined) {
         throw fixtureError("RESOURCE_NOT_FOUND", "Extract the demo source before asking a question.");
       }

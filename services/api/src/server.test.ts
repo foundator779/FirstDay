@@ -26,6 +26,31 @@ const LEARNER_ID = "70000000-0000-4000-8000-000000000001";
 const REQUEST_ID = "99999999-9999-4999-8999-999999999999";
 const SESSION_TOKEN = "learner-session-token";
 
+describe("saved learner sessions", () => {
+  it("authenticates resume, isolates learners and excludes revoked sources", async () => {
+    const server = makeServer({ sessionVerifier: { async verify(token) { return { learnerId: token === "other" ? "70000000-0000-4000-8000-000000000002" : LEARNER_ID, access: "all" }; } } });
+    const imported = await server.inject({ method: "POST", url: "/api/imports", headers: authHeaders(), payload: { beeSourceId: FIXTURE_SOURCE.id, sourceKind: "fixture", sourceRevision: FIXTURE_SOURCE.revision, consent: { confirmed: true } } });
+    expect(imported.statusCode).toBe(201);
+    const id = imported.json().sourceConversation.id;
+    const path = `/api/source-conversations/${id}/session`;
+    expect((await server.inject({ method: "GET", url: path })).statusCode).toBe(401);
+    expect((await server.inject({ method: "GET", url: path, headers: { authorization: "Bearer other" } })).statusCode).toBe(404);
+    const resumed = await server.inject({ method: "GET", url: path, headers: authHeaders() });
+    expect(resumed.statusCode).toBe(200);
+    expect(resumed.json().source.transcript).toBe(FIXTURE_SOURCE.transcript);
+    expect((await server.inject({ method: "GET", url: "/api/source-conversations?sourceKind=fixture&limit=20", headers: authHeaders() })).json().items).toHaveLength(1);
+    const revoked = await server.inject({ method: "POST", url: `/api/source-conversations/${id}/consent/revoke`, headers: authHeaders(), payload: { sourceRevision: FIXTURE_SOURCE.revision } });
+    expect(revoked.statusCode).toBe(200);
+    expect((await server.inject({ method: "GET", url: path, headers: authHeaders() })).statusCode).toBe(409);
+    expect((await server.inject({ method: "GET", url: "/api/source-conversations?sourceKind=fixture", headers: authHeaders() })).json().items).toEqual([]);
+  });
+
+  it("prevents fixture sessions from listing saved Bee sources", async () => {
+    const server = makeServer({ sessionVerifier: fullSessionVerifier("fixtureOnly") });
+    expect((await server.inject({ method: "GET", url: "/api/source-conversations?sourceKind=bee", headers: authHeaders() })).statusCode).toBe(403);
+  });
+});
+
 const FIXTURE_SOURCE: BeeSource = {
   id: "fixture-source",
   sourceKind: "fixture",

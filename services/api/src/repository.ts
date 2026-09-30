@@ -1,4 +1,8 @@
+import type { ApprovedCorrectionContext } from '@firstday/scenario-engine';
+import type { PreviewCorrectionRequest,UpdateCorrectionRequest,SourceCorrection } from '@firstday/contracts';
+import type { CreateUnderstandingRequest, UnderstandingBundle, UnderstandingCheck } from "@firstday/contracts";
 import type {
+  ListSavedSourcesRequest, ListSavedSourcesResponse, SourceSessionResponse,
   CompareSourceRequest, CompareSourceResponse, ConfirmChangeRequest, ConfirmChangeResponse,
   Attempt,
   BeeSource,
@@ -102,11 +106,14 @@ export type StandardPracticeContext = {
   sourceRevision: string;
   sourceKind: SourceConversation["sourceKind"];
   instructionRevision: string;
+  dependencyFingerprint: string;
+  approvedCorrections: ApprovedCorrectionContext[];
   instructions: InstructionCard[];
   sourceEvidence: ExtractInstructionsResponse["sourceEvidence"];
 };
 
 export type SaveStandardPracticeInput = {
+  dependencyFingerprint?: string;
   learnerId: string;
   request: CreatePracticeSetRequest;
   generation: CreatePracticeSetResponse;
@@ -127,6 +134,8 @@ export type PrepareAttemptInput = CreateAttemptRequest & {
 };
 
 export type AttemptContext = {
+  dependencyFingerprint: string;
+  approvedCorrections: ApprovedCorrectionContext[];
   practiceSet: CreateAttemptResponse["practiceSet"];
   scenario: CreateAttemptResponse["scenario"];
   instructions: InstructionCard[];
@@ -140,6 +149,7 @@ export type AttemptEvaluation = Pick<
 >;
 
 export type SaveAttemptInput = PrepareAttemptInput & {
+  dependencyFingerprint?: string;
   attemptId: string;
   timestamp: string;
   evaluation: AttemptEvaluation;
@@ -150,6 +160,17 @@ export type SaveAttemptInput = PrepareAttemptInput & {
  * interface with the checked-in Supabase schema without changing HTTP handlers.
  */
 export interface FirstDayRepository {
+  previewCorrection(input:{learnerId:string;request:PreviewCorrectionRequest;id:string;timestamp:string}):Promise<SourceCorrection>;
+  updateCorrection(input:UpdateCorrectionRequest & {learnerId:string;timestamp:string;practiceSetId:string;scenarioId:string}):Promise<SourceCorrection>;
+  getCorrection(input:{learnerId:string;correctionId:string}):Promise<SourceCorrection>;
+  listCorrections(input:SourceLookup):Promise<{items:SourceCorrection[]}>;
+  prepareUnderstanding(input: CreateUnderstandingRequest & { learnerId: string }): Promise<{ instruction: InstructionCard; source: SourceConversation; sourceEvidence: SourceEvidence[]; dependencyFingerprint:string; approvedCorrections:ApprovedCorrectionContext[] }>;
+  createUnderstanding(input: CreateUnderstandingRequest & { learnerId: string; id: string; timestamp: string; dependencyFingerprint?:string; initialComparison?: UnderstandingCheck["initialComparison"] }): Promise<UnderstandingBundle>;
+  getUnderstanding(input: { learnerId: string; checkId: string; forRehearsal?:boolean; historical?:boolean|undefined }): Promise<UnderstandingBundle>;
+  listUnderstanding(input: SourceLookup & {historical?:boolean|undefined}): Promise<{ items: UnderstandingBundle[] }>;
+  saveUnderstanding(input: { learnerId: string; previous: UnderstandingCheck; next: UnderstandingCheck; dependencyFingerprint?:string }): Promise<UnderstandingBundle>;
+  listSavedSources(input: ListSavedSourcesRequest & { learnerId: string }): Promise<ListSavedSourcesResponse>;
+  getSourceSession(input: SourceLookup): Promise<SourceSessionResponse>;
   compareSources(input: CompareSourceRequest & { learnerId: string; timestamp: string; idFactory: () => string }): Promise<CompareSourceResponse>;
   confirmChange(input: ConfirmChangeRequest & { learnerId: string; timestamp: string; practiceSetId: string; scenarioId: string }): Promise<ConfirmChangeResponse>;
   importSource(input: ImportSourceInput): Promise<SourceConversation>;

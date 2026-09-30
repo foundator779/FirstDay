@@ -1,0 +1,41 @@
+{
+  "id": "fixture-reservation-exceptions",
+  "sourceKind": "fixture",
+  "title": "Reservation exceptions - synthetic training",
+  "startedAt": "2026-09-29T16:00:00.000Z",
+  "status": "processed",
+  "revision": "fixture-reservation-exceptions-r1",
+  "transcript": "When a customer asks whether a reservation is active, New reservations last three days. Reservations already made keep their original seven-day window.\nWhen a customer collects a reservation, check the reservation name and phone number.\nWhen a customer returns a damaged book, place it on the back-room cart before issuing a refund.",
+  "utterances": [
+    {
+      "id": "reservation-exception-1",
+      "startMs": 0,
+      "endMs": 10000,
+      "text": "When a customer asks whether a reservation is active, New reservations last three days. Reservations already made keep their original seven-day window.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    },
+    {
+      "id": "reservation-exception-2",
+      "startMs": 10000,
+      "endMs": 20000,
+      "text": "When a customer collects a reservation, check the reservation name and phone number.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    },
+    {
+      "id": "reservation-exception-3",
+      "startMs": 20000,
+      "endMs": 30000,
+      "text": "When a customer returns a damaged book, place it on the back-room cart before issuing a refund.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    }
+  ]
+}

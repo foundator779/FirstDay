@@ -918,7 +918,7 @@ describe("createBeeCliAdapter", () => {
   it.each([
     ["processing source", { state: "processing" }],
     ["missing revision", { updated_at: null }],
-    ["missing exact start", {
+    ["missing exact start and reported timestamp", {
       transcriptions: [
         {
           id: 1,
@@ -928,8 +928,7 @@ describe("createBeeCliAdapter", () => {
               id: 1,
               start: null,
               end: START_MS + 1_000,
-              spoken_at: START_MS,
-              text: "Spoken-at is not an evidence span.",
+              text: "A missing reported timestamp cannot establish a point.",
               speaker: "Maya",
             },
           ],
@@ -1482,5 +1481,46 @@ describe("createNodeBeeCliRunner", () => {
     expect(String(error)).not.toContain("private-output");
     expect(error).not.toHaveProperty("stderr");
     expect(error).not.toHaveProperty("cause");
+  });
+});
+
+describe("final reported timestamps", () => {
+  const points = [
+    { id: "b", start: 1.25, end: 1.25, spoken_at: START_MS - 2000, text: "  Exact fictional wording.  ", speaker: "Maya" },
+    { id: "a", start: 0, end: 3.1, spoken_at: START_MS - 2000, text: "Another fictional instruction.", speaker: "Maya" },
+    { id: "c", start: null, end: null, spoken_at: START_MS + 12000, text: "After the conversation metadata.", speaker: "Maya" },
+  ];
+  const detail = (utterances = points) => rawDetail({ transcriptions: [{ realtime: false, utterances }] });
+  it("preserves points, uninterpreted raw fields, exact text, original bounds and tied IDs", async () => {
+    const source = await createBeeCliAdapter(fakeRunner([detail()])).getConversation("42");
+    expect(source.utterances.map(u => u.id)).toEqual(["a", "b", "c"]);
+    expect(source.utterances[1]).toMatchObject({ startMs: START_MS - 2000, endMs: START_MS - 2000, timing: { basis: "reportedTimestamp", rawStart: 1.25, rawEnd: 1.25 }, text: points[0]!.text });
+    expect(source.startedAt).toBe(new Date(START_MS).toISOString());
+    expect(source.endedAt).toBe(new Date(START_MS + 9000).toISOString());
+    expect(source.revision).toMatch(/:reported:[a-f0-9]{64}$/);
+  });
+  it("takes spoken_at literally without inferring seconds or rebasing", async () => {
+    const source = await createBeeCliAdapter(fakeRunner([detail([{ ...points[0]!, spoken_at: 1780000000 }])])).getConversation("42");
+    expect(source.utterances[0]).toMatchObject({ startMs: 1780000000, endMs: 1780000000 });
+  });
+  it("fingerprints timing, IDs, exact text and speakers even with unchanged updated_at", async () => {
+    const base = await createBeeCliAdapter(fakeRunner([detail()])).getConversation("42");
+    for (const edit of [{ text: "Changed fictional text." }, { id: "d" }, { speaker: "Rowan" }, { spoken_at: START_MS }, { start: 9 }]) {
+      const changed = [...points]; changed[0] = { ...points[0]!, ...edit } as typeof points[number];
+      const result = await createBeeCliAdapter(fakeRunner([detail(changed)])).getConversation("42");
+      expect(result.revision).not.toBe(base.revision);
+    }
+    const reordered = await createBeeCliAdapter(fakeRunner([detail([...points].reverse())])).getConversation("42");
+    expect(reordered.revision).toBe(base.revision);
+  });
+  it("rejects incomplete, invalid, duplicate, ambiguous and realtime-only points", async () => {
+    for (const edit of [{ spoken_at: undefined }, { spoken_at: "1780000000000" }, { spoken_at: 1.5 }, { spoken_at: 8640000000000001 }, { spoken_at: NaN }, { start: "1" }, { id: "a" }]) {
+      const changed = [...points]; changed[0] = { ...points[0]!, ...edit } as typeof points[number];
+      await expect(createBeeCliAdapter(fakeRunner([detail(changed)])).getConversation("42")).rejects.toMatchObject({ code: "SOURCE_NOT_READY" });
+    }
+    await expect(createBeeCliAdapter(fakeRunner([rawDetail({ transcriptions: [{ realtime: false, utterances: points }, { realtime: false, utterances: points }] })])).getConversation("42")).rejects.toMatchObject({ code: "SOURCE_NOT_READY" });
+    for (const realtime of [true, "false", null, undefined]) {
+      await expect(createBeeCliAdapter(fakeRunner([rawDetail({ transcriptions: [{ realtime, utterances: points }] })])).getConversation("42")).rejects.toMatchObject({ code: "SOURCE_NOT_READY" });
+    }
   });
 });

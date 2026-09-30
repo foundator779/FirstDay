@@ -335,3 +335,40 @@ describe("FirstDay transcript and instruction review state", () => {
     expect(asked.review.extraction?.openQuestions).toContainEqual(question);
   });
 });
+
+it("toggles exact reported-point IDs independently when timestamps coincide", () => {
+  const utterances = SOURCE.utterances.map((u, i) => ({ ...u, id: `p-${String(i).padStart(2, "0")}`, startMs: 1780000000000, endMs: 1780000000000, timing: { basis: "reportedTimestamp" as const } }));
+  const source = beeSourceSchema.parse({ ...SOURCE, utterances });
+  let state = reduceFirstDayState(initialFirstDayState, { type: "preview/loadSucceeded", source });
+  state = reduceFirstDayState(state, { type: "preview/utteranceToggled", utterance: utterances[0]! });
+  state = reduceFirstDayState(state, { type: "preview/utteranceToggled", utterance: utterances[1]! });
+  expect(state.preview.excludedRanges.map(r => r.utteranceIds)).toEqual([[utterances[0]!.id], [utterances[1]!.id]]);
+  state = reduceFirstDayState(state, { type: "preview/utteranceToggled", utterance: utterances[0]! });
+  expect(state.preview.excludedRanges.map(r => r.utteranceIds)).toEqual([[utterances[1]!.id]]);
+});
+
+
+describe('live picker authenticated listing proof',()=>{
+  const coarseHealth:HealthResponse={...AUTHENTICATED_HEALTH,beeBridge:'unavailable'};
+  it.each([true,false])('accepts authenticated list success independently of public health; populated=%s',populated=>{
+    const loading=reduceFirstDayState(initialFirstDayState,{type:'picker/loadStarted',sourceKind:'bee'});
+    const ready=reduceFirstDayState(loading,{type:'picker/loadSucceeded',health:coarseHealth,conversations:populated?[conversation()]:[],authenticatedList:true});
+    expect(ready.picker).toMatchObject({phase:populated?'ready':'empty',authenticatedList:true,bridgeStatus:'unavailable'});
+    if(populated)expect(reduceFirstDayState(ready,{type:'picker/conversationSelected',conversationId:conversation().id}).picker.selectedConversationId).toBe(conversation().id);
+  });
+  it.each(['picker/loadStarted','picker/loadFailed'] as const)('clears authenticated listing proof and old selection on %s',type=>{
+    const previous=reduceFirstDayState(initialFirstDayState,{type:'picker/loadSucceeded',health:coarseHealth,conversations:[conversation()],authenticatedList:true});
+    const selected=reduceFirstDayState(previous,{type:'picker/conversationSelected',conversationId:conversation().id});
+    const next=reduceFirstDayState(selected,type==='picker/loadStarted'?{type,sourceKind:'bee'}:{type,message:'The listing failed.'});
+    expect(next.picker).toMatchObject({phase:type==='picker/loadStarted'?'checking':'unavailable',authenticatedList:false,conversations:[],selectedConversationId:null});
+  });
+  it.each(['unauthenticated','unavailable'] as const)('keeps suppressed/unverified Bee listing blocked with health %s',beeBridge=>{
+    const next=reduceFirstDayState(initialFirstDayState,{type:'picker/loadSucceeded',health:{...coarseHealth,beeBridge},conversations:[],authenticatedList:false});
+    expect(next.picker).toMatchObject({phase:'unavailable',authenticatedList:false,bridgeStatus:beeBridge,conversations:[]});
+  });
+  it('preserves fictional fixture availability without live listing proof',()=>{
+    const loading=reduceFirstDayState(initialFirstDayState,{type:'picker/loadStarted',sourceKind:'fixture'});
+    const next=reduceFirstDayState(loading,{type:'picker/loadSucceeded',health:coarseHealth,conversations:[conversation({sourceKind:'fixture'})]});
+    expect(next.picker).toMatchObject({phase:'ready',authenticatedList:false,sourceKind:'fixture',bridgeStatus:'unavailable'});
+  });
+});

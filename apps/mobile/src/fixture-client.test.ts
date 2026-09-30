@@ -68,6 +68,9 @@ describe("public demo fixture client", () => {
       "Before you hand over a reserved book, ask for both the reservation name and the phone number on the reservation.",
     );
     expect(extraction.sourceEvidence.map(({ startMs }) => startMs)).not.toContain(10_800);
+    const session = await client.getSourceSession(sourceConversation.id);
+    expect(session.extraction).toEqual(extraction);
+    expect(session.excludedRanges).toEqual([{ startMs: 10_800, endMs: 17_400, reason: "Not part of my training" }]);
   });
 
   it("supports confirm, edit-and-confirm, reject, and a grounded open question", async () => {

@@ -1,7 +1,13 @@
+import { previewCorrectionRequestSchema,updateCorrectionRequestSchema,sourceCorrectionSchema,type PreviewCorrectionRequest,type UpdateCorrectionRequest,type SourceCorrection } from '@firstday/contracts';
+import { createCorrection,updateCorrection,correctionReviewContext,isCanonicalCorrectionRevision,correctionBlocks,correctionWithholds,CorrectionStateError,type CorrectionDependencies } from '@firstday/scenario-engine';
+import { transcriptSelectionsOverlap, excludedRangesMatchSource } from "@firstday/contracts";
+import { createUnderstandingRequestSchema, understandingBundleSchema, understandingCheckSchema, type UnderstandingCheck, type UnderstandingBundle, type CreateUnderstandingRequest } from "@firstday/contracts";
+import { createUnderstandingCheck, updateUnderstandingCheck } from "@firstday/scenario-engine";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import {
+  getSourceSessionRequestSchema, listSavedSourcesRequestSchema, listSavedSourcesResponseSchema, sourceSessionResponseSchema, reviewSnapshotSchema,
   compareSourceRequestSchema, compareSourceResponseSchema, confirmChangeRequestSchema, confirmChangeResponseSchema,
   type ChangeProposal,
   attemptSchema,
@@ -42,9 +48,10 @@ import {
   type SourceEvidence,
   type SourceConversation,
 } from "@firstday/contracts";
-import { BOOKSHOP_FIXTURE_IDS } from "@firstday/scenario-engine";
+import { BOOKSHOP_FIXTURE_IDS, generateChangeDrill } from "@firstday/scenario-engine";
 
 import { ApiError, InvalidDependencyOutputError } from "./errors.js";
+import type { RepositoryStorage } from "./repository-storage.js";
 import type {
   AttemptContext,
   CreateOpenQuestionInput,
@@ -121,7 +128,9 @@ type StoredAttempt = {
   attempt: Attempt;
 };
 
-type MemoryState = {
+export type RepositoryState = {
+  sourceCorrections: Map<string,SourceCorrection>;
+  understandingChecks: Map<string, { learnerId: string; check: UnderstandingCheck }>;
   changes: Map<string, ChangeProposal>;
   sources: Map<string, SourceConversation>;
   sourceIdentity: Map<string, string>;
@@ -139,8 +148,12 @@ type MemoryState = {
   consentEvents: ConsentEvent[];
 };
 
-function initialState(): MemoryState {
+type MemoryState = RepositoryState;
+
+export function initialState(): MemoryState {
   return {
+    sourceCorrections:new Map(),
+    understandingChecks: new Map(),
     changes: new Map(),
     sources: new Map(),
     sourceIdentity: new Map(),
@@ -306,13 +319,6 @@ function sameStringSet(left: readonly string[], right: readonly string[]): boole
   return values.size === left.length && right.every((value) => values.has(value));
 }
 
-function rangesOverlap(
-  left: { startMs: number; endMs: number },
-  right: { startMs: number; endMs: number },
-): boolean {
-  return left.startMs < right.endMs && right.startMs < left.endMs;
-}
-
 function assertExtractionEvidenceLinks(extraction: ExtractInstructionsResponse): void {
   const availableIds = extraction.sourceEvidence.map(({ id }) => id);
   const referencedIds = [
@@ -333,14 +339,15 @@ function assertEvidenceMatchesSource(input: {
 }): void {
   const { evidence, source, sourceConversationId, sourceRevision, excludedRanges } = input;
   if (
+    !!evidence.timing !== !!source.utterances[0]?.timing ||
     evidence.sourceConversationId !== sourceConversationId ||
     evidence.sourceRevision !== sourceRevision ||
-    excludedRanges.some((range) => rangesOverlap(evidence, range))
+    excludedRanges.some((range) => transcriptSelectionsOverlap(evidence, range))
   ) {
     throw new InvalidDependencyOutputError();
   }
 
-  const utterances = source.utterances.filter((utterance) => rangesOverlap(evidence, utterance));
+  const utterances = source.utterances.filter((utterance) => transcriptSelectionsOverlap(evidence, utterance));
   const first = utterances[0];
   const last = utterances.at(-1);
   if (
@@ -536,13 +543,12 @@ function standardPracticeContext(
 ): StandardPracticeContext {
   const processing = sourceForProcessing(state, { learnerId, ...request });
   if (
-    state.standardPracticeBySource.has(
-      standardPracticeKey(learnerId, request.sourceConversationId, request.sourceRevision),
-    )
+    [...state.practiceSets.values()].some(p=>p.learnerId===learnerId&&p.practiceSet.sourceConversationId===request.sourceConversationId&&p.practiceSet.sourceRevision===request.sourceRevision&&p.practiceSet.kind==="standard"&&p.practiceSet.status!=="stale")
   ) {
     throw new ApiError("INVALID_STATE");
   }
 
+  assertNoDisputedUnderstanding(state,learnerId,request.instructionIds);
   const storedInstructions = request.instructionIds.map((instructionId) => {
     const stored = instructionOrNotFound(state, learnerId, instructionId);
     if (
@@ -585,6 +591,8 @@ function standardPracticeContext(
     sourceRevision: request.sourceRevision,
     sourceKind: processing.sourceConversation.sourceKind,
     instructionRevision,
+    dependencyFingerprint: correctionReviewContext([...state.sourceCorrections.values()],learnerId,storedInstructions.map(i=>i.instruction),correctionChanges(state,learnerId)).dependencyFingerprint,
+    approvedCorrections: correctionReviewContext([...state.sourceCorrections.values()],learnerId,storedInstructions.map(i=>i.instruction),correctionChanges(state,learnerId)).approvedCorrections,
     instructions: storedInstructions.map(({ instruction }) => instruction),
     sourceEvidence,
   };
@@ -623,6 +631,7 @@ function attemptContext(
     sourceConversationId: practiceSet.sourceConversationId,
     sourceRevision: practiceSet.sourceRevision,
   });
+  assertNoDisputedUnderstanding(state,learnerId,scenario.expectedRuleIds);
   if (hasCoveredAttempt(state, learnerId, scenario.id)) {
     throw new ApiError("INVALID_STATE");
   }
@@ -635,7 +644,7 @@ function attemptContext(
     if (before.status !== "changed" || after.status !== "confirmed" || !isDeepStrictEqual(after, change.replacementInstruction) ||
       !sameStringSet(scenario.expectedRuleIds, [after.id]) || !sameStringSet(scenario.sourceEvidence, [...before.sourceEvidence, ...after.sourceEvidence])) throw new InvalidDependencyOutputError();
     const sourceEvidence = scenario.sourceEvidence.map((id) => evidenceOrNotFound(state, learnerId, id).evidence);
-    return { practiceSet, scenario, instructions: [before, after], sourceEvidence, changeProposal: change };
+    return { ...correctionReviewContext([...state.sourceCorrections.values()],learnerId,[after],correctionChanges(state,learnerId)),practiceSet, scenario, instructions: [before, after], sourceEvidence, changeProposal: change };
   }
 
   const instructions = scenario.expectedRuleIds.map((instructionId) => {
@@ -672,28 +681,279 @@ function attemptContext(
     }
     return evidence;
   });
-  return { practiceSet, scenario, instructions, sourceEvidence };
+  return { ...correctionReviewContext([...state.sourceCorrections.values()],learnerId,instructions,correctionChanges(state,learnerId)),practiceSet, scenario, instructions, sourceEvidence };
 }
 
+function practiceSnapshot(state: MemoryState, learnerId: string, practiceSetId: string) {
+      const stored = practiceOrNotFound(state, learnerId, practiceSetId);
+      const scenarios = stored.practiceSet.scenarioIds.map((scenarioId) => {
+        const scenario = state.scenarios.get(recordKey(learnerId, scenarioId));
+        if (scenario === undefined) throw new InvalidDependencyOutputError();
+        return scenario.scenario;
+      });
+      const instructions = stored.instructionIds.map(
+        (instructionId) => instructionOrNotFound(state, learnerId, instructionId).instruction,
+      );
+      const sourceEvidence = stored.sourceEvidenceIds.map(
+        (evidenceId) => evidenceOrNotFound(state, learnerId, evidenceId).evidence,
+      );
+      for (const evidence of sourceEvidence) sourceForProcessing(state, {learnerId,sourceConversationId:evidence.sourceConversationId,sourceRevision:evidence.sourceRevision});
+      return getPracticeSetResponseSchema.parse({
+        practiceSet: stored.practiceSet,
+        scenarios,
+        instructions,
+        sourceEvidence,
+        ...(stored.changeId ? { changeProposal: state.changes.get(recordKey(learnerId, stored.changeId)) } : {}),
+        progress: {
+          completed: completedScenarioCount(
+            state,
+            learnerId,
+            stored.practiceSet.scenarioIds,
+          ),
+          total: scenarios.length,
+        },
+      });
+}
+
+function assertNoDisputedUnderstanding(state: MemoryState, learnerId: string, instructionIds: string[]) {
+  if(instructionIds.some(id=>correctionBlocks([...state.sourceCorrections.values()].filter(c=>c.learnerId===learnerId),id)))throw new ApiError("INVALID_STATE");
+  if([...state.understandingChecks.values()].some(s=>s.learnerId===learnerId && s.check.status==="disputed" && instructionIds.includes(s.check.instruction.id)) || [...state.openQuestions.values()].some(q=>q.learnerId===learnerId&&q.openQuestion.status==="open"&&!!q.openQuestion.instructionId&&instructionIds.includes(q.openQuestion.instructionId)))throw new ApiError("INVALID_STATE");
+}
+function understandingInstruction(state: MemoryState, learnerId: string, instructionId: string, sourceRevision: string, instructionRevision: string) {
+  const stored = instructionOrNotFound(state, learnerId, instructionId);
+  assertNoCorrection(state,learnerId,instructionId);
+  sourceForProcessing(state, { learnerId, sourceConversationId: stored.instruction.sourceConversationId, sourceRevision });
+  if (stored.instruction.sourceRevision !== sourceRevision || stored.instructionRevision !== instructionRevision) throw new ApiError("REVISION_CONFLICT");
+  if (stored.instruction.status !== "confirmed") throw new ApiError("INVALID_STATE");
+  return stored.instruction;
+}
+function understandingBundle(state: MemoryState, learnerId: string, check: UnderstandingCheck): UnderstandingBundle {
+  const instruction=understandingInstruction(state,learnerId,check.instruction.id,check.instruction.sourceRevision,check.instructionRevision);
+  if (!isDeepStrictEqual(instruction,check.instruction)) throw new ApiError("REVISION_CONFLICT");
+  return understandingBundleSchema.parse({check,sourceEvidence:instruction.sourceEvidence.map(id=>evidenceOrNotFound(state,learnerId,id).evidence)});
+}
+
+function historicalUnderstandingBundle(state:MemoryState,learnerId:string,check:UnderstandingCheck):UnderstandingBundle {
+  sourceForProcessing(state,{learnerId,sourceConversationId:check.instruction.sourceConversationId,sourceRevision:check.instruction.sourceRevision});
+  return understandingBundleSchema.parse({historical:true,check,sourceEvidence:check.instruction.sourceEvidence.map(id=>evidenceOrNotFound(state,learnerId,id).evidence)});
+}
+function assertNoCorrection(state:MemoryState,learnerId:string,instructionId:string){
+  if(correctionBlocks([...state.sourceCorrections.values()].filter(c=>c.learnerId===learnerId),instructionId))throw new ApiError("INVALID_STATE");
+}
+function correctionChanges(state:MemoryState,learnerId:string) {
+  return [...state.changes.entries()].filter(([key,change])=>key===recordKey(learnerId,change.id)).map(([,change])=>change);
+}
+function correctionDependencies(state:MemoryState,learnerId:string,request:PreviewCorrectionRequest):CorrectionDependencies {
+  const after=request.after;
+  return {attempts:[...state.attempts.values()].filter(a=>a.learnerId===learnerId).map(a=>({id:a.attempt.id,practiceSetId:state.scenarios.get(recordKey(learnerId,a.attempt.scenarioId))!.scenario.practiceSetId})),instructions:[...state.instructions.values()].filter(i=>i.learnerId===learnerId).map(i=>i.instruction),practices:[...state.practiceSets.values()].filter(p=>p.learnerId===learnerId).map(p=>({id:p.practiceSet.id,status:p.practiceSet.status,instructionIds:p.instructionIds})),checks:[...state.understandingChecks.values()].filter(c=>c.learnerId===learnerId).map(c=>({id:c.check.id,version:c.check.version,instructionId:c.check.instruction.id})),corrections:[...state.sourceCorrections.values()].filter(c=>c.learnerId===learnerId),...(after.type==='newRule'?{change:state.changes.get(recordKey(learnerId,after.changeId))}:{})};
+}
+function validateCorrectionTarget(state:MemoryState,learnerId:string,request:PreviewCorrectionRequest,historical=false){
+  const t=request.target,processing=sourceForProcessing(state,{learnerId,sourceConversationId:t.sourceConversationId,sourceRevision:t.sourceRevision}),stored=instructionOrNotFound(state,learnerId,t.instructionId);
+  const previous=request.revisesId?state.sourceCorrections.get(recordKey(learnerId,request.revisesId)):undefined,canonicalRevision=isCanonicalCorrectionRevision(previous,request);
+  if(!historical&&previous?.request.after.type==='newRule'&&(!canonicalRevision||previous.status!=='reopened'))throw new ApiError('REVISION_CONFLICT');
+  const original=(i:InstructionCard)=>{const {status,updatedAt,...value}=i;void status;void updatedAt;return value;};
+  if(stored.instructionRevision!==t.instructionRevision||!isDeepStrictEqual(historical||canonicalRevision?original(stored.instruction):stored.instruction,historical||canonicalRevision?original(t.instruction):t.instruction))throw new ApiError("REVISION_CONFLICT");
+  const evidence=stored.instruction.sourceEvidence.map(id=>evidenceOrNotFound(state,learnerId,id).evidence);
+  if(!isDeepStrictEqual(evidence,t.sourceEvidence))throw new ApiError("REVISION_CONFLICT");
+  const ids=new Set(t.sourceEvidence.flatMap(e=>e.utteranceIds));if(!isDeepStrictEqual(t.originalUtterances,processing.source.utterances.filter(u=>ids.has(u.id))))throw new ApiError("REVISION_CONFLICT");
+  const exclusions=state.extractionInputs.get(recordKey(learnerId,t.sourceConversationId))?.excludedRanges??[];
+  for(const e of evidence)assertEvidenceMatchesSource({evidence:e,source:processing.source,sourceConversationId:t.sourceConversationId,sourceRevision:t.sourceRevision,excludedRanges:exclusions});
+  if(request.after.type==='newRule'){
+    const a=request.after,change=state.changes.get(recordKey(learnerId,a.changeId));
+    if(!change||change.previousInstructionId!==t.instructionId||change.previousSourceRevision!==t.sourceRevision||change.replacementInstruction.sourceConversationId!==a.laterSourceConversationId||change.sourceRevision!==a.laterSourceRevision||a.laterSourceConversationId===t.sourceConversationId)throw new ApiError("INVALID_STATE");
+    const later=sourceForProcessing(state,{learnerId,sourceConversationId:a.laterSourceConversationId,sourceRevision:a.laterSourceRevision});
+    if(later.sourceConversation.startedAt<=processing.sourceConversation.startedAt)throw new ApiError("INVALID_STATE");
+    if(!historical){
+      if(canonicalRevision){const replacement=instructionOrNotFound(state,learnerId,change.replacementInstruction.id).instruction;if(change.status!=='confirmed'||stored.instruction.status!=='changed'||replacement.status!=='confirmed'||!isDeepStrictEqual(replacement,change.replacementInstruction))throw new ApiError('REVISION_CONFLICT');}
+      else if(change.status!=='needsReview'||stored.instruction.status!=='confirmed')throw new ApiError('INVALID_STATE');
+    }
+  }else if(!historical&&stored.instruction.status!=='confirmed')throw new ApiError("INVALID_STATE");
+}
+function correctionOperation<T>(operation:()=>T):T {try{return operation();}catch(error){if(error instanceof CorrectionStateError)throw new ApiError(error.code);throw error;}}
+function staleCorrectionPractices(state:MemoryState,learnerId:string,correction:SourceCorrection,timestamp:string){
+  for(const p of state.practiceSets.values())if(p.learnerId===learnerId&&p.practiceSet.status!=='stale'&&p.instructionIds.some(id=>correction.effects.instructionIds.includes(id)))p.practiceSet=practiceSetSchema.parse({...p.practiceSet,status:'stale',updatedAt:timestamp});
+}
+function buildCanonicalDrill(draft:MemoryState,learnerId:string,changeProposal:ChangeProposal,previousInstruction:InstructionCard,replacementInstruction:InstructionCard,instructionRevision:string,stalePracticeSetIds:string[],timestamp:string,practiceSetId:string,scenarioId:string,groundedExtraction:boolean){
+      const references = [...new Set([...previousInstruction.sourceEvidence, ...replacementInstruction.sourceEvidence])];
+      const newSource = sourceOrNotFound(draft, { learnerId, sourceConversationId: replacementInstruction.sourceConversationId });
+      const oldSource = sourceOrNotFound(draft, { learnerId, sourceConversationId: previousInstruction.sourceConversationId });
+      const fixtureDrill = !groundedExtraction && oldSource.sourceKind === "fixture" && oldSource.beeSourceId === BOOKSHOP_FIXTURE_IDS.onboardingBeeSourceId && newSource.beeSourceId === BOOKSHOP_FIXTURE_IDS.updateBeeSourceId ? generateChangeDrill({ confirmedProposal: changeProposal, previousInstruction, sourceEvidence: references.map((id) => evidenceOrNotFound(draft, learnerId, id).evidence), sourceKind: "fixture", learnerId, practiceSetId, scenarioId, instructionRevision: instructionRevision, title: "What changed?", timestamp }) : undefined;
+      return confirmChangeResponseSchema.parse({ changeProposal, previousInstruction, replacementInstruction, stalePracticeSetIds,
+        changeDrill: fixtureDrill ? { practiceSet: fixtureDrill.practiceSet, scenarios: fixtureDrill.scenarios } : { practiceSet: { id: practiceSetId, learnerId, sourceConversationId: newSource.id, sourceRevision: newSource.sourceRevision, sourceKind: newSource.sourceKind, title: "What changed?", kind: "changeDrill", instructionRevision: instructionRevision, status: "ready", scenarioIds: [scenarioId], createdAt: timestamp, updatedAt: timestamp },
+          scenarios: [{ id: scenarioId, practiceSetId, sourceRevision: newSource.sourceRevision, kind: "changeDrill", characterId: "guide-maya", prompt: `${replacementInstruction.situation.replace(/[.!?]+$/, "")}. What would you do with the updated instruction?`, context: "Your trainer has changed the procedure. Use the update you just confirmed.", expectedRuleIds: [replacementInstruction.id], acceptableSignals: [replacementInstruction.expectedAction], criticalMisses: [previousInstruction.expectedAction], retryPrompt: "Compare both source notes, then try the new action.", sourceEvidence: references, order: 1 }] },
+        sourceEvidence: references.map((id) => evidenceOrNotFound(draft, learnerId, id).evidence) });
+}
+function confirmChangeInState(draft:MemoryState,learnerId:string,request:{changeId:string;sourceRevision:string},timestamp:string,practiceSetId:string,scenarioId:string,groundedExtraction:boolean){
+      const proposal = draft.changes.get(recordKey(learnerId, request.changeId));
+      if (!proposal) throw new ApiError("RESOURCE_NOT_FOUND");
+      if (proposal.sourceRevision !== request.sourceRevision) throw new ApiError("REVISION_CONFLICT");
+      const old = instructionOrNotFound(draft, learnerId, proposal.previousInstructionId);
+      const replacement = instructionOrNotFound(draft, learnerId, proposal.replacementInstruction.id);
+      for (const rule of [old.instruction, replacement.instruction]) sourceForProcessing(draft, { learnerId, sourceConversationId: rule.sourceConversationId, sourceRevision: rule.sourceRevision });
+      if (proposal.status !== "needsReview" || old.instruction.status !== "confirmed" || replacement.instruction.status !== "needsReview" || !isDeepStrictEqual(replacement.instruction, proposal.replacementInstruction) || !sameStringSet(old.instruction.sourceEvidence, proposal.previousSourceEvidence) || old.instruction.sourceRevision !== proposal.previousSourceRevision) throw new ApiError("INVALID_STATE");
+      if (draft.practiceSets.has(recordKey(learnerId, practiceSetId)) || draft.scenarios.has(recordKey(learnerId, scenarioId))) throw new ApiError("INVALID_STATE");
+      const previousInstruction = instructionCardSchema.parse({ ...old.instruction, status: "changed", updatedAt: timestamp });
+      const replacementInstruction = instructionCardSchema.parse({ ...replacement.instruction, status: "confirmed", updatedAt: timestamp });
+      const changeProposal = { ...proposal, replacementInstruction, status: "confirmed" as const, updatedAt: timestamp };
+      const stalePracticeSetIds = [...draft.practiceSets.values()].filter((p) => p.learnerId === learnerId && p.instructionIds.includes(old.instruction.id) && p.practiceSet.status !== "stale").map((p) => p.practiceSet.id);
+      const result=buildCanonicalDrill(draft,learnerId,changeProposal,previousInstruction,replacementInstruction,replacement.instructionRevision,stalePracticeSetIds,timestamp,practiceSetId,scenarioId,groundedExtraction);
+      const references=[...new Set([...previousInstruction.sourceEvidence,...replacementInstruction.sourceEvidence])];
+      draft.instructions.set(recordKey(learnerId, previousInstruction.id), { ...old, instruction: previousInstruction });
+      draft.instructions.set(recordKey(learnerId, replacementInstruction.id), { ...replacement, instruction: replacementInstruction });
+      draft.changes.set(recordKey(learnerId, proposal.id), result.changeProposal);
+      for (const staleId of stalePracticeSetIds) {
+        const stored = practiceOrNotFound(draft, learnerId, staleId);
+        stored.practiceSet = practiceSetSchema.parse({ ...stored.practiceSet, status: "stale", updatedAt: timestamp });
+      }
+      draft.practiceSets.set(recordKey(learnerId, practiceSetId), { learnerId, practiceSet: result.changeDrill.practiceSet, instructionIds: [previousInstruction.id, replacementInstruction.id], sourceEvidenceIds: references, changeId: proposal.id });
+      const scenario = result.changeDrill.scenarios[0]!;
+      draft.scenarios.set(recordKey(learnerId, scenarioId), { learnerId, scenario });
+      return result;
+}
 export class MemoryFirstDayRepository implements FirstDayRepository {
-  constructor(private readonly groundedExtraction = false) {}
+  constructor(private readonly groundedExtraction = false, private readonly storage?: RepositoryStorage) {}
   private state = initialState();
   private transactionTail: Promise<void> = Promise.resolve();
 
-  private async read<Result>(operation: (state: MemoryState) => Result): Promise<Result> {
+  private async read<Result>(learnerId: string, operation: (state: MemoryState) => Result): Promise<Result> {
     await this.transactionTail;
-    return copy(operation(this.state));
+    const state = this.storage === undefined ? this.state : (await this.storage.load(learnerId)).state;
+    return copy(operation(state));
   }
 
-  private async transact<Result>(operation: (draft: MemoryState) => Result): Promise<Result> {
-    const transaction = this.transactionTail.then(() => {
-      const draft = copy(this.state);
-      const result = operation(draft);
-      this.state = draft;
-      return copy(result);
+  private async transact<Result>(learnerId: string, operation: (draft: MemoryState) => Result): Promise<Result> {
+    const transaction = this.transactionTail.then(async () => {
+      for (let retry = 0; retry < 4; retry++) {
+        const loaded = this.storage === undefined ? { version: 0, state: this.state } : await this.storage.load(learnerId);
+        const draft = copy(loaded.state);
+        const result = operation(draft);
+        if (this.storage !== undefined) {
+          if (!await this.storage.commit(learnerId, loaded.version, loaded.state, draft)) continue;
+        } else this.state = draft;
+        return copy(result);
+      }
+      throw new ApiError("REVISION_CONFLICT");
     });
     this.transactionTail = transaction.then(() => undefined, () => undefined);
     return transaction;
+  }
+
+  async previewCorrection(input:{learnerId:string;request:PreviewCorrectionRequest;id:string;timestamp:string}):Promise<SourceCorrection>{
+    const learnerId=uuidSchema.parse(input.learnerId),request=previewCorrectionRequestSchema.parse(input.request),id=uuidSchema.parse(input.id),timestamp=isoUtcDateTimeSchema.parse(input.timestamp);
+    return this.transact(learnerId,state=>{
+      const old=[...state.sourceCorrections.values()].find(c=>c.learnerId===learnerId&&c.request.requestId===request.requestId);
+      if(old){validateCorrectionTarget(state,learnerId,old.request,true);if(!isDeepStrictEqual(old.request,request))throw new ApiError("REVISION_CONFLICT");return old;}
+      if([...state.sourceCorrections.values()].some(c=>c.learnerId===learnerId&&c.reviewHistory.some(e=>e.requestId===request.requestId)))throw new ApiError("REVISION_CONFLICT");
+      validateCorrectionTarget(state,learnerId,request);
+      if(state.sourceCorrections.has(recordKey(learnerId,id))||[...state.sourceCorrections.values()].filter(c=>c.learnerId===learnerId&&c.request.target.sourceConversationId===request.target.sourceConversationId).length>=100)throw new ApiError("INVALID_STATE");
+      if(request.revisesId){const previous=state.sourceCorrections.get(recordKey(learnerId,request.revisesId));if(!previous||previous.status!=='reopened'||!isDeepStrictEqual(previous.request.target,request.target))throw new ApiError("INVALID_STATE");}
+      const correction=correctionOperation(()=>createCorrection({id,learnerId,request,dependencies:correctionDependencies(state,learnerId,request),timestamp}));
+      state.sourceCorrections.set(recordKey(learnerId,id),correction);return correction;
+    });
+  }
+  async getCorrection(input:{learnerId:string;correctionId:string}):Promise<SourceCorrection>{const learnerId=uuidSchema.parse(input.learnerId),id=uuidSchema.parse(input.correctionId);return this.read(learnerId,state=>{const record=state.sourceCorrections.get(recordKey(learnerId,id));if(!record)throw new ApiError('RESOURCE_NOT_FOUND');validateCorrectionTarget(state,learnerId,record.request,true);return record;});}
+  async listCorrections(input:SourceLookup):Promise<{items:SourceCorrection[]}>{
+    const learnerId=uuidSchema.parse(input.learnerId),sourceConversationId=uuidSchema.parse(input.sourceConversationId);
+    return this.read(learnerId,state=>{const source=sourceOrNotFound(state,{learnerId,sourceConversationId});sourceForProcessing(state,{learnerId,sourceConversationId,sourceRevision:source.sourceRevision});return {items:[...state.sourceCorrections.values()].filter(c=>c.learnerId===learnerId&&c.request.target.sourceConversationId===sourceConversationId).map(c=>{validateCorrectionTarget(state,learnerId,c.request,true);return sourceCorrectionSchema.parse(c);})};});
+  }
+  async updateCorrection(input:UpdateCorrectionRequest&{learnerId:string;timestamp:string;practiceSetId:string;scenarioId:string}):Promise<SourceCorrection>{
+    const {learnerId:owner,timestamp:time,practiceSetId,scenarioId,...data}=input,learnerId=uuidSchema.parse(owner),timestamp=isoUtcDateTimeSchema.parse(time),request=updateCorrectionRequestSchema.parse(data);
+    return this.transact(learnerId,state=>{
+      const old=state.sourceCorrections.get(recordKey(learnerId,request.correctionId));if(!old)throw new ApiError("RESOURCE_NOT_FOUND");
+      validateCorrectionTarget(state,learnerId,old.request,true);
+      let next=correctionOperation(()=>updateCorrection(old,request,correctionDependencies(state,learnerId,old.request),timestamp));
+      if(next===old)return old;
+      if([...state.sourceCorrections.values()].some(c=>c.learnerId===learnerId&&c.id!==old.id&&c.reviewHistory.some(e=>e.requestId===request.requestId)))throw new ApiError("REVISION_CONFLICT");
+
+      const canonicalRevision=isCanonicalCorrectionRevision(old.request.revisesId?state.sourceCorrections.get(recordKey(learnerId,old.request.revisesId)):undefined,old.request);
+      if(request.action==='confirm'){
+        validateCorrectionTarget(state,learnerId,old.request);
+        if(old.request.revisesId){const previous=state.sourceCorrections.get(recordKey(learnerId,old.request.revisesId));if(!previous||previous.status!=='reopened')throw new ApiError("REVISION_CONFLICT");const version=previous.version+1;state.sourceCorrections.set(recordKey(learnerId,previous.id),sourceCorrectionSchema.parse({...previous,status:'superseded',version,updatedAt:timestamp,reviewHistory:[...previous.reviewHistory,{action:'supersede',requestId:request.requestId,learnerId,version,createdAt:timestamp}]}));}
+        if(old.request.after.type==='newRule'&&!canonicalRevision)confirmChangeInState(state,learnerId,{changeId:old.request.after.changeId,sourceRevision:old.request.after.laterSourceRevision},timestamp,uuidSchema.parse(practiceSetId),uuidSchema.parse(scenarioId),this.groundedExtraction);
+      }
+      if(correctionWithholds(next))staleCorrectionPractices(state,learnerId,next,timestamp);
+      state.sourceCorrections.set(recordKey(learnerId,next.id),next);
+      if(old.request.after.type==='newRule'&&(request.action==='undo'&&old.status==='reopened'||request.action==='confirm'&&canonicalRevision)){
+        const proposal=state.changes.get(recordKey(learnerId,old.request.after.changeId));
+        if(proposal?.status==='confirmed'){
+          const before=instructionOrNotFound(state,learnerId,proposal.previousInstructionId),after=instructionOrNotFound(state,learnerId,proposal.replacementInstruction.id);
+          const hasCurrent=[...state.practiceSets.values()].some(p=>p.learnerId===learnerId&&p.changeId===proposal.id&&p.practiceSet.status!=='stale');
+          if(!hasCurrent&&before.instruction.status==='changed'&&after.instruction.status==='confirmed'&&isDeepStrictEqual(after.instruction,proposal.replacementInstruction)){
+            sourceForProcessing(state,{learnerId,sourceConversationId:before.instruction.sourceConversationId,sourceRevision:before.instruction.sourceRevision});sourceForProcessing(state,{learnerId,sourceConversationId:after.instruction.sourceConversationId,sourceRevision:after.instruction.sourceRevision});
+            const gated=[before.instruction.id,after.instruction.id].some(id=>correctionBlocks([...state.sourceCorrections.values()].filter(c=>c.learnerId===learnerId),id)||[...state.understandingChecks.values()].some(c=>c.learnerId===learnerId&&c.check.instruction.id===id&&c.check.status==='disputed')||[...state.openQuestions.values()].some(q=>q.learnerId===learnerId&&q.openQuestion.instructionId===id&&q.openQuestion.status==='open'));
+            if(!gated){const fresh=buildCanonicalDrill(state,learnerId,proposal,before.instruction,after.instruction,after.instructionRevision,[],timestamp,uuidSchema.parse(practiceSetId),uuidSchema.parse(scenarioId),this.groundedExtraction);
+              if(state.practiceSets.has(recordKey(learnerId,practiceSetId))||state.scenarios.has(recordKey(learnerId,scenarioId)))throw new ApiError('INVALID_STATE');
+              state.practiceSets.set(recordKey(learnerId,practiceSetId),{learnerId,practiceSet:fresh.changeDrill.practiceSet,instructionIds:[before.instruction.id,after.instruction.id],sourceEvidenceIds:fresh.sourceEvidence.map(e=>e.id),changeId:proposal.id});state.scenarios.set(recordKey(learnerId,scenarioId),{learnerId,scenario:fresh.changeDrill.scenarios[0]!});
+              next=sourceCorrectionSchema.parse({...next,reviewHistory:next.reviewHistory.map((e,index)=>index===next.reviewHistory.length-1?{...e,practiceSetIds:[practiceSetId]}:e)});state.sourceCorrections.set(recordKey(learnerId,next.id),next);
+            }
+          }
+        }
+      }
+      return next;
+    });
+  }
+
+  async prepareUnderstanding(input: CreateUnderstandingRequest & { learnerId: string }): Promise<{instruction:InstructionCard;source:SourceConversation;sourceEvidence:SourceEvidence[]}&ReturnType<typeof correctionReviewContext>> {
+    const {learnerId,...data}=input,request=createUnderstandingRequestSchema.parse(data);uuidSchema.parse(learnerId);
+    return this.read(learnerId,state=>{const instruction=understandingInstruction(state,learnerId,request.instructionId,request.sourceRevision,request.instructionRevision);return {...correctionReviewContext([...state.sourceCorrections.values()],learnerId,[instruction],correctionChanges(state,learnerId)),instruction,source:sourceOrNotFound(state,{learnerId,sourceConversationId:instruction.sourceConversationId}),sourceEvidence:instruction.sourceEvidence.map(id=>evidenceOrNotFound(state,learnerId,id).evidence)};});
+  }
+  async createUnderstanding(input: CreateUnderstandingRequest & { learnerId: string; id: string; timestamp: string; dependencyFingerprint?:string; initialComparison?: UnderstandingCheck["initialComparison"] }): Promise<UnderstandingBundle> {
+    const learnerId=uuidSchema.parse(input.learnerId), {id,timestamp,initialComparison,dependencyFingerprint,...data}=input;
+    const {learnerId:_owner,...requestData}=data; void _owner;
+    const request=createUnderstandingRequestSchema.parse(requestData); uuidSchema.parse(id); isoUtcDateTimeSchema.parse(timestamp);
+    return this.transact(learnerId,state=>{
+      const instruction=understandingInstruction(state,learnerId,request.instructionId,request.sourceRevision,request.instructionRevision);
+      if(dependencyFingerprint&&dependencyFingerprint!==correctionReviewContext([...state.sourceCorrections.values()],learnerId,[instruction],correctionChanges(state,learnerId)).dependencyFingerprint)throw new ApiError("REVISION_CONFLICT");
+      const existing=[...state.understandingChecks.values()].find(s=>s.learnerId===learnerId && s.check.requestId===request.requestId)?.check;
+      if(existing) {
+        if(existing.instruction.id!==request.instructionId || existing.instructionRevision!==request.instructionRevision || existing.instruction.sourceRevision!==request.sourceRevision || existing.explanation!==request.explanation || existing.inputMode!==request.inputMode) throw new ApiError("REVISION_CONFLICT");
+        return understandingBundle(state,learnerId,existing);
+      }
+      if([...state.understandingChecks.values()].filter(s=>s.learnerId===learnerId && s.check.instruction.sourceConversationId===instruction.sourceConversationId).length>=100 || state.understandingChecks.has(recordKey(learnerId,id))) throw new ApiError("INVALID_STATE");
+      const check=createUnderstandingCheck({id,requestId:request.requestId,instruction,instructionRevision:request.instructionRevision,explanation:request.explanation,inputMode:request.inputMode,timestamp,...(initialComparison?{initialComparison}:{})});
+      state.understandingChecks.set(recordKey(learnerId,id),{learnerId,check}); return understandingBundle(state,learnerId,check);
+    });
+  }
+  async getUnderstanding(input: {learnerId:string;checkId:string;forRehearsal?:boolean;historical?:boolean|undefined}): Promise<UnderstandingBundle> {
+    const learnerId=uuidSchema.parse(input.learnerId), checkId=uuidSchema.parse(input.checkId);
+    return this.read(learnerId,state=>{
+      const stored=state.understandingChecks.get(recordKey(learnerId,checkId)); if(!stored)throw new ApiError("RESOURCE_NOT_FOUND");if(input.forRehearsal)assertNoDisputedUnderstanding(state,learnerId,[stored.check.instruction.id]); return input.historical&&!input.forRehearsal?historicalUnderstandingBundle(state,learnerId,stored.check):understandingBundle(state,learnerId,stored.check);
+    });
+  }
+  async listUnderstanding(input: SourceLookup & {historical?:boolean|undefined}): Promise<{items:UnderstandingBundle[]}> {
+    const learnerId=uuidSchema.parse(input.learnerId),sourceConversationId=uuidSchema.parse(input.sourceConversationId);
+    return this.read(learnerId,state=>{
+      const source=sourceOrNotFound(state,{learnerId,sourceConversationId}); sourceForProcessing(state,{learnerId,sourceConversationId,sourceRevision:source.sourceRevision});
+      return {items:[...state.understandingChecks.values()].filter(s=>s.learnerId===learnerId && s.check.instruction.sourceConversationId===sourceConversationId && (input.historical || (!correctionBlocks([...state.sourceCorrections.values()].filter(c=>c.learnerId===learnerId),s.check.instruction.id)&&isDeepStrictEqual(state.instructions.get(recordKey(learnerId,s.check.instruction.id))?.instruction,s.check.instruction) && state.instructions.get(recordKey(learnerId,s.check.instruction.id))?.instructionRevision===s.check.instructionRevision))).map(s=>input.historical?historicalUnderstandingBundle(state,learnerId,s.check):understandingBundle(state,learnerId,s.check))};
+    });
+  }
+  async saveUnderstanding(input:{learnerId:string;previous:UnderstandingCheck;next:UnderstandingCheck;dependencyFingerprint?:string}):Promise<UnderstandingBundle>{
+    const learnerId=uuidSchema.parse(input.learnerId),previous=understandingCheckSchema.parse(input.previous),next=understandingCheckSchema.parse(input.next);
+    return this.transact(learnerId,state=>{
+      const stored=state.understandingChecks.get(recordKey(learnerId,previous.id));if(!stored)throw new ApiError("RESOURCE_NOT_FOUND");
+      understandingBundle(state,learnerId,stored.check);
+      if(input.dependencyFingerprint&&input.dependencyFingerprint!==correctionReviewContext([...state.sourceCorrections.values()],learnerId,[stored.check.instruction],correctionChanges(state,learnerId)).dependencyFingerprint)throw new ApiError("REVISION_CONFLICT");
+      if(next.responses.length>previous.responses.length)assertNoDisputedUnderstanding(state,learnerId,[previous.instruction.id]);
+      if(!isDeepStrictEqual(stored.check,previous))throw new ApiError("REVISION_CONFLICT");
+      const immutable=(check:UnderstandingCheck)=>({id:check.id,requestId:check.requestId,instruction:check.instruction,instructionRevision:check.instructionRevision,explanation:check.explanation,inputMode:check.inputMode,initialComparison:check.initialComparison,createdAt:check.createdAt});
+      if(!isDeepStrictEqual(next.reviewHistory.slice(0,previous.reviewHistory.length),previous.reviewHistory) || next.reviewHistory.length>previous.reviewHistory.length+1 || !isDeepStrictEqual(immutable(previous),immutable(next)) || next.version!==previous.version+1 || next.responses.length<previous.responses.length || next.responses.length>previous.responses.length+1 || !isDeepStrictEqual(next.responses.slice(0,previous.responses.length),previous.responses))throw new InvalidDependencyOutputError();
+      if((previous.status==="disputed" && (next.status==="disputed" || next.responses.length!==previous.responses.length || next.reviewHistory.at(-1)?.action!=="reopened")) || (next.responses.length>previous.responses.length && (previous.status!=="readyToRehearse" || next.status!=="readyToRehearse" || !isDeepStrictEqual(next.applicability,previous.applicability))))throw new ApiError("INVALID_STATE");
+      if (next.responses.length === previous.responses.length) {
+        const actions = [
+          { action: "clarify" as const, expectedVersion: previous.version, applicability: next.applicability },
+          { action: "confirmInterpretation" as const, expectedVersion: previous.version },
+          { action: "dispute" as const, expectedVersion: previous.version },
+          { action: "reopen" as const, expectedVersion: previous.version },
+        ];
+        if (!actions.some(action => {
+          try { return isDeepStrictEqual(updateUnderstandingCheck(previous, action, next.updatedAt), next); }
+          catch { return false; }
+        })) throw new InvalidDependencyOutputError();
+      } else if (!isDeepStrictEqual(next.reviewHistory, previous.reviewHistory) || next.responses.at(-1)?.createdAt !== next.updatedAt) {
+        throw new InvalidDependencyOutputError();
+      }
+      state.understandingChecks.set(recordKey(learnerId,next.id),{learnerId,check:next});return understandingBundle(state,learnerId,next);
+    });
   }
 
   async importSource(input: ImportSourceInput): Promise<SourceConversation> {
@@ -703,7 +963,7 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
     const timestamp = isoUtcDateTimeSchema.parse(input.timestamp);
     const hash = transcriptHash(source);
 
-    return this.transact((draft) => {
+    return this.transact(learnerId, (draft) => {
       const identity = identityKey(learnerId, source);
       const existingId = draft.sourceIdentity.get(identity);
       if (existingId !== undefined) {
@@ -753,7 +1013,34 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
       learnerId: uuidSchema.parse(input.learnerId),
       sourceConversationId: uuidSchema.parse(input.sourceConversationId),
     };
-    return this.read((state) => sourceOrNotFound(state, lookup));
+    return this.read(lookup.learnerId, (state) => sourceOrNotFound(state, lookup));
+  }
+
+  async listSavedSources(input: Parameters<FirstDayRepository["listSavedSources"]>[0]) {
+    const learnerId = uuidSchema.parse(input.learnerId);
+    const query = listSavedSourcesRequestSchema.parse({ sourceKind: input.sourceKind, ...(input.cursor ? { cursor: input.cursor } : {}), limit: input.limit });
+    return this.read(learnerId, (state) => {
+      const sources = [...state.sources.values()].filter((s) => s.learnerId === learnerId && s.sourceKind === query.sourceKind && s.consentStatus === "confirmed" && s.status === "ready").sort((a, b) => b.importedAt.localeCompare(a.importedAt) || a.id.localeCompare(b.id));
+      const offset = query.cursor ? sources.findIndex((s) => s.id === query.cursor) + 1 : 0;
+      if (query.cursor && offset === 0) throw new ApiError("REVISION_CONFLICT");
+      const items = sources.slice(offset, offset + query.limit);
+      return listSavedSourcesResponseSchema.parse({ items, nextCursor: offset + query.limit < sources.length ? items.at(-1)!.id : null });
+    });
+  }
+
+  async getSourceSession(input: SourceLookup) {
+    const learnerId = uuidSchema.parse(input.learnerId);
+    const { sourceConversationId } = getSourceSessionRequestSchema.parse({ sourceConversationId: input.sourceConversationId });
+    return this.read(learnerId, (state) => {
+      const sourceConversation = sourceOrNotFound(state, { learnerId, sourceConversationId });
+      const { source } = sourceForProcessing(state, { learnerId, sourceConversationId, sourceRevision: sourceConversation.sourceRevision });
+      const extracted = state.extractions.get(recordKey(learnerId, sourceConversationId));
+      const extraction = extracted ? reviewSnapshotSchema.parse({ sourceConversationId, sourceRevision: sourceConversation.sourceRevision, instructionRevision: extracted.instructionRevision, items: extracted.instructionIds.map((id) => instructionOrNotFound(state, learnerId, id).instruction), openQuestions: [...state.openQuestions.values()].filter((q) => q.learnerId === learnerId && q.openQuestion.sourceConversationId === sourceConversationId).map((q) => q.openQuestion), sourceEvidence: extracted.sourceEvidenceIds.map((id) => evidenceOrNotFound(state, learnerId, id).evidence) }) : undefined;
+      const practices = [...state.practiceSets.values()].filter((p) => p.learnerId === learnerId && p.instructionIds.some((id) => instructionOrNotFound(state, learnerId, id).instruction.sourceConversationId === sourceConversationId)).filter((p) => p.instructionIds.every((id) => sourceOrNotFound(state, { learnerId, sourceConversationId: instructionOrNotFound(state, learnerId, id).instruction.sourceConversationId }).consentStatus === "confirmed")).map((p) => ({ practice: practiceSnapshot(state, learnerId, p.practiceSet.id), attempts: [...state.attempts.values()].filter((a) => a.learnerId === learnerId && p.practiceSet.scenarioIds.includes(a.attempt.scenarioId)).map((a) => a.attempt) }));
+      const changes = [...state.changes.entries()].filter(([key, c]) => key === recordKey(learnerId, c.id) && [c.replacementInstruction.sourceConversationId, instructionOrNotFound(state, learnerId, c.previousInstructionId).instruction.sourceConversationId].includes(sourceConversationId)).map(([, c]) => c).filter((c) => [c.replacementInstruction.sourceConversationId, instructionOrNotFound(state, learnerId, c.previousInstructionId).instruction.sourceConversationId].every((id) => sourceOrNotFound(state, { learnerId, sourceConversationId: id }).consentStatus === "confirmed"));
+      const references = [...new Set(changes.flatMap((c) => [...c.previousSourceEvidence, ...c.replacementInstruction.sourceEvidence]))];
+      return sourceSessionResponseSchema.parse({ sourceConversation, source, excludedRanges: state.extractionInputs.get(recordKey(learnerId, sourceConversationId))?.excludedRanges ?? [], ...(extraction ? { extraction } : {}), practices, changes, sourceEvidence: references.map((id) => evidenceOrNotFound(state, learnerId, id).evidence) });
+    });
   }
 
   async getSourceForProcessing(input: SourceRevisionLookup): Promise<SourceProcessingContext> {
@@ -762,7 +1049,7 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
       sourceConversationId: uuidSchema.parse(input.sourceConversationId),
       sourceRevision: sourceRevisionSchema.parse(input.sourceRevision),
     };
-    return this.read((state) => sourceForProcessing(state, lookup));
+    return this.read(lookup.learnerId, (state) => sourceForProcessing(state, lookup));
   }
 
   async prepareExtraction(input: SourceRevisionLookup): Promise<ExtractionContext> {
@@ -771,7 +1058,7 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
       sourceConversationId: uuidSchema.parse(input.sourceConversationId),
       sourceRevision: sourceRevisionSchema.parse(input.sourceRevision),
     };
-    return this.read((state) => {
+    return this.read(lookup.learnerId, (state) => {
       const processing = sourceForProcessing(state, lookup);
       const sourceKey = recordKey(lookup.learnerId, lookup.sourceConversationId);
       if (state.extractions.has(sourceKey)) throw new ApiError("INVALID_STATE");
@@ -857,8 +1144,9 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
     const allocationTimestamp = isoUtcDateTimeSchema.parse(input.allocation.timestamp);
     const trustedLineage = copy(input.lineage?.previousInstructionContextsById ?? {});
 
-    return this.transact((draft) => {
+    return this.transact(learnerId, (draft) => {
       const { source } = sourceForProcessing(draft, { learnerId, ...request });
+      if (!excludedRangesMatchSource(source, request.excludedRanges)) throw new ApiError("VALIDATION_ERROR");
       const sourceKey = recordKey(learnerId, request.sourceConversationId);
       if (draft.extractions.has(sourceKey)) throw new ApiError("INVALID_STATE");
       if (
@@ -1011,7 +1299,7 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
       ...(input.exceptions === undefined ? {} : { exceptions: input.exceptions }),
     });
 
-    return this.transact((draft) => {
+    return this.transact(learnerId, (draft) => {
       const stored = instructionOrNotFound(draft, learnerId, request.instructionId);
       const current = stored.instruction;
       if (current.sourceRevision !== request.sourceRevision) {
@@ -1068,7 +1356,7 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
       shareConsent: input.shareConsent,
     });
 
-    return this.transact((draft) => {
+    return this.transact(learnerId, (draft) => {
       sourceForProcessing(draft, {
         learnerId,
         sourceConversationId: request.sourceConversationId,
@@ -1123,7 +1411,7 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
       ...(input.resolution === undefined ? {} : { resolution: input.resolution }),
     });
 
-    return this.transact((draft) => {
+    return this.transact(learnerId, (draft) => {
       const stored = questionOrNotFound(draft, learnerId, request.openQuestionId);
       const current = stored.openQuestion;
       if (current.sourceRevision !== request.sourceRevision) {
@@ -1170,7 +1458,7 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
       instructionIds: input.instructionIds,
       title: input.title,
     });
-    return this.read((state) => standardPracticeContext(state, learnerId, request));
+    return this.read(learnerId, (state) => standardPracticeContext(state, learnerId, request));
   }
 
   async saveStandardPractice(
@@ -1180,8 +1468,9 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
     const request = createPracticeSetRequestSchema.parse(input.request);
     const generation = createPracticeSetResponseSchema.parse(input.generation);
 
-    return this.transact((draft) => {
+    return this.transact(learnerId, (draft) => {
       const context = standardPracticeContext(draft, learnerId, request);
+      if(input.dependencyFingerprint&&input.dependencyFingerprint!==context.dependencyFingerprint)throw new ApiError("REVISION_CONFLICT");
       const { practiceSet, scenarios, sourceEvidence } = generation;
       const expectedInstructionIds = scenarios.flatMap(({ expectedRuleIds }) => expectedRuleIds);
       if (
@@ -1253,35 +1542,7 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
   async getPracticeSet(input: PracticeSetLookup) {
     const learnerId = uuidSchema.parse(input.learnerId);
     const practiceSetId = uuidSchema.parse(input.practiceSetId);
-    return this.read((state) => {
-      const stored = practiceOrNotFound(state, learnerId, practiceSetId);
-      const scenarios = stored.practiceSet.scenarioIds.map((scenarioId) => {
-        const scenario = state.scenarios.get(recordKey(learnerId, scenarioId));
-        if (scenario === undefined) throw new InvalidDependencyOutputError();
-        return scenario.scenario;
-      });
-      const instructions = stored.instructionIds.map(
-        (instructionId) => instructionOrNotFound(state, learnerId, instructionId).instruction,
-      );
-      const sourceEvidence = stored.sourceEvidenceIds.map(
-        (evidenceId) => evidenceOrNotFound(state, learnerId, evidenceId).evidence,
-      );
-      return getPracticeSetResponseSchema.parse({
-        practiceSet: stored.practiceSet,
-        scenarios,
-        instructions,
-        sourceEvidence,
-        ...(stored.changeId ? { changeProposal: state.changes.get(recordKey(learnerId, stored.changeId)) } : {}),
-        progress: {
-          completed: completedScenarioCount(
-            state,
-            learnerId,
-            stored.practiceSet.scenarioIds,
-          ),
-          total: scenarios.length,
-        },
-      });
-    });
+    return this.read(learnerId, (state) => practiceSnapshot(state, learnerId, practiceSetId));
   }
 
   async prepareAttempt(input: PrepareAttemptInput): Promise<AttemptContext> {
@@ -1293,14 +1554,14 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
       responseText: input.responseText,
       inputMode: input.inputMode,
     });
-    return this.read((state) => attemptContext(state, learnerId, request));
+    return this.read(learnerId, (state) => attemptContext(state, learnerId, request));
   }
 
   async compareSources(input: Parameters<FirstDayRepository["compareSources"]>[0]) {
     const learnerId = uuidSchema.parse(input.learnerId);
     const timestamp = isoUtcDateTimeSchema.parse(input.timestamp);
     const request = compareSourceRequestSchema.parse({ sourceConversationId: input.sourceConversationId, newSourceConversationId: input.newSourceConversationId, previousInstructionRevision: input.previousInstructionRevision });
-    return this.transact((draft) => {
+    return this.transact(learnerId, (draft) => {
       const oldSource = sourceOrNotFound(draft, { learnerId, sourceConversationId: request.sourceConversationId });
       const newSource = sourceOrNotFound(draft, { learnerId, sourceConversationId: request.newSourceConversationId });
       for (const source of [oldSource, newSource]) sourceForProcessing(draft, { learnerId, sourceConversationId: source.id, sourceRevision: source.sourceRevision });
@@ -1334,36 +1595,8 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
     const timestamp = isoUtcDateTimeSchema.parse(input.timestamp);
     const request = confirmChangeRequestSchema.parse({ changeId: input.changeId, sourceRevision: input.sourceRevision });
     const practiceSetId = uuidSchema.parse(input.practiceSetId), scenarioId = uuidSchema.parse(input.scenarioId);
-    return this.transact((draft) => {
-      const proposal = draft.changes.get(recordKey(learnerId, request.changeId));
-      if (!proposal) throw new ApiError("RESOURCE_NOT_FOUND");
-      if (proposal.sourceRevision !== request.sourceRevision) throw new ApiError("REVISION_CONFLICT");
-      const old = instructionOrNotFound(draft, learnerId, proposal.previousInstructionId);
-      const replacement = instructionOrNotFound(draft, learnerId, proposal.replacementInstruction.id);
-      for (const rule of [old.instruction, replacement.instruction]) sourceForProcessing(draft, { learnerId, sourceConversationId: rule.sourceConversationId, sourceRevision: rule.sourceRevision });
-      if (proposal.status !== "needsReview" || old.instruction.status !== "confirmed" || replacement.instruction.status !== "needsReview" || !isDeepStrictEqual(replacement.instruction, proposal.replacementInstruction) || !sameStringSet(old.instruction.sourceEvidence, proposal.previousSourceEvidence) || old.instruction.sourceRevision !== proposal.previousSourceRevision) throw new ApiError("INVALID_STATE");
-      if (draft.practiceSets.has(recordKey(learnerId, practiceSetId)) || draft.scenarios.has(recordKey(learnerId, scenarioId))) throw new ApiError("INVALID_STATE");
-      const previousInstruction = instructionCardSchema.parse({ ...old.instruction, status: "changed", updatedAt: timestamp });
-      const replacementInstruction = instructionCardSchema.parse({ ...replacement.instruction, status: "confirmed", updatedAt: timestamp });
-      const changeProposal = { ...proposal, replacementInstruction, status: "confirmed" as const, updatedAt: timestamp };
-      const references = [...new Set([...previousInstruction.sourceEvidence, ...replacementInstruction.sourceEvidence])];
-      const stalePracticeSetIds = [...draft.practiceSets.values()].filter((p) => p.learnerId === learnerId && p.instructionIds.includes(old.instruction.id) && p.practiceSet.status !== "stale").map((p) => p.practiceSet.id);
-      const newSource = sourceOrNotFound(draft, { learnerId, sourceConversationId: replacementInstruction.sourceConversationId });
-      const result = confirmChangeResponseSchema.parse({ changeProposal, previousInstruction, replacementInstruction, stalePracticeSetIds,
-        changeDrill: { practiceSet: { id: practiceSetId, learnerId, sourceConversationId: newSource.id, sourceRevision: newSource.sourceRevision, sourceKind: newSource.sourceKind, title: "What changed?", kind: "changeDrill", instructionRevision: replacement.instructionRevision, status: "ready", scenarioIds: [scenarioId], createdAt: timestamp, updatedAt: timestamp },
-          scenarios: [{ id: scenarioId, practiceSetId, sourceRevision: newSource.sourceRevision, kind: "changeDrill", characterId: "guide-maya", prompt: `${replacementInstruction.situation.replace(/[.!?]+$/, "")}. What would you do with the updated instruction?`, context: "Your trainer has changed the procedure. Use the update you just confirmed.", expectedRuleIds: [replacementInstruction.id], acceptableSignals: [replacementInstruction.expectedAction], criticalMisses: [previousInstruction.expectedAction], retryPrompt: "Compare both source notes, then try the new action.", sourceEvidence: references, order: 1 }] },
-        sourceEvidence: references.map((id) => evidenceOrNotFound(draft, learnerId, id).evidence) });
-      draft.instructions.set(recordKey(learnerId, previousInstruction.id), { ...old, instruction: previousInstruction });
-      draft.instructions.set(recordKey(learnerId, replacementInstruction.id), { ...replacement, instruction: replacementInstruction });
-      draft.changes.set(recordKey(learnerId, proposal.id), result.changeProposal);
-      for (const staleId of stalePracticeSetIds) {
-        const stored = practiceOrNotFound(draft, learnerId, staleId);
-        stored.practiceSet = practiceSetSchema.parse({ ...stored.practiceSet, status: "stale", updatedAt: timestamp });
-      }
-      draft.practiceSets.set(recordKey(learnerId, practiceSetId), { learnerId, practiceSet: result.changeDrill.practiceSet, instructionIds: [previousInstruction.id, replacementInstruction.id], sourceEvidenceIds: references, changeId: proposal.id });
-      const scenario = result.changeDrill.scenarios[0]!;
-      draft.scenarios.set(recordKey(learnerId, scenarioId), { learnerId, scenario });
-      return result;
+    return this.transact(learnerId, (draft) => {
+      return confirmChangeInState(draft,learnerId,request,timestamp,practiceSetId,scenarioId,this.groundedExtraction);
     });
   }
 
@@ -1380,8 +1613,9 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
     const timestamp = isoUtcDateTimeSchema.parse(input.timestamp);
     const evaluation = copy(input.evaluation);
 
-    return this.transact((draft) => {
+    return this.transact(learnerId, (draft) => {
       const context = attemptContext(draft, learnerId, request);
+      if(input.dependencyFingerprint&&input.dependencyFingerprint!==context.dependencyFingerprint)throw new ApiError("REVISION_CONFLICT");
       const attemptResult = attemptSchema.safeParse({
         id: attemptId,
         scenarioId: request.scenarioId,
@@ -1472,7 +1706,7 @@ export class MemoryFirstDayRepository implements FirstDayRepository {
     const sourceRevision = sourceRevisionSchema.parse(input.sourceRevision);
     const timestamp = isoUtcDateTimeSchema.parse(input.timestamp);
 
-    return this.transact((draft) => {
+    return this.transact(learnerId, (draft) => {
       const key = recordKey(learnerId, sourceConversationId);
       const current = sourceOrNotFound(draft, { learnerId, sourceConversationId });
       assertRevision(current, sourceRevision);

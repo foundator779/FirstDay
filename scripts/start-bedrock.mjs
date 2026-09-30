@@ -1,3 +1,4 @@
+import {expoEnvironment} from "./launcher-config.mjs";
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
@@ -8,9 +9,8 @@ import process from "node:process";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const local = parseEnv(readFileSync(new URL("../.env", import.meta.url), "utf8"));
-const common = { ...process.env };
-// Do not inherit credentials into Expo, even if the parent shell exports them.
-for (const name of Object.keys(common)) if (/^(AWS_|BEDROCK_|SUPABASE_|FIRSTDAY_)/.test(name)) delete common[name];
+// Shared filtering also strips arbitrary inherited public sentinels.
+const common = expoEnvironment(process.env,{});
 const port = "8083";
 const apiPort = "3001";
 const sessionToken = randomBytes(32).toString("hex");

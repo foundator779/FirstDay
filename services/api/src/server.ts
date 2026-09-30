@@ -1,7 +1,15 @@
+import { signInRequestSchema, refreshSessionRequestSchema, learnerCredentialsSchema, signOutRequestSchema, signOutResponseSchema } from "@firstday/contracts";
+import type { AuthBroker } from "./auth.js";
+import {previewCorrectionRequestSchema,updateCorrectionRequestSchema,sourceCorrectionSchema,listCorrectionsRequestSchema,listCorrectionsResponseSchema,getUnderstandingRequestSchema} from '@firstday/contracts';
+import { excludedRangesMatchSource } from "@firstday/contracts";
+import { createUnderstandingRequestSchema, updateUnderstandingRequestSchema, understandingBundleSchema, listUnderstandingRequestSchema, listUnderstandingResponseSchema, understandingInitialComparisonSchema } from "@firstday/contracts";
+import { updateUnderstandingCheck } from "@firstday/scenario-engine";
+import { compareUnderstandingResponse, offlineUnderstandingComparator, type UnderstandingComparator, type UnderstandingInitialComparator } from "./understanding.js";
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import {
+  getSourceSessionRequestSchema, listSavedSourcesRequestSchema, listSavedSourcesResponseSchema, sourceSessionResponseSchema,
   beeBridgeHealthResponseSchema,
   compareSourceRequestSchema, compareSourceResponseSchema,
   confirmChangeRequestSchema, confirmChangeResponseSchema,
@@ -89,6 +97,10 @@ export const deterministicScenarioEngine = {
 } satisfies ScenarioEngineFacade;
 
 export type BuildApiServerDependencies = {
+  ownerId?:string;
+  authBroker?:AuthBroker;
+  understandingComparator?: UnderstandingComparator;
+  understandingInitialComparator?: UnderstandingInitialComparator;
   sessionVerifier: SessionVerifier;
   beeGateway: BeeGateway;
   repository: FirstDayRepository;
@@ -277,7 +289,8 @@ function handleRawRouterError(input: {
     if (path.startsWith("/api/")) {
       try {
         const token = bearerToken(request.headers.authorization);
-        await dependencies.sessionVerifier.verify(token);
+        const session=await dependencies.sessionVerifier.verify(token);
+        if(dependencies.ownerId!==undefined&&session.learnerId!==dependencies.ownerId)throw new ApiError("FORBIDDEN");
       } catch {
         sendRawError(response, requestIdFactory, "UNAUTHENTICATED");
         return;
@@ -336,12 +349,15 @@ export function buildApiServer(dependencies: BuildApiServerDependencies): ApiSer
       return;
     }
 
-    if (request.url.startsWith("/api/")) {
+    const publicAuth=dependencies.authBroker!==undefined&&request.method==="POST"&&(request.url==="/api/auth/sign-in"||request.url==="/api/auth/refresh");
+    if (request.url.startsWith("/api/")&&!publicAuth) {
       const token = bearerToken(request.headers.authorization);
       try {
         const session = await dependencies.sessionVerifier.verify(token);
+        if(dependencies.ownerId!==undefined&&session.learnerId!==dependencies.ownerId)throw new ApiError("FORBIDDEN");
         sessions.set(request, session);
-      } catch {
+      } catch(error) {
+        if(error instanceof ApiError&&error.code==="FORBIDDEN")throw error;
         throw new ApiError("UNAUTHENTICATED");
       }
     }
@@ -382,10 +398,18 @@ export function buildApiServer(dependencies: BuildApiServerDependencies): ApiSer
     await sendError(reply, requestIdFactory, "RESOURCE_NOT_FOUND");
   });
 
+  if(dependencies.authBroker){
+    const auth=dependencies.authBroker;
+    server.post('/api/auth/sign-in',{bodyLimit:20*1024},async(request,reply)=>{reply.header('cache-control','no-store');if(request.url!=="/api/auth/sign-in")throw new ApiError("VALIDATION_ERROR");const input=parseRequest(signInRequestSchema,request);return parseOutput(learnerCredentialsSchema,await auth.signIn(input));});
+    server.post('/api/auth/refresh',{bodyLimit:20*1024},async(request,reply)=>{reply.header('cache-control','no-store');if(request.url!=="/api/auth/refresh")throw new ApiError("VALIDATION_ERROR");const input=parseRequest(refreshSessionRequestSchema,request);return parseOutput(learnerCredentialsSchema,await auth.refresh(input.refreshToken));});
+    server.post('/api/auth/sign-out',{bodyLimit:20*1024},async(request,reply)=>{reply.header('cache-control','no-store');if(request.url!=="/api/auth/sign-out")throw new ApiError("VALIDATION_ERROR");parseRequest(signOutRequestSchema,request);await auth.signOut(bearerToken(request.headers.authorization));return parseOutput(signOutResponseSchema,{ok:true});});
+  }
+
   server.get("/health", async (request) => {
     parseRequest(healthRequestSchema, request);
     let beeBridge: "authenticated" | "unauthenticated" | "unavailable" = "unavailable";
     try {
+      if(dependencies.ownerId!==undefined)return parseOutput(healthResponseSchema,{ok:true,service:"firstday-api",version:API_VERSION,beeBridge:"unavailable"});
       const health = beeBridgeHealthResponseSchema.safeParse(await dependencies.beeGateway.health());
       if (health.success) beeBridge = health.data.authenticated ? "authenticated" : "unauthenticated";
     } catch {
@@ -411,6 +435,21 @@ export function buildApiServer(dependencies: BuildApiServerDependencies): ApiSer
       throw new InvalidDependencyOutputError();
     }
     return output;
+  });
+
+  server.get("/api/source-conversations", async (request) => {
+    const input = parseRequest(listSavedSourcesRequestSchema, request);
+    const session = sessionFor(sessions, request);
+    ensureSourceAccess(session, input.sourceKind);
+    return parseOutput(listSavedSourcesResponseSchema, await dependencies.repository.listSavedSources({ learnerId: session.learnerId, ...input }));
+  });
+
+  server.get("/api/source-conversations/:sourceConversationId/session", async (request) => {
+    const input = parseRequest(getSourceSessionRequestSchema, request);
+    const session = sessionFor(sessions, request);
+    const source = await dependencies.repository.getSource({ learnerId: session.learnerId, ...input });
+    ensureSourceAccess(session, source.sourceKind);
+    return parseOutput(sourceSessionResponseSchema, await dependencies.repository.getSourceSession({ learnerId: session.learnerId, ...input }));
   });
 
   server.get("/api/bee/conversations/:beeSourceId", async (request) => {
@@ -487,6 +526,7 @@ export function buildApiServer(dependencies: BuildApiServerDependencies): ApiSer
         sourceConversationId: input.sourceConversationId,
         sourceRevision: input.sourceRevision,
       });
+      if (!excludedRangesMatchSource(context.source, input.excludedRanges)) throw new ApiError("VALIDATION_ERROR");
       const extractorContext = structuredClone(context);
       const lineage = {
         previousInstructionContextsById: structuredClone(
@@ -527,6 +567,65 @@ export function buildApiServer(dependencies: BuildApiServerDependencies): ApiSer
       );
     },
   );
+
+  server.post('/api/source-corrections/preview',async(request,reply)=>{
+    const input=parseRequest(previewCorrectionRequestSchema,request),session=sessionFor(sessions,request);
+    for(const id of [input.target.sourceConversationId,...(input.after.type==='newRule'?[input.after.laterSourceConversationId]:[])]){const source=await dependencies.repository.getSource({learnerId:session.learnerId,sourceConversationId:id});ensureSourceAccess(session,source.sourceKind);}
+    return reply.code(201).send(parseOutput(sourceCorrectionSchema,await dependencies.repository.previewCorrection({learnerId:session.learnerId,request:input,id:(dependencies.idFactory??randomUUID)(),timestamp:(dependencies.clock??(()=>new Date().toISOString()))()})));
+  });
+  server.get('/api/source-conversations/:sourceConversationId/corrections',async request=>{
+    const input=parseRequest(listCorrectionsRequestSchema,request),session=sessionFor(sessions,request),source=await dependencies.repository.getSource({learnerId:session.learnerId,...input});ensureSourceAccess(session,source.sourceKind);
+    return parseOutput(listCorrectionsResponseSchema,await dependencies.repository.listCorrections({learnerId:session.learnerId,...input}));
+  });
+  server.patch('/api/source-corrections/:correctionId',async request=>{
+    const input=parseRequest(updateCorrectionRequestSchema,request),session=sessionFor(sessions,request),id=dependencies.idFactory??randomUUID;
+    const current=await dependencies.repository.getCorrection({learnerId:session.learnerId,correctionId:input.correctionId});for(const sourceId of [current.request.target.sourceConversationId,...(current.request.after.type==='newRule'?[current.request.after.laterSourceConversationId]:[])]){const source=await dependencies.repository.getSource({learnerId:session.learnerId,sourceConversationId:sourceId});ensureSourceAccess(session,source.sourceKind);}
+    return parseOutput(sourceCorrectionSchema,await dependencies.repository.updateCorrection({...input,learnerId:session.learnerId,timestamp:(dependencies.clock??(()=>new Date().toISOString()))(),practiceSetId:id(),scenarioId:id()}));
+  });
+  server.get('/api/understanding-checks/:checkId',async request=>{
+    const input=parseRequest(getUnderstandingRequestSchema,request),session=sessionFor(sessions,request),bundle=await dependencies.repository.getUnderstanding({learnerId:session.learnerId,...input});
+    const source=await dependencies.repository.getSource({learnerId:session.learnerId,sourceConversationId:bundle.check.instruction.sourceConversationId});ensureSourceAccess(session,source.sourceKind);return parseOutput(understandingBundleSchema,bundle);
+  });
+  server.post("/api/understanding-checks",async(request,reply)=>{
+    const input=parseRequest(createUnderstandingRequestSchema,request),session=sessionFor(sessions,request);
+    const context=await dependencies.repository.prepareUnderstanding({...input,learnerId:session.learnerId});ensureSourceAccess(session,context.source.sourceKind);
+    const saved=await dependencies.repository.listUnderstanding({learnerId:session.learnerId,sourceConversationId:context.source.id});
+    const existing=saved.items.find(item=>item.check.requestId===input.requestId);
+    if(existing){
+      if(existing.check.instruction.id!==input.instructionId || existing.check.instructionRevision!==input.instructionRevision || existing.check.instruction.sourceRevision!==input.sourceRevision || existing.check.explanation!==input.explanation || existing.check.inputMode!==input.inputMode)throw new ApiError("REVISION_CONFLICT");
+      return reply.code(201).send(parseOutput(understandingBundleSchema,existing));
+    }
+    let initialComparison;
+    if(dependencies.understandingInitialComparator){
+      try{initialComparison=understandingInitialComparisonSchema.parse(await dependencies.understandingInitialComparator({instruction:structuredClone(context.instruction),sourceEvidence:structuredClone(context.sourceEvidence),approvedCorrections:structuredClone(context.approvedCorrections),explanation:input.explanation}));}
+      catch{throw new InvalidDependencyOutputError();}
+      if(!input.explanation.includes(initialComparison.answerQuote) || (initialComparison.exceptionIndex!==null && !context.instruction.exceptions[initialComparison.exceptionIndex]))throw new InvalidDependencyOutputError();
+    }
+    const output=await dependencies.repository.createUnderstanding({...input,dependencyFingerprint:context.dependencyFingerprint,...(initialComparison?{initialComparison}:{}),learnerId:session.learnerId,id:(dependencies.idFactory??randomUUID)(),timestamp:(dependencies.clock??(()=>new Date().toISOString()))()});
+    const source=await dependencies.repository.getSource({learnerId:session.learnerId,sourceConversationId:output.check.instruction.sourceConversationId}); ensureSourceAccess(session,source.sourceKind);
+    return reply.code(201).send(parseOutput(understandingBundleSchema,output));
+  });
+  server.get("/api/source-conversations/:sourceConversationId/understanding-checks",async request=>{
+    const input=parseRequest(listUnderstandingRequestSchema,request),session=sessionFor(sessions,request);
+    const source=await dependencies.repository.getSource({learnerId:session.learnerId,...input});ensureSourceAccess(session,source.sourceKind);
+    return parseOutput(listUnderstandingResponseSchema,await dependencies.repository.listUnderstanding({learnerId:session.learnerId,...input}));
+  });
+  server.patch("/api/understanding-checks/:checkId",async request=>{
+    const input=parseRequest(updateUnderstandingRequestSchema,request),session=sessionFor(sessions,request);
+    const {check}=await dependencies.repository.getUnderstanding({learnerId:session.learnerId,checkId:input.checkId});
+    const source=await dependencies.repository.getSource({learnerId:session.learnerId,sourceConversationId:check.instruction.sourceConversationId});ensureSourceAccess(session,source.sourceKind);
+    if(input.action==="rehearse"){
+      const existing=check.responses.find(r=>r.requestId===input.requestId);
+      if(existing){if(existing.responseText!==input.responseText||existing.inputMode!==input.inputMode)throw new ApiError("REVISION_CONFLICT");return parseOutput(understandingBundleSchema,await dependencies.repository.getUnderstanding({learnerId:session.learnerId,checkId:check.id}));}
+    }
+    if(check.version!==input.expectedVersion)throw new ApiError("REVISION_CONFLICT");
+    const timestamp=(dependencies.clock??(()=>new Date().toISOString()))();
+    let next;
+    const reviewContext=await dependencies.repository.prepareUnderstanding({learnerId:session.learnerId,instructionId:check.instruction.id,sourceRevision:check.instruction.sourceRevision,instructionRevision:check.instructionRevision,requestId:check.requestId,explanation:check.explanation,inputMode:check.inputMode});
+    if(input.action==="rehearse"){await dependencies.repository.getUnderstanding({learnerId:session.learnerId,checkId:check.id,forRehearsal:true});next=await compareUnderstandingResponse(check,input,timestamp,dependencies.understandingComparator??offlineUnderstandingComparator,reviewContext.approvedCorrections);}
+    else{try{next=updateUnderstandingCheck(check,input,timestamp);}catch{throw new ApiError("INVALID_STATE");}}
+    return parseOutput(understandingBundleSchema,await dependencies.repository.saveUnderstanding({learnerId:session.learnerId,previous:check,next,dependencyFingerprint:reviewContext.dependencyFingerprint}));
+  });
 
   server.patch("/api/instructions/:instructionId", async (request) => {
     const input = parseRequest(updateInstructionRequestSchema, request);
@@ -589,6 +688,7 @@ export function buildApiServer(dependencies: BuildApiServerDependencies): ApiSer
       await dependencies.repository.saveStandardPractice({
         learnerId: session.learnerId,
         request: input,
+        dependencyFingerprint:context.dependencyFingerprint,
         generation,
         allocation,
       }),
@@ -619,6 +719,7 @@ export function buildApiServer(dependencies: BuildApiServerDependencies): ApiSer
       dependencies.scenarioEngine.evaluateScenario({
         scenario: structuredClone(context.scenario),
         responseText: input.responseText,
+        approvedCorrections: structuredClone(context.approvedCorrections),
         instructions: structuredClone(context.instructions),
         sourceEvidence: structuredClone(context.sourceEvidence),
         ...(context.changeProposal === undefined
@@ -634,6 +735,7 @@ export function buildApiServer(dependencies: BuildApiServerDependencies): ApiSer
         attemptId: (dependencies.idFactory ?? randomUUID)(),
         timestamp: (dependencies.clock ?? (() => new Date().toISOString()))(),
         evaluation,
+        dependencyFingerprint:context.dependencyFingerprint,
       }),
     );
   });

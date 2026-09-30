@@ -1,3 +1,5 @@
+import type { ApprovedCorrectionContext } from './corrections.js';
+import { excludedRangesMatchSource } from "@firstday/contracts";
 import {
   attemptSchema,
   beeSourceSchema,
@@ -85,6 +87,7 @@ export type ExtractFixtureInstructionsRequest = {
 };
 
 export type GenerateStandardPracticeSetInput = {
+  approvedCorrections?: readonly ApprovedCorrectionContext[];
   learnerId: string;
   sourceConversationId: string;
   sourceRevision: string;
@@ -99,6 +102,7 @@ export type GenerateStandardPracticeSetInput = {
 };
 
 export type EvaluateScenarioInput = {
+  approvedCorrections?: readonly ApprovedCorrectionContext[];
   scenario: Scenario;
   responseText: string;
   instructions: readonly InstructionCard[];
@@ -273,6 +277,7 @@ export function extractFixtureInstructions(
     sourceRevision: requestInput.sourceRevision,
     excludedRanges: requestInput.excludedRanges,
   }, "extraction request");
+  if (!excludedRangesMatchSource(source, request.excludedRanges)) throw new ScenarioEngineError("VALIDATION_ERROR", "Excluded selections do not match source timing.");
   const definitions = fixtureDefinitions(source);
   if (request.sourceRevision !== source.revision) {
     throw new ScenarioEngineError("REVISION_CONFLICT", "extraction request does not match the fixture source revision");
@@ -1027,3 +1032,6 @@ export function generateChangeDrill(input: GenerateChangeDrillInput): ChangeDril
     sourceEvidence: validated.sourceEvidence,
   };
 }
+
+export { createUnderstandingCheck, updateUnderstandingCheck, understandingPrompt, understandingClarificationQuestion, understandingActiveAction } from "./understanding.js";
+export * from './corrections.js';

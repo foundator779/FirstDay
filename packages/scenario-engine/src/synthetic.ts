@@ -1,5 +1,5 @@
 import {
-  beeSourceSchema, createSourceEvidenceId, extractInstructionsResponseSchema,
+  beeSourceSchema, sourceEvidenceForUtterance, transcriptSelectionsOverlap, excludedRangesMatchSource, extractInstructionsResponseSchema,
   createPracticeSetResponseSchema, type BeeSource, type ExcludedRange,
   type ExtractInstructionsResponse, type InstructionCard, type SourceEvidence,
 } from "@firstday/contracts";
@@ -17,19 +17,15 @@ export function extractSyntheticInstructions(input: {
 }): ExtractInstructionsResponse {
   const source = beeSourceSchema.parse(input.source);
   if (source.sourceKind !== "fixture") throw new ScenarioEngineError("INVALID_STATE", "Synthetic extraction requires fixture data.");
+  if (!excludedRangesMatchSource(source, input.excludedRanges)) throw new ScenarioEngineError("INVALID_STATE", "Excluded selections do not match source timing.");
   const sourceEvidence: SourceEvidence[] = [];
   const items: InstructionCard[] = [];
   const openQuestions: ExtractInstructionsResponse["openQuestions"] = [];
   for (const utterance of source.utterances) {
-    if (input.excludedRanges.some((range) => range.startMs < utterance.endMs && utterance.startMs < range.endMs)) continue;
+    if (input.excludedRanges.some((range) => transcriptSelectionsOverlap(utterance, range))) continue;
     const match = /^(?:Update:\s*)?(?:When|If|Whenever)\s+([^,]+),\s+(.+?)[.!]?$/i.exec(utterance.text);
     if (!match) continue;
-    const evidence: SourceEvidence = {
-      id: createSourceEvidenceId({ sourceConversationId: input.sourceConversationId, sourceRevision: source.revision, startMs: utterance.startMs, endMs: utterance.endMs }),
-      sourceConversationId: input.sourceConversationId, sourceRevision: source.revision,
-      startMs: utterance.startMs, endMs: utterance.endMs, quote: utterance.text,
-      utteranceIds: [utterance.id], ...(utterance.speaker ? { speakerLabel: utterance.speaker.label } : {}),
-    };
+    const evidence = sourceEvidenceForUtterance(input.sourceConversationId, source.revision, utterance);
     sourceEvidence.push(evidence);
     if (/\b(maybe|might|usually|sometimes|probably|not sure)\b/i.test(utterance.text)) {
       openQuestions.push({ id: input.idFactory(), sourceConversationId: input.sourceConversationId,
@@ -37,9 +33,11 @@ export function extractSyntheticInstructions(input: {
         sourceEvidence: [evidence.id], status: "open", shareConsent: false,
         createdAt: input.timestamp, updatedAt: input.timestamp });
     } else {
+      // Finite, visibly fictional reservation example; live extraction uses Nova.
+      const conditional=/^(New reservations last (?:three|five) days\.)\s+(Reservations already made keep their original seven-day window\.?)$/i.exec(match[2]!);
       items.push({ id: input.idFactory(), sourceConversationId: input.sourceConversationId,
         sourceRevision: source.revision, text: utterance.text.replace(/^Update:\s*/i, ""),
-        situation: match[1]!, expectedAction: match[2]!, exceptions: [], sourceEvidence: [evidence.id],
+        situation: match[1]!, expectedAction: conditional?.[1] ?? match[2]!, exceptions: conditional?.[2] ? [conditional[2].endsWith(".") ? conditional[2] : `${conditional[2]}.`] : [], sourceEvidence: [evidence.id],
         confidence: 1, status: "needsReview", createdAt: input.timestamp, updatedAt: input.timestamp });
     }
   }

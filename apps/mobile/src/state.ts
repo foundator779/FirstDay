@@ -1,3 +1,4 @@
+import { transcriptSelectionsOverlap, excludedRangeForUtterance } from "@firstday/contracts";
 import type {
   BeeConversationSummary,
   BeeSource,
@@ -9,9 +10,10 @@ import type {
   OpenQuestion,
   SourceKind,
   SourceConversation,
+  SourceSessionResponse,
 } from "@firstday/contracts";
 
-import { halfOpenRangesOverlap, isUtteranceExcluded } from "./review-evidence";
+import { isUtteranceExcluded } from "./review-evidence";
 
 export type PickerPhase = "checking" | "ready" | "empty" | "unavailable";
 
@@ -19,6 +21,7 @@ export type PickerState = {
   phase: PickerPhase;
   sourceKind: SourceKind;
   bridgeStatus: HealthResponse["beeBridge"] | "checking";
+  authenticatedList: boolean;
   conversations: BeeConversationSummary[];
   selectedConversationId: string | null;
   message: string | null;
@@ -47,11 +50,13 @@ export type FirstDayState = {
 };
 
 export type FirstDayAction =
+  | { type: "session/restored"; session: SourceSessionResponse }
   | { type: "picker/loadStarted"; sourceKind: SourceKind }
   | {
       type: "picker/loadSucceeded";
       health: HealthResponse;
       conversations: BeeConversationSummary[];
+      authenticatedList?: boolean;
     }
   | { type: "picker/loadFailed"; message: string }
   | { type: "picker/conversationSelected"; conversationId: string }
@@ -92,6 +97,7 @@ export const initialFirstDayState: FirstDayState = {
     phase: "checking",
     sourceKind: "bee",
     bridgeStatus: "checking",
+    authenticatedList: false,
     conversations: [],
     selectedConversationId: null,
     message: null,
@@ -109,6 +115,8 @@ export function reduceFirstDayState(
   action: FirstDayAction,
 ): FirstDayState {
   switch (action.type) {
+    case "session/restored":
+      return { ...state, stage: action.session.extraction ? "review" : "transcript", picker: { ...state.picker, sourceKind: action.session.sourceConversation.sourceKind }, preview: { phase: "ready", source: action.session.source, consentConfirmed: true, excludedRanges: action.session.excludedRanges, message: null }, review: { phase: action.session.extraction ? "ready" : "idle", sourceConversation: action.session.sourceConversation, extraction: action.session.extraction ?? null, message: null } };
     case "picker/loadStarted":
       return {
         ...state,
@@ -117,6 +125,7 @@ export function reduceFirstDayState(
           phase: "checking",
           sourceKind: action.sourceKind,
           bridgeStatus: "checking",
+          authenticatedList: false,
           conversations: [],
           selectedConversationId: null,
           message: null,
@@ -125,8 +134,9 @@ export function reduceFirstDayState(
         review: initialReviewState,
       };
     case "picker/loadSucceeded": {
+      const authenticatedList = state.picker.sourceKind === "bee" && action.authenticatedList === true;
       const bridgeAvailable =
-        state.picker.sourceKind === "fixture" || action.health.beeBridge === "authenticated";
+        state.picker.sourceKind === "fixture" || authenticatedList || action.health.beeBridge === "authenticated";
       const selectableConversations = action.conversations.filter(isConversationSelectable);
       return {
         ...state,
@@ -138,6 +148,7 @@ export function reduceFirstDayState(
               ? "empty"
               : "ready",
           bridgeStatus: action.health.beeBridge,
+          authenticatedList,
           conversations: action.conversations,
           selectedConversationId: null,
           message: null,
@@ -151,6 +162,7 @@ export function reduceFirstDayState(
           ...state.picker,
           phase: "unavailable",
           bridgeStatus: "unavailable",
+          authenticatedList: false,
           conversations: [],
           selectedConversationId: null,
           message: action.message,
@@ -211,13 +223,12 @@ export function reduceFirstDayState(
           ...state.preview,
           excludedRanges: excluded
             ? state.preview.excludedRanges.filter(
-                (range) => !halfOpenRangesOverlap(action.utterance, range),
+                (range) => !transcriptSelectionsOverlap(action.utterance, range),
               )
             : [
                 ...state.preview.excludedRanges,
                 {
-                  startMs: action.utterance.startMs,
-                  endMs: action.utterance.endMs,
+                  ...excludedRangeForUtterance(action.utterance),
                   reason: "Excluded by learner before extraction",
                 },
               ].sort((left, right) => left.startMs - right.startMs),

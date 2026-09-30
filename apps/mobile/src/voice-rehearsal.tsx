@@ -42,7 +42,7 @@ export function VoiceRehearsal({ active, prompt, onTranscript, onBusy }: Props) 
   const recording = state.phase !== "idle";
   return <View style={ui.gap}>
     <Action secondary label={speaking ? "Stop playback" : "Hear the situation"} disabled={!active || recording} onPress={() => void play().catch(() => setSpeaking(false))} />
-    <Text style={ui.meta}>Rehearse aloud as if you were there. Your device’s speech service may process audio online. FirstDay keeps only the transcript when you submit.</Text>
+    <Text style={ui.meta}>Rehearse aloud as if you were there. Your device’s speech service may process audio online. FirstDay saves your answer draft on this device and sends the text when you submit. It does not store audio.</Text>
     <Action secondary label={state.phase === "listening" ? "Stop speaking" : state.phase === "stopping" ? "Finishing transcript…" : state.phase === "requesting" ? "Opening microphone…" : "Start speaking"} disabled={!active || state.phase === "requesting" || state.phase === "stopping"} onPress={() => { if (recording) session.stop(); else void record().catch(() => session.cancel("Microphone couldn’t start. You can type below.")); }} />
     {recording && <Action secondary label="Cancel recording · use typing" onPress={() => session.cancel()} />}
     {!!state.message && <Text accessibilityLiveRegion="polite" style={ui.meta}>{state.message}</Text>}

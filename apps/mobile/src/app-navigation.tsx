@@ -9,12 +9,12 @@ const tabs = [
 ] as const;
 export function BottomNavigation({ value, onChange }: { value: AppTab; onChange(tab: AppTab): void }) {
   return <View style={styles.dock}><View accessibilityRole="tablist" style={styles.bar}>{tabs.map((tab) => <Pressable key={tab.id} accessibilityRole="tab" accessibilityLabel={tab.label} aria-selected={value === tab.id} accessibilityState={{ selected: value === tab.id }} onPress={() => onChange(tab.id)} style={[styles.tab, value === tab.id && styles.selected]}>
-    <NavigationIcon index={tab.icon} /><Text style={styles.label}>{tab.label}</Text>
+    <NavigationIcon index={tab.icon} /><Text maxFontSizeMultiplier={1.2} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={styles.label}>{tab.label}</Text>
   </Pressable>)}</View></View>;
 }
 const styles = StyleSheet.create({
   dock: { paddingHorizontal: 24, paddingTop: 10, paddingBottom: 12, backgroundColor: "white", width: "100%", maxWidth: 520, alignSelf: "center" },
   bar: { borderRadius: 30, padding: 5, backgroundColor: theme.colors.action, flexDirection: "row", alignItems: "center" },
-  tab: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 52, gap: 3, borderRadius: 25 }, selected: { backgroundColor: "#1045CE" },
-  label: { fontFamily: theme.type.utility, fontSize: 12, color: "white" },
+  tab: { flex: 1, alignItems: "center", justifyContent: "center", minWidth: 44, minHeight: 52, gap: 3, borderRadius: 25 }, selected: { backgroundColor: "#1045CE" },
+  label: { alignSelf: "stretch", textAlign: "center", fontFamily: theme.type.utility, fontSize: 12, color: "white" },
 });

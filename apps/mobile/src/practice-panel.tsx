@@ -1,41 +1,72 @@
-﻿import { useRef, useState } from "react";
+import { UnderstandingPanel } from "./understanding-panel";
+import { hasUnderstandingClient } from "./understanding-client";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import type { Attempt, BeeSource, ChangeProposal, CreateAttemptResponse, CreatePracticeSetResponse, ExtractInstructionsResponse, InstructionCard, SourceConversation, SourceEvidence } from "@firstday/contracts";
+import type { Attempt, ConfirmChangeResponse, CreateAttemptResponse, CreatePracticeSetResponse, ExtractInstructionsResponse, InstructionCard, OpenQuestion, SourceConversation, SourceSessionResponse } from "@firstday/contracts";
 import { firstDayTheme as theme } from "@firstday/firstday-ui";
-import { SYNTHETIC_UPDATES, type PracticeClient } from "./synthetic-client";
+import type { PracticeClient } from "./synthetic-client";
 import { Action, EvidenceNotes, Loading, TrainerQuestions, ui } from "./learner-panels";
 import { practiceRecap } from "./practice-recap";
 import { Portrait } from "./design-assets";
 import { VoiceRehearsal } from "./voice-rehearsal";
+import { practiceSelection, rehearsedInstructions } from "./practice-workflow";
+import { TrainingUpdatePanel } from "./training-update-panel";
+import { restorePractice } from "./session-recovery";
+import { useDraftStorage } from "./draft-context";
+import type { DraftContext } from "./draft-store";
 
-type Props = { isVisible?: boolean; aiMode?: "offline" | "bedrock"; client: PracticeClient; extraction: ExtractInstructionsResponse; source: SourceConversation; onActiveChange(active: boolean): void; onStepChange?(): void; onExit(): void };
+type Props = { restoredSession?: SourceSessionResponse | undefined; isVisible?: boolean; aiMode?: "offline" | "bedrock"; client: PracticeClient; extraction: ExtractInstructionsResponse; source: SourceConversation; onActiveChange(active: boolean): void; onStepChange?(): void; onExit(): void; onQuestionSaved?(question:OpenQuestion):void; onCorrect?():void; withheldInstructionIds?:readonly string[] };
 export const PracticeButton = Action;
 
-export function PracticePanel({ client, extraction, source, onActiveChange, onStepChange, onExit, aiMode = "offline", isVisible = true }: Props) {
-  const [practice, setPractice] = useState<CreatePracticeSetResponse | null>(null);
-  const [index, setIndex] = useState(0);
-  const [answer, setAnswer] = useState("");
+export function PracticePanel({ client, extraction, source, onActiveChange, onStepChange, onExit, aiMode = "offline", isVisible = true, restoredSession, onQuestionSaved, onCorrect, withheldInstructionIds=[] }: Props) {
+  const draftStorage=useDraftStorage();
+  const [restored] = useState(() => restoredSession ? restorePractice(restoredSession) : null);
+  const [practice, setPractice] = useState<CreatePracticeSetResponse | null>(restored?.practice ?? null);
+  const [index, setIndex] = useState(restored?.index ?? 0);
+  const [answer, setAnswer] = useState(restored?.feedback?.attempt.responseText ?? "");
   const [inputMode, setInputMode] = useState<"text" | "voice">("text");
   const [voiceBusy, setVoiceBusy] = useState(false);
-  const [feedback, setFeedback] = useState<CreateAttemptResponse | null>(null);
-  const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [draftReady, setDraftReady] = useState(false);
+  const [draftMessage, setDraftMessage] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<CreateAttemptResponse | null>(restored?.feedback ?? null);
+  const [attempts, setAttempts] = useState<Attempt[]>(restored?.attempts ?? []);
   const [busy, setBusy] = useState<string | null>(null);
   const lock = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [showEvidence, setShowEvidence] = useState(false);
   const [showRecapEvidence, setShowRecapEvidence] = useState(false);
-  const [showRecap, setShowRecap] = useState(false);
-  const [update, setUpdate] = useState<BeeSource | null>(null);
-  const updateImport = useRef<{ source: SourceConversation; extracted: boolean } | null>(null);
-  const [comparison, setComparison] = useState<{ change: ChangeProposal; evidence: SourceEvidence[] } | null>(null);
-  const [changePair, setChangePair] = useState<{ before: InstructionCard; after: InstructionCard } | null>(null);
-  const [oldSetStale, setOldSetStale] = useState(false);
-  const updateId = source.sourceKind === "fixture" ? SYNTHETIC_UPDATES[source.beeSourceId] : undefined;
-  const confirmed = extraction.items.filter((item) => item.status === "confirmed");
+  const [showRecap, setShowRecap] = useState(restored?.showRecap ?? false);
+  const [reviewingUpdate, setReviewingUpdate] = useState(false);
+  const [understandingActive,setUnderstandingActive]=useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[] | null>(null);
+  const [changePair, setChangePair] = useState<{ before: InstructionCard; after: InstructionCard } | null>(restored?.changePair ?? null);
+  const [oldSetStale, setOldSetStale] = useState(restoredSession?.practices.some((p) => p.practice.practiceSet.status === "stale") ?? false);
+  const confirmed = extraction.items.filter((item) => item.status === "confirmed"&&!withheldInstructionIds.includes(item.id));
+  const selection = practiceSelection(extraction.items.filter(i=>!withheldInstructionIds.includes(i.id)), selectedIds?.filter(id=>!withheldInstructionIds.includes(id))??null);
   const scenario = practice?.scenarios[index];
+  const draftContext: DraftContext | null = practice && scenario && practice.practiceSet.status !== "stale" && practice.practiceSet.status !== "complete" ? { learnerId: source.learnerId, sourceConversationId: source.id, practiceSetId: practice.practiceSet.id, scenarioId: scenario.id, sourceRevision: practice.practiceSet.sourceRevision, instructionRevision: practice.practiceSet.instructionRevision } : null;
+  const draftKey = draftContext ? JSON.stringify(draftContext) : "";
+  useEffect(() => {
+    let cancelled = false;
+    setDraftReady(false); setDraftMessage(null);
+    if (!draftKey || feedback) { setDraftReady(true); return; }
+    const context = JSON.parse(draftKey) as DraftContext;
+    void draftStorage.load(context).then((draft) => {
+      if (cancelled) return;
+      if (draft) { setAnswer(draft.text); setInputMode(draft.inputMode); setDraftMessage("Your unsubmitted answer was restored from this device."); }
+    }).catch(() => { if (!cancelled) setDraftMessage("Your local draft couldn’t be read. You can type an answer or clear local drafts in About."); }).finally(() => { if (!cancelled) setDraftReady(true); });
+    return () => { cancelled = true; };
+  }, [draftKey, feedback]);
+
+  function editAnswer(text: string, mode: "text" | "voice") {
+    setAnswer(text); setInputMode(mode);
+    if (draftContext) void draftStorage.save(draftContext, text, mode).then(() => setDraftMessage("Answer draft saved on this device.")).catch(() => setDraftMessage("Your answer is here, but its device draft couldn’t be saved. Keep this screen open or submit when ready."));
+  }
   const complete = practice?.practiceSet.status === "complete";
-  const currentRules = practice?.practiceSet.kind === "changeDrill" && changePair ? [changePair.after] : confirmed;
-  const recap = practiceRecap(currentRules, attempts);
+  const restoredRules = practice?.practiceSet.id === restored?.practice.practiceSet.id ? restored?.practice.instructions : undefined;
+  const currentRules = practice?.practiceSet.kind === "changeDrill" && changePair ? [changePair.after] : rehearsedInstructions(restoredRules ?? confirmed, practice?.scenarios ?? []);
+  const scenarioIds = new Set(practice?.scenarios.map((item) => item.id));
+  const recap = practiceRecap(currentRules, attempts.filter((attempt) => scenarioIds.has(attempt.scenarioId)));
 
   async function run(label: string, operation: () => Promise<void>) {
     if (lock.current) return;
@@ -44,36 +75,23 @@ export function PracticePanel({ client, extraction, source, onActiveChange, onSt
     finally { lock.current = false; setBusy(null); }
   }
   async function start() {
-    const created = await client.createPractice({ sourceConversationId: source.id, sourceRevision: source.sourceRevision, instructionIds: confirmed.map((item) => item.id), title: "First shift practice" });
-    setPractice(created); onActiveChange(true);
+    if (!selection.ready) return;
+    const created = await client.createPractice({ sourceConversationId: source.id, sourceRevision: source.sourceRevision, instructionIds: selection.ids, title: "First shift practice" });
+    setPractice(created); setAttempts([]); setChangePair(null); setOldSetStale(false); onActiveChange(true);
   }
   async function submit() {
     if (!practice || !scenario || !answer.trim() || voiceBusy) return;
     const response = await client.submitAttempt({ scenarioId: scenario.id, sourceRevision: practice.practiceSet.sourceRevision, instructionRevision: practice.practiceSet.instructionRevision, responseText: answer.trim(), inputMode });
     setFeedback(response); setAttempts((values) => [...values, response.attempt]); setPractice({ ...practice, practiceSet: response.practiceSet });
+    if (draftContext) await draftStorage.save(draftContext, "", "text").catch(() => setDraftMessage("Your answer was submitted, but the old device draft couldn’t be cleared."));
   }
-  async function compare() {
-    if (!update) return;
-    if (!updateImport.current) {
-      const imported = await client.importConversation({ beeSourceId: update.id, sourceKind: update.sourceKind, sourceRevision: update.revision, consent: { confirmed: true } });
-      updateImport.current = { source: imported.sourceConversation, extracted: false };
-    }
-    if (!updateImport.current.extracted) {
-      await client.extractInstructions({ sourceConversationId: updateImport.current.source.id, sourceRevision: update.revision, excludedRanges: [] });
-      updateImport.current.extracted = true;
-    }
-    const response = await client.compareSources({ sourceConversationId: source.id, newSourceConversationId: updateImport.current.source.id, previousInstructionRevision: extraction.instructionRevision });
-    if (!response.changes[0]) throw new Error("No explicit changed rule found.");
-    setComparison({ change: response.changes[0], evidence: response.sourceEvidence });
-    onStepChange?.();
-  }
-  async function confirm() {
-    if (!comparison) return;
-    const response = await client.confirmChange({ changeId: comparison.change.id, sourceRevision: comparison.change.sourceRevision });
+  function confirmedUpdate(response: ConfirmChangeResponse) {
     setChangePair({ before: response.previousInstruction, after: response.replacementInstruction });
     setOldSetStale(response.stalePracticeSetIds.length > 0);
     setPractice({ ...response.changeDrill, sourceEvidence: response.sourceEvidence });
-    setIndex(0); setAnswer(""); setFeedback(null); setComparison(null); setUpdate(null); setShowEvidence(false); setShowRecap(false);
+    setAttempts([]);
+    setIndex(0); setAnswer(""); setFeedback(null); setReviewingUpdate(false); setShowEvidence(false); setShowRecap(false);
+    setInputMode("text"); setShowRecapEvidence(false); setError(null);
     onStepChange?.();
   }
   function continuePractice() {
@@ -83,14 +101,31 @@ export function PracticePanel({ client, extraction, source, onActiveChange, onSt
     setFeedback(null); setAnswer(""); setShowEvidence(false);
     onStepChange?.();
   }
-  if (!practice && confirmed.length !== 3) return null;
-  const before = comparison ? confirmed.find((r) => r.id === comparison.change.previousInstructionId) : undefined;
+  if(understandingActive)return <UnderstandingPanel questions={extraction.openQuestions} client={client} source={source} instructions={confirmed} instructionRevision={extraction.instructionRevision} isVisible={isVisible} aiMode={aiMode} onExit={()=>setUnderstandingActive(false)} {...(onCorrect?{onCorrect}:{})} {...(onQuestionSaved?{onQuestionSaved}:{})}/>;
   return <View style={ui.section}>
+    {extraction.items.filter(i=>withheldInstructionIds.includes(i.id)).map(i=><View key={i.id} style={ui.paper}><Text style={ui.label}>{i.text}</Text><Text style={ui.error}>Grading paused by source correction</Text><Text style={ui.body}>{i.expectedAction}</Text>{onCorrect&&<Action secondary label="Review this source correction" onPress={onCorrect}/>}</View>)}
+    {!!confirmed.length&&hasUnderstandingClient(client)&&<Action secondary label="Check what I understood" disabled={!!busy||voiceBusy} onPress={()=>setUnderstandingActive(true)}/>}
     {!practice && <View style={ui.paper}>
       <Text style={ui.label}>Try your first shift</Text>
+      {confirmed.length < 3 && <>
+        <Text style={ui.body}>{confirmed.length === 0 ? "Confirm 3 instructions to start this practice." : `Confirm ${3 - confirmed.length} more instruction${confirmed.length === 1 ? "s" : ""} to start this practice.`}</Text>
+        <Text style={ui.meta}>Review the remaining cards above. Keep uncertain instructions as questions for your trainer. If this conversation has fewer than three clear instructions, choose another training conversation.</Text>
+        <Action secondary label="Choose another training conversation" onPress={onExit} />
+      </>}
+      {confirmed.length > 3 && <>
+        <Text style={ui.label}>Choose 3 instructions for this practice</Text>
+        <Text accessibilityLiveRegion="polite" style={ui.meta}>{selection.ids.length} of 3 selected. Clear one selection to choose another instruction.</Text>
+        {confirmed.map((rule) => {
+          const selected = selection.ids.includes(rule.id);
+          const disabled = !!busy || (!selected && selection.ids.length >= 3);
+          return <Pressable key={rule.id} accessibilityRole="checkbox" accessibilityLabel={`Practise ${rule.situation}`} aria-checked={selected} accessibilityState={{ checked: selected, disabled }} disabled={disabled} onPress={() => setSelectedIds(selected ? selection.ids.filter((id) => id !== rule.id) : [...selection.ids, rule.id])} style={ui.transcriptRow}>
+            <Text accessible={false} style={ui.check}>{selected ? "✓" : "○"}</Text><View style={ui.flex}><Text style={ui.label}>{rule.situation}</Text><Text style={ui.body}>{rule.expectedAction}</Text></View>
+          </Pressable>;
+        })}
+      </>}
       <Text style={ui.body}>Three situations. Space to get it wrong. A source-backed explanation after each answer.</Text>
       <Text style={ui.meta}>{aiMode === "bedrock" ? "Use your own words. AI checks the meaning against your confirmed training." : "Offline preview: use the action wording from the instruction. AI feedback is available in the Bedrock demo."}</Text>
-      <Action label="Start practice · 3 situations" disabled={!!busy} onPress={() => void run("Preparing your situations…", start)} />
+      <Action label="Start practice · 3 situations" disabled={!!busy || !selection.ready} onPress={() => void run("Preparing your situations…", start)} />
     </View>}
     {practice && !showRecap && scenario && <>
       <View style={styles.practiceTop}><Text style={ui.label}>{practice.practiceSet.kind === "changeDrill" ? "Change Drill" : "Your first shift"}</Text><Text style={ui.meta}>{index + 1} / {practice.scenarios.length}</Text></View>
@@ -101,9 +136,10 @@ export function PracticePanel({ client, extraction, source, onActiveChange, onSt
       </View>
       <View style={styles.composer}>
         <Text style={ui.blueLabel}>Your response</Text>
-        {!feedback && <VoiceRehearsal key={scenario.id} active={isVisible && !busy} prompt={scenario.context + " " + scenario.prompt} onTranscript={(text) => { setAnswer(text); setInputMode("voice"); }} onBusy={setVoiceBusy} />}
+        {!feedback && <VoiceRehearsal key={scenario.id} active={isVisible && !busy && draftReady} prompt={scenario.context + " " + scenario.prompt} onTranscript={(text) => editAnswer(text, "voice")} onBusy={setVoiceBusy} />}
         <Text style={ui.meta}>{inputMode === "voice" && answer ? "Your spoken answer · review before submitting" : "Or type your answer"}</Text>
-        <TextInput accessibilityLabel="Your action" value={answer} onChangeText={(text) => { setAnswer(text); setInputMode("text"); }} multiline maxLength={4000} editable={!busy && !feedback && !voiceBusy} placeholder="I would…" placeholderTextColor={theme.colors.tertiaryInk} style={[ui.input, styles.answer]} />
+        <TextInput accessibilityLabel="Your action" value={answer} onChangeText={(text) => editAnswer(text, "text")} multiline maxLength={4000} editable={draftReady && !busy && !feedback && !voiceBusy} placeholder="I would…" placeholderTextColor={theme.colors.tertiaryInk} style={[ui.input, styles.answer]} />
+        {draftMessage && <Text accessibilityLiveRegion="polite" style={ui.meta}>{draftMessage}</Text>}
       </View>
       {!feedback && <Action label="Check my answer" disabled={!!busy || voiceBusy || !answer.trim()} onPress={() => void run("Checking your answer against the training…", submit)} />}
       {feedback && <View accessibilityLiveRegion="polite" style={[styles.feedback, feedback.attempt.result === "covered" ? styles.covered : styles.retry]}>
@@ -114,8 +150,9 @@ export function PracticePanel({ client, extraction, source, onActiveChange, onSt
       </View>}
       {!feedback && <><Action secondary label={showEvidence ? "Hide the training note" : "Need a reminder? View the source"} onPress={() => setShowEvidence(!showEvidence)} />{showEvidence && <EvidenceNotes items={practice.sourceEvidence.filter((e) => scenario.sourceEvidence.includes(e.id))} />}</>}
     </>}
-    {practice && showRecap && !update && <>
-      <View style={ui.gap}><Text accessibilityRole="header" style={ui.title}>{practice.practiceSet.kind === "changeDrill" ? "You practised the update." : "A little more prepared."}</Text><Text style={ui.body}>{practice.practiceSet.kind === "changeDrill" ? "Your rehearsal now reflects the new instruction. The earlier version stays marked out of date." : "Here’s what you covered in this rehearsal. Keep the questions for your trainer."}</Text></View>
+    {practice && showRecap && !reviewingUpdate && <>
+      {practice.practiceSet.status === "stale" && <View style={styles.changedNotice}><Text style={ui.label}>This earlier practice is out of date.</Text><Text style={ui.body}>These are your historical attempts. Review a later conversation before rehearsing this rule again.</Text></View>}
+      <View style={ui.gap}><Text accessibilityRole="header" style={ui.title}>{practice.practiceSet.status === "stale" ? "Your earlier practice history." : practice.practiceSet.kind === "changeDrill" ? "You practised the update." : "A little more prepared."}</Text><Text style={ui.body}>{practice.practiceSet.status === "stale" ? "Earlier answers are preserved here. These instructions need review before further practice." : practice.practiceSet.kind === "changeDrill" ? "Your rehearsal now reflects the new instruction. The earlier version stays marked out of date." : "Here’s what you covered in this rehearsal. Keep the questions for your trainer."}</Text></View>
       <View style={styles.summary}>
         {recap.map(({ instruction, covered, tries, retried }) => <View key={instruction.id} style={styles.summaryRow}><Portrait size={46} /><View style={ui.flex}><Text style={ui.blueLabel}>{instruction.situation}</Text><Text style={ui.body}>{instruction.expectedAction}</Text><Text style={ui.meta}>{covered ? retried ? "Covered after retrying" : "Covered on your first try" : "Not yet covered"}{tries ? " · " + tries + (tries === 1 ? " attempt" : " attempts") : ""}</Text></View></View>)}
         <Text style={ui.meta}>This records your practice, not a prediction of performance at work.</Text>
@@ -124,25 +161,13 @@ export function PracticePanel({ client, extraction, source, onActiveChange, onSt
       <TrainerQuestions questions={extraction.openQuestions} evidence={extraction.sourceEvidence} />
       <Action secondary label={showRecapEvidence ? "Hide my source notes" : "Review my source notes"} onPress={() => setShowRecapEvidence(!showRecapEvidence)} />
       {showRecapEvidence && <EvidenceNotes items={practice.sourceEvidence} />}
-      {updateId && practice.practiceSet.kind === "standard" && !update && <View style={styles.changeInvite}>
-        <Text style={ui.label}>Now your trainer changes an instruction.</Text><Text style={ui.body}>What happens to what you just learned? Try a fictional update and see exactly what changes.</Text>
-        <Action label="Try a training update →" disabled={!!busy} onPress={() => void run("Opening the trainer’s update…", async () => { const response = await client.getConversation({ beeSourceId: updateId, sourceKind: "fixture" }); setUpdate(response.conversation); onStepChange?.(); })} />
-      </View>}
+      {practice.practiceSet.status==='stale'&&<View style={ui.paper}><Text style={ui.body}>After source review, prepare a fresh set from three currently eligible instructions. Earlier scenarios and attempts stay in history.</Text><Action secondary label='Choose current instructions for fresh practice' disabled={!!busy} onPress={()=>{setPractice(null);setAttempts([]);setChangePair(null);setShowRecap(false);setFeedback(null);setAnswer('');setIndex(0);setSelectedIds(null);onStepChange?.();}}/></View>}
+      <View style={styles.changeInvite}>
+        <Text style={ui.label}>Did your trainer change an instruction?</Text><Text style={ui.body}>{source.sourceKind === "fixture" ? "Choose a fictional update and compare both sources before confirming the change." : "Choose a second processed Bee conversation to review what changed."}</Text>
+        <Action label={source.sourceKind === "fixture" ? "Try a training update →" : "Choose a later Bee conversation →"} disabled={!!busy} onPress={() => { setReviewingUpdate(true); onStepChange?.(); }} />
+      </View>
     </>}
-    {update && !comparison && <View style={ui.paper}>
-      <Text style={ui.label}>A new note from your trainer</Text><Text style={ui.meta}>Fictional update · separate conversation</Text>
-      {update.utterances.map((u) => <Text key={u.id} selectable style={ui.inkBody}>“{u.text}”</Text>)}
-      <Text style={ui.body}>Use this update to compare the instruction you practised. Nothing changes until you confirm it.</Text>
-      <Action label="Use this update and compare" disabled={!!busy} onPress={() => void run("Comparing the two sources…", compare)} />
-      <Action secondary label="Back to my recap" disabled={!!busy} onPress={() => { setUpdate(null); onStepChange?.(); }} />
-    </View>}
-    {comparison && <View style={ui.paper}>
-      <Text accessibilityRole="header" style={ui.title}>One instruction changed.</Text>
-      <ChangeComparison before={before?.expectedAction ?? "See the earlier source below."} after={comparison.change.replacementInstruction.expectedAction} />
-      <Text style={ui.body}>Confirming marks the earlier practice out of date and creates one new situation.</Text>
-      <EvidenceNotes items={comparison.evidence} />
-      <Action label="Confirm update & practise it" disabled={!!busy} onPress={() => void run("Updating your practice…", confirm)} />
-    </View>}
+    <TrainingUpdatePanel restoredSession={restoredSession} visible={reviewingUpdate && isVisible} client={client} source={source} instructionRevision={extraction.instructionRevision} previousRules={extraction.items} aiMode={aiMode === "bedrock"} onClose={() => { setReviewingUpdate(false); onStepChange?.(); }} onConfirmed={confirmedUpdate} {...(onStepChange ? { onStepChange } : {})} />
     {busy && <Loading label={busy} />}
     {error && <Text accessibilityRole="alert" style={ui.error}>{error}</Text>}
     {practice && <Pressable accessibilityRole="button" disabled={!!busy} onPress={onExit} style={ui.textButton}><Text style={ui.link}>Back to training</Text></Pressable>}

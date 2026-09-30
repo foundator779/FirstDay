@@ -8,10 +8,10 @@ import { Portrait, DesignIcon } from "./design-assets";
 import { filterTrainingConversations } from "./training-list";
 import { formatEvidenceSpan, isUtteranceExcluded } from "./review-evidence";
 
-export function Action({ label, onPress, secondary = false, disabled = false }: { label: string; onPress(): void; secondary?: boolean; disabled?: boolean }) {
+export function Action({ label, onPress, secondary = false, disabled = false, maxFontSizeMultiplier }: { label: string; onPress(): void; secondary?: boolean; disabled?: boolean; maxFontSizeMultiplier?: number }) {
   return <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
     style={({ pressed }) => [ui.button, secondary && ui.secondary, pressed && { opacity: 0.8 }, disabled && { opacity: 0.45 }]}>
-    <Text style={[ui.buttonText, secondary && { color: theme.colors.ink }]}>{label}</Text>
+    <Text maxFontSizeMultiplier={maxFontSizeMultiplier} style={[ui.buttonText, secondary && { color: theme.colors.ink }]}>{label}</Text>
   </Pressable>;
 }
 
@@ -20,7 +20,7 @@ export function EvidenceNotes({ items }: { items: readonly SourceEvidence[] }) {
     <Text style={ui.label}>From the training</Text>
     {items.map((item) => <View key={item.id} style={ui.gap}>
       <Text selectable style={ui.body}>“{item.quote}”</Text>
-      <Text style={ui.meta}>{item.speakerLabel ?? "Trainer"} · {formatEvidenceSpan(item)}</Text>
+      <Text style={ui.meta}>{item.speakerLabel ?? "Speaker unavailable"} · {formatEvidenceSpan(item)}</Text>
     </View>)}
   </View>;
 }
@@ -45,13 +45,13 @@ export function ConversationPicker({ state, onLoad, onSelect, onContinue }: { st
   const [help, setHelp] = useState(false);
   return <View style={ui.section}>
     <View style={ui.tabs} accessibilityRole="radiogroup">
-      {(["fixture", "bee"] as const).map((kind) => <Pressable key={kind} accessibilityRole="radio" aria-checked={state.sourceKind === kind} accessibilityState={{ checked: state.sourceKind === kind }} onPress={() => { setQuery(""); onLoad(kind); }} style={[ui.tab, state.sourceKind === kind && ui.tabActive]}>
-        <Text style={[ui.tabText, state.sourceKind === kind && { color: "white" }]}>{kind === "fixture" ? "Try an example" : "My Bee training"}</Text>
+      {(["fixture", "bee"] as const).map((kind) => <Pressable key={kind} accessibilityRole="radio" accessibilityLabel={kind === "fixture" ? "Try an example" : "My Bee training"} aria-checked={state.sourceKind === kind} accessibilityState={{ checked: state.sourceKind === kind }} onPress={() => { setQuery(""); onLoad(kind); }} style={[ui.tab, state.sourceKind === kind && ui.tabActive]}>
+        <Text maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={[ui.tabText, state.sourceKind === kind && { color: "white" }]}>{kind === "fixture" ? "Try an example" : "My Bee training"}</Text>
       </Pressable>)}
     </View>
     <View style={ui.search}><TextInput accessibilityLabel="Search training conversations" placeholder="Search your training" placeholderTextColor={theme.colors.tertiaryInk} value={query} onChangeText={setQuery} style={ui.searchInput} /><DesignIcon name="search" /></View>
     <View style={ui.journeyBand}>
-      <View style={ui.journeySteps}>{["Choose", "Review", "Confirm", "Practise"].map((label, index) => <View key={label} style={[ui.journeyStep, index === 0 && ui.journeyActive]}><Text style={[ui.stepNumber, index === 0 && { color: "white" }]}>{index + 1}</Text><Text style={[ui.stepCaption, index === 0 && { color: "white" }]}>{label}</Text></View>)}</View>
+      <View style={ui.journeySteps}>{["Choose", "Review", "Confirm", "Practise"].map((label, index) => <View key={label} style={[ui.journeyStep, index === 0 && ui.journeyActive]}><Text maxFontSizeMultiplier={1.3} numberOfLines={1} style={[ui.stepNumber, index === 0 && { color: "white" }]}>{index + 1}</Text><Text maxFontSizeMultiplier={1.2} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={[ui.stepCaption, index === 0 && { color: "white" }]}>{label}</Text></View>)}</View>
       <View style={ui.sessionCard}><Text style={ui.blueLabel}>Your first shift, rehearsed.</Text><View style={ui.sessionRow}><Text style={ui.sessionTime}>3 situations</Text><View style={ui.sessionNote}><Text style={ui.label}>Learn it. Try it. Keep the source.</Text><Text style={ui.body}>Choose a training conversation to get started.</Text></View></View></View>
     </View>
     <View style={ui.row}><Text accessibilityRole="header" style={[ui.blueLabel, { flex: 1 }]}>Training conversations</Text><Text style={ui.meta}>{state.sourceKind === "fixture" ? "Fictional examples" : "From Bee"}</Text></View>
@@ -79,20 +79,20 @@ export function Loading({ label }: { label: string }) {
   return <View accessibilityLiveRegion="polite" style={ui.loading}><ActivityIndicator color={theme.colors.action} /><Text style={ui.body}>{label}</Text></View>;
 }
 
-export function TranscriptCheck({ preview, review, aiMode, onBack, onRetry, onToggle, onConsent, onExtract }: { preview: PreviewState; review: ReviewState; aiMode: boolean; onBack(): void; onRetry(): void; onToggle(u: BeeUtterance): void; onConsent(value: boolean): void; onExtract(): void }) {
+export function TranscriptCheck({ preview, review, aiMode, onBack, onRetry, onToggle, onConsent, onExtract, actionLabel = "Find the instructions", locked = false, working = false }: { preview: PreviewState; review: ReviewState; aiMode: boolean; onBack(): void; onRetry(): void; onToggle(u: BeeUtterance): void; onConsent(value: boolean): void; onExtract(): void; actionLabel?: string; locked?: boolean; working?: boolean }) {
   const [details, setDetails] = useState(false);
   if (preview.phase === "loading") return <Loading label="Opening the transcript…" />;
   if (!preview.source) return <View style={ui.section}><Text style={ui.body}>{preview.message ?? "Could not open this conversation."}</Text><Action label="Try again" onPress={onRetry} /><Action secondary label="Back to training" onPress={onBack} /></View>;
   const source = preview.source;
   const included = source.utterances.filter((u) => !isUtteranceExcluded(u, preview.excludedRanges)).length;
   return <View style={ui.section}>
-    <Action secondary label="‹ Back to training" onPress={onBack} />
-    <View style={ui.gap}><Text accessibilityRole="header" style={ui.title}>Choose what to learn.</Text><Text style={ui.body}>Keep the useful guidance. Tap any line to leave it out.</Text></View>
+    <Action secondary label="‹ Back to training" disabled={working} onPress={onBack} />
+    <View style={ui.gap}><Text accessibilityRole="header" style={ui.title}>Choose what to learn.</Text><Text style={ui.body}>{locked ? "This review has been imported. Your passage selection is saved for comparison." : "Keep the useful guidance. Tap any line to leave it out."}</Text></View>
     <Text style={ui.label}>{source.title.replace(/ - synthetic training$/, "")}</Text>
     <Text style={ui.meta}>{included} of {source.utterances.length} passages included{source.sourceKind === "fixture" ? " · Fictional conversation" : ""}</Text>
     <View style={ui.list}>{source.utterances.map((u) => {
       const selected = !isUtteranceExcluded(u, preview.excludedRanges);
-      return <Pressable key={u.id} accessibilityRole="checkbox" accessibilityLabel={u.text} aria-checked={selected} accessibilityState={{ checked: selected }} onPress={() => onToggle(u)} style={[ui.transcriptRow, !selected && { backgroundColor: theme.colors.inset }]}>
+      return <Pressable key={u.id} disabled={locked} accessibilityRole="checkbox" accessibilityLabel={u.text} aria-checked={selected} accessibilityState={{ checked: selected, disabled: locked }} onPress={() => onToggle(u)} style={[ui.transcriptRow, !selected && { backgroundColor: theme.colors.inset }]}>
         <Text accessible={false} style={ui.check}>{selected ? "✓" : "−"}</Text><View style={ui.flex}>
           <Text style={ui.meta}>{u.speaker?.name ?? u.speaker?.label ?? "Speaker"} · {formatEvidenceSpan(u)}{!selected ? " · Excluded" : ""}</Text>
           <Text style={[ui.inkBody, !selected && { color: theme.colors.tertiaryInk }]}>{u.text}</Text>
@@ -100,11 +100,11 @@ export function TranscriptCheck({ preview, review, aiMode, onBack, onRetry, onTo
       </Pressable>;
     })}</View>
     <View style={ui.paper}>
-      <View style={ui.row}><View style={ui.flex}><Text style={ui.label}>I have permission to use this conversation</Text><Text style={ui.meta}>For my private FirstDay practice.</Text></View><Switch accessibilityLabel="Confirm permission to use this conversation" value={preview.consentConfirmed} onValueChange={onConsent} trackColor={{ true: theme.colors.confirmed }} /></View>
-      <Text style={ui.meta}>{aiMode ? "Included passages and your practice answers are sent to Amazon Bedrock for AI processing. Excluded passages are not sent." : "This example is processed on this device. No model request is made."}</Text>
+      <View style={ui.permissionRow}><View style={[ui.flex, ui.permissionText]}><Text style={ui.label}>I have permission to use this conversation</Text><Text style={ui.meta}>For my private FirstDay practice.</Text></View><Switch style={ui.permissionSwitch} accessibilityLabel="Confirm permission to use this conversation" disabled={locked} value={preview.consentConfirmed} onValueChange={onConsent} trackColor={{ true: theme.colors.confirmed }} /></View>
+      <Text style={ui.meta}>{aiMode ? "Included passages and your practice answers are sent to Amazon Bedrock for AI processing. Excluded passages are not sent." : "This example uses prepared instructions. No AI model request is made."}</Text>
     </View>
     {review.message && <Text accessibilityRole="alert" style={ui.error}>{review.message}</Text>}
-    <Action label="Find the instructions" onPress={onExtract} disabled={!preview.consentConfirmed || included === 0} />
+    <Action label={actionLabel} onPress={onExtract} disabled={working || !preview.consentConfirmed || included === 0} />
     <Pressable accessibilityRole="button" aria-expanded={details} accessibilityState={{ expanded: details }} onPress={() => setDetails(!details)} style={ui.textButton}><Text style={ui.link}>Source details {details ? "−" : "+"}</Text></Pressable>
     {details && <View style={ui.gap}><Text selectable style={ui.meta}>Conversation: {source.id}</Text><Text selectable style={ui.meta}>Revision: {source.revision}</Text></View>}
   </View>;
@@ -137,13 +137,13 @@ function RuleEditor({ rule, evidence, busy, onUpdate, onQuestion }: { rule: Inst
   </View>;
 }
 
-export function RuleCheck({ review, busy, error, onBack, onUpdate, onQuestion }: { review: ReviewState; busy: boolean; error: string | null; onBack(): void; onUpdate(input: UpdateInstructionRequestInput): Promise<void>; onQuestion(input: CreateOpenQuestionRequestInput): Promise<void> }) {
+export function RuleCheck({ review, busy, error, onBack, onUpdate, onQuestion, withheldInstructionIds=[] }: { withheldInstructionIds?:readonly string[]; review: ReviewState; busy: boolean; error: string | null; onBack(): void; onUpdate(input: UpdateInstructionRequestInput): Promise<void>; onQuestion(input: CreateOpenQuestionRequestInput): Promise<void> }) {
   const [showConfirmed, setShowConfirmed] = useState(false);
   if (review.phase === "loading") return <Loading label="Finding the instructions and anything that needs clarification…" />;
   const extraction = review.extraction;
   if (!extraction) return <View style={ui.section}><Text style={ui.error}>{review.message ?? "No instructions found."}</Text><Action label="Choose another conversation" onPress={onBack} /></View>;
   const pending = extraction.items.filter((r) => r.status === "needsReview");
-  const confirmed = extraction.items.filter((r) => r.status === "confirmed");
+  const confirmed = extraction.items.filter((r) => r.status === "confirmed"&&!withheldInstructionIds.includes(r.id));
   const focus = pending[0];
   return <View style={ui.section}>
     <Action secondary label="‹ Back to training" disabled={busy} onPress={onBack} />
@@ -151,16 +151,18 @@ export function RuleCheck({ review, busy, error, onBack, onUpdate, onQuestion }:
       <Text style={ui.body}>{focus ? `${confirmed.length} confirmed · ${pending.length} left to review. Only confirmed instructions become practice.` : confirmed.length ? "You’ve checked the rules. Now try them in a realistic situation." : "There isn’t enough confirmed guidance for three situations. Try another conversation or clarify the questions below."}</Text></View>
     {error && <Text accessibilityRole="alert" style={ui.error}>{error}</Text>}
     {focus && <RuleEditor key={focus.id} rule={focus} evidence={extraction.sourceEvidence.filter((e) => focus.sourceEvidence.includes(e.id))} busy={busy} onUpdate={onUpdate} onQuestion={onQuestion} />}
-    {!focus && confirmed.length !== 3 && <View style={ui.paper}><Text style={ui.body}>This rehearsal needs three confirmed instructions. You have {confirmed.length}. Choose another conversation with enough clear guidance.</Text><Action label="Choose another conversation" onPress={onBack} /></View>}
+    {!focus && confirmed.length < 3 && <View style={ui.paper}><Text style={ui.body}>This rehearsal needs three confirmed instructions. You have {confirmed.length}. Choose another conversation with enough clear guidance.</Text><Action label="Choose another conversation" onPress={onBack} /></View>}
     {confirmed.length > 0 && <View style={ui.divider}><Pressable accessibilityRole="button" aria-expanded={showConfirmed} accessibilityState={{ expanded: showConfirmed }} onPress={() => setShowConfirmed(!showConfirmed)} style={ui.textButton}><Text style={ui.link}>{confirmed.length} confirmed {confirmed.length === 1 ? "instruction" : "instructions"} {showConfirmed ? "−" : "+"}</Text></Pressable>
       {showConfirmed && confirmed.map((r) => <View key={r.id} style={ui.questionRow}><Text style={ui.label}>✓ {r.situation}</Text><Text style={ui.body}>{r.expectedAction}</Text><EvidenceNotes items={extraction.sourceEvidence.filter((e) => r.sourceEvidence.includes(e.id))} /></View>)}
     </View>}
+    {extraction.items.filter(r=>withheldInstructionIds.includes(r.id)).map(r=><View key={r.id} style={ui.paper}><Text style={ui.label}>{r.text}</Text><Text style={ui.error}>Grading paused by source correction</Text><Text style={ui.body}>{r.expectedAction}</Text></View>)}
     <TrainerQuestions questions={extraction.openQuestions} evidence={extraction.sourceEvidence} />
   </View>;
 }
 
 export const ui = StyleSheet.create({
   section: { gap: 20 }, gap: { gap: 8 }, flex: { flex: 1, gap: 7 }, row: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  permissionRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "nowrap" }, permissionText: { flex: 1, minWidth: 0 }, permissionSwitch: { flexShrink: 0 },
   title: { color: theme.colors.action, fontFamily: theme.type.display, fontSize: 27, lineHeight: 32 },
   label: { color: theme.colors.ink, fontFamily: theme.type.utility, fontSize: 17, lineHeight: 22 },
   blueLabel: { color: theme.colors.action, fontFamily: theme.type.display, fontSize: 19, lineHeight: 24 },
@@ -172,9 +174,9 @@ export const ui = StyleSheet.create({
   buttonText: { fontFamily: theme.type.utility, fontSize: 18, color: "white", textAlign: "center" },
   secondary: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.rule },
   textButton: { minHeight: 44, justifyContent: "center", paddingVertical: 10 }, link: { color: theme.colors.action, fontFamily: theme.type.utility, fontSize: 16, lineHeight: 21 },
-  tabs: { flexDirection: "row", gap: 8 }, tab: { flex: 1, minHeight: 44, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.surface }, tabActive: { backgroundColor: theme.colors.action }, tabText: { color: theme.colors.action, fontFamily: theme.type.utility, fontSize: 16 },
+  tabs: { flexDirection: "row", gap: 8 }, tab: { flex: 1, minHeight: 44, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.surface }, tabActive: { backgroundColor: theme.colors.action }, tabText: { alignSelf: "stretch", textAlign: "center", color: theme.colors.action, fontFamily: theme.type.utility, fontSize: 16 },
   search: { flexDirection: "row", alignItems: "center", backgroundColor: theme.colors.inset, borderRadius: 25, paddingHorizontal: 16, minHeight: 46, gap: 10 }, searchInput: { flex: 1, minHeight: 46, color: theme.colors.ink, fontFamily: theme.type.body, fontSize: 17 },
-  journeyBand: { marginHorizontal: -24, padding: 24, backgroundColor: theme.colors.inset, gap: 14 }, journeySteps: { flexDirection: "row", gap: 12 }, journeyStep: { flex: 1, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "white", minHeight: 68, gap: 4 }, journeyActive: { backgroundColor: theme.colors.action }, stepNumber: { fontFamily: theme.type.utility, fontSize: 27, color: theme.colors.ink }, stepCaption: { fontFamily: theme.type.body, fontSize: 13, color: theme.colors.ink },
+  journeyBand: { marginHorizontal: -24, padding: 24, backgroundColor: theme.colors.inset, gap: 14 }, journeySteps: { flexDirection: "row", gap: 12 }, journeyStep: { flex: 1, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "white", minHeight: 68, gap: 4 }, journeyActive: { backgroundColor: theme.colors.action }, stepNumber: { fontFamily: theme.type.utility, fontSize: 27, color: theme.colors.ink }, stepCaption: { alignSelf: "stretch", textAlign: "center", fontFamily: theme.type.body, fontSize: 13, color: theme.colors.ink },
   sessionCard: { padding: 17, borderRadius: 20, backgroundColor: "white", gap: 15 }, sessionRow: { flexDirection: "row", alignItems: "center", gap: 10 }, sessionTime: { fontFamily: theme.type.body, fontSize: 13, color: theme.colors.action, width: 57 }, sessionNote: { flex: 1, padding: 12, gap: 5, borderRadius: 13, backgroundColor: theme.colors.surface },
   list: { gap: 10 }, sourceRow: { minHeight: 106, padding: 12, flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 2, borderColor: theme.colors.inset, borderRadius: 18, backgroundColor: theme.colors.inset }, selectedRow: { borderColor: theme.colors.action }, sourceName: { backgroundColor: "white", borderRadius: 13, paddingHorizontal: 12, paddingVertical: 8, gap: 3 }, sourceTitle: { fontFamily: theme.type.utility, fontSize: 17, color: theme.colors.action }, sourceDescription: { fontFamily: theme.type.body, fontSize: 14, color: theme.colors.secondaryInk }, sourceStatus: { fontFamily: theme.type.body, color: theme.colors.actionPressed, fontSize: 13 },
   divider: { borderTopWidth: 1, borderTopColor: theme.colors.rule, paddingTop: 18, gap: 10 },

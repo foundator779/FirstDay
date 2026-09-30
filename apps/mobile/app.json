@@ -9,6 +9,14 @@
     "plugins": [
       "expo-router",
       [
+        "expo-build-properties",
+        {
+          "ios": {
+            "enableSceneSupport": true
+          }
+        }
+      ],
+      [
         "expo-speech-recognition",
         {
           "microphonePermission": "Allow FirstDay to hear your practice response when you tap Start speaking.",
