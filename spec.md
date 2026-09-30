@@ -66,6 +66,38 @@ authentication model supports it, but that is not part of the MVP.
 
 ## Technology decisions
 
+### Physical iOS 27 build compatibility (2026-09-29)
+
+Physical builds made with Xcode 27 require UIKit scene lifecycle support. Keep
+Expo SDK 57, require Expo patch 57.0.23 or newer, and configure the official
+`expo-build-properties` build-time plugin with `ios.enableSceneSupport: true`.
+Generated native projects remain ignored; prebuild must reproduce the scene
+manifest and factory-provider wiring. No Bee credentials or server tokens enter
+the device bundle. Validate launch on the paired physical device after rebuilding.
+
+### Supported practice selection and second-source review (2026-09-29)
+
+Standard practice continues to require exactly three confirmed instructions from
+one source snapshot. The learner screen always explains this requirement. With
+fewer than three it shows the number still needed and recovery actions; with
+more than three it lets the learner choose exactly three. Recaps describe only
+instructions actually used by the generated scenarios. Recap attempt counts include
+only scenarios in the currently displayed practice set. Restored instruction
+snapshots apply only while that restored practice ID remains current. Choosing
+fresh practice clears local attempts, feedback and prior comparison state; the
+server retains earlier scenarios and attempts as immutable history.
+
+Change Drill selection uses the existing learner-authenticated conversation list
+and get endpoints for either source kind. The learner chooses a distinct,
+processed second conversation of the same source kind, reviews its utterances,
+may exclude private ranges, and explicitly confirms consent before import and
+extraction. Compare and confirm retain their existing transactional contracts.
+Every returned proposal is individually reviewable; an empty comparison offers
+recovery rather than failing or inventing a change. Model/network failure keeps
+the selected source, exclusions and successful import/extraction checkpoints so
+retry cannot repeat a completed extraction. This is learner-selected comparison,
+not automatic live synchronization.
+
 ### Figma layout adaptation (2026-09-15)
 
 Use the user-supplied medical UI kit (file r77BdScud0c2zezb2VVvSQ): Home 37:626, Message 14:453, and Complete appointments 18:47 as visual references. Adapt their white/blue/lavender palette, League Spartan font, rounded cards, message treatment and bottom navigation to FirstDay training content. Medical appointments, ratings, payment and diagnosis functions are not part of FirstDay. Bottom tabs expose Training, Practice, Questions and About; switching tabs preserves the current review/answer state. Search filters the actual conversation list. Source consent, human confirmation, evidence and grading contracts remain unchanged. Native system safe areas replace the reference's drawn status bar.
@@ -112,7 +144,7 @@ The local demo uses the canonical import, extraction, review, practice, attempt,
   JSON numbers or strings; the bridge converts either form to an opaque, non-empty
   string before returning application JSON. No application schema accepts a
   numeric Bee ID.
-- All timestamps are ISO 8601 UTC strings.
+- Metadata timestamps are ISO 8601 UTC strings; typed reported transcript points use literal epoch milliseconds.
 - Every mutable source-derived record includes `sourceRevision`. `BeeSource.revision`
   is the adapter-derived upstream change token; an imported record copies it to
   `sourceRevision`. Source and instruction revision strings are nonblank and at
@@ -122,8 +154,9 @@ The local demo uses the canonical import, extraction, review, practice, attempt,
 - `null` means known empty; an omitted field means unavailable.
 - Status values in application JSON are camelCase. In particular, the canonical
   value is `needsReview`, never `needs_review`.
-- Time ranges are zero-based integer milliseconds and use half-open intervals
-  `[startMs, endMs)`, with `endMs > startMs`.
+- Legacy time ranges are zero-based integer milliseconds and use half-open intervals
+  `[startMs, endMs)`, with `endMs > startMs`. Typed reported timestamp selections
+  use exact utterance IDs and point bounds, including zero width.
 
 ## Domain schemas
 
@@ -147,6 +180,7 @@ type BeeSpeaker = {
 };
 
 type BeeUtterance = {
+  timing?: { basis: "reportedTimestamp"; rawStart?: number | null; rawEnd?: number | null };
   id: string;
   startMs: number;
   endMs: number;
@@ -185,12 +219,15 @@ type BeeSource = {
 };
 
 type ExcludedRange = {
+  timing?: { basis: "reportedTimestamps" };
+  utteranceIds?: string[]; // required only for reported timestamp selection
   startMs: number;
   endMs: number;
   reason?: string;
 };
 
 type SourceEvidence = {
+  timing?: { basis: "reportedTimestamps" };
   id: SourceEvidenceId;
   sourceConversationId: string;
   sourceRevision: string;
@@ -313,6 +350,10 @@ decision timestamp, `confirmed` has only `consentConfirmedAt`, and `revoked` has
 both timestamps with revocation no earlier than confirmation. These timestamps
 are written by the server.
 
+Live final transcripts preserve the existing relative interval normalization when every nonblank utterance has a valid absolute start/end interval. If that interpretation fails, all nonblank final utterances must instead provide a nonnegative finite safe integer `spoken_at` with `0 <= spoken_at <= 8640000000000000` in the existing timestamp domain. Do not infer seconds, relative timing units, origin, duration or bounds. In this uniform mode `startMs === endMs === spoken_at`, `timing.basis` is `reportedTimestamp`, and finite numeric/null raw start/end fields are retained uninterpreted. Invalid or ambiguous metadata and realtime-only transcripts fail closed. Conversation start/end metadata remains unchanged even when a reported point is outside those bounds. Exact nonblank text is retained, IDs are unique, and order is start/end/ID. Full point-source revisions append a SHA-256 fingerprint of the normalized utterance timing, IDs, exact text and speaker; legacy source revisions stay unchanged. Picker summaries may have the legacy revision; preview/get/import must bind the full revision.
+
+Evidence and exclusions for this mode carry `timing: { basis: "reportedTimestamps" }` and exact ordered unique utterance IDs. Their start/end equal the minimum/maximum reported timestamp of that selection; a zero width is permitted only with this discriminator. Selection, exclusion and highlighting use IDs, preserving coincident points independently. Validation binds the discriminator, ordered IDs, span, exact quote and speaker to the immutable source. Point evidence hashes extend the legacy canonical string with `\nreportedTimestamps\n` and JSON serialization of the ordered ID array. Interval evidence retains its original four-field hash and overlap behavior. The database stores optional evidence timing JSONB, validates both hash forms and binds point evidence bounds, ordered IDs, exact quote and speaker to private source material. Display reported wall timestamps with “duration unavailable”; never show them as elapsed offsets or invent duration.
+
 `SourceEvidence.id` has the stable format `evd_<64 lowercase hexadecimal
 characters>`. The digest is SHA-256 over the UTF-8 bytes of the canonical string
 `<lowercase canonical sourceConversationId>\n<sourceRevision>\n<startMs>\n<endMs>`
@@ -321,7 +362,8 @@ with no trailing newline. The exported factory computes this digest synchronousl
 well-formed digest. Evidence IDs are therefore stable for the same imported
 source revision and span, while a changed
 source revision necessarily produces a different ID. `quote` is the exact text
-covered by the span; `utteranceIds` lists every overlapping `BeeUtterance.id`.
+covered by the span; legacy `utteranceIds` lists every overlapping `BeeUtterance.id`,
+while reported evidence lists exactly the selected ordered IDs.
 Evidence and excluded ranges use the same millisecond timeline, and extraction
 must not emit evidence that overlaps an excluded range. Every response evidence
 bundle contains each referenced evidence record exactly once and no unreferenced
@@ -337,7 +379,8 @@ contains at most 10,000 utterances and 100 speakers. These limits are boundary
 guards, not targets for MVP payload size.
 The MVP cast IDs are limited to `customer-rowan` and `guide-maya`; new IDs enter
 the contract only when matching shared UI metadata and art are implemented.
-`BeeSource.utterances` has unique IDs, is ordered by `(startMs, endMs)`, and
+`BeeSource.utterances` has unique IDs, is ordered by `(startMs, endMs)` (with
+lexicographic ID tie-breaking for reported points), and
 `transcript` is the exact newline join of utterance `text` values without speaker
 prefixes or whitespace normalization. `BeeSource.sourceUrl`, when present, is
 an absolute HTTP or HTTPS URL. Source and summary `endedAt` values cannot precede
@@ -348,14 +391,15 @@ total for malformed input and reports validation failure instead of throwing.
 ## API contract
 
 All application endpoints return JSON and require the FirstDay learner session
-except `/health` and the local bridge health check. The API must use the error
+except `/health`, the defined sign-in/refresh routes, and the local bridge health check. The API must use the error
 envelope below for non-2xx responses. `packages/contracts` exports the following
 Zod request/response schemas and their inferred TypeScript types:
 
 ### API runtime and trust semantics
 
 The FirstDay API is a separate trust boundary from the local Bee bridge. Every
-`/api/*` request, other than an allowed CORS preflight, carries
+`/api/*` request, other than the defined public sign-in/refresh routes and an
+allowed CORS preflight, carries
 `Authorization: Bearer <learner-session-token>`. A server-injected
 `SessionVerifier` derives `learnerId` exclusively from that token; route, query,
 and body values can never supply or override learner identity. Missing,
@@ -368,9 +412,85 @@ successful response. This verifier does not use, expose, or require a Supabase
 service-role key. A fixed local demo session may be enabled only when both
 `NODE_ENV` is not `production` and `FIRSTDAY_DATA_MODE=fixture`. Its token is
 explicitly public development data, is unrelated to
-`FIRSTDAY_BEE_BRIDGE_TOKEN`, and must not enable live or durable data access.
+`FIRSTDAY_BEE_BRIDGE_TOKEN`, and must not enable live data or hosted durable
+storage access. An explicit `FIRSTDAY_STORAGE_MODE=supabase` with a loopback
+database endpoint is available only for isolated fixture persistence validation.
+Every runtime Supabase storage origin uses the strict origin validator; fixture
+storage remains restricted to actual loopback hosts. HTTP fixture storage also
+requires both `NODE_ENV=development` and `FIRSTDAY_ALLOW_LOCAL_SUPABASE_HTTP=1`.
+Direct injected repository helpers retain their isolated test seams.
 Neither the Bee bridge token nor a Supabase service-role key may appear in a
 mobile bundle, public response, log, or error detail.
+
+### CONNECT-001 learner session and live owner boundary
+
+Live production startup requires `FIRSTDAY_BEE_OWNER_ID`, a trusted canonical UUID,
+server Supabase durable storage and Bedrock configuration. Every authenticated
+application route is owner-only: the Auth `/auth/v1/user` response UUID must match
+that server UUID before Bee, model or repository access. Email, user metadata,
+request fields and decoded client JWT claims never establish ownership.
+`buildApiServer` may retain explicit dependency injection for isolated tests.
+Public `/health` returns the existing coarse source-free shape and in live mode
+performs no Bee/model/repository request. The mobile picker retains this coarse
+health result separately from `authenticatedList`, a boolean set only after a
+successful list request through the current generation-bound live client.
+`picker/loadSucceeded` carries this explicit signal; absent/false retains the
+existing fixture/bridge-health behavior. Authenticated list success makes a Bee
+picker `ready` when selectable results exist, or `empty` otherwise, even while
+public health reports `unavailable`. Starting or failing a load clears the
+signal, selection and items. A suppressed unauthenticated list never sets it;
+a failed or stale-session list cannot claim success.
+
+Auth broker routes are fixed, JSON-only, uncached, reject all query parameters,
+and use the canonical error
+envelope. `POST /api/auth/sign-in` accepts exactly `{email,password}` (email at
+most254 characters, password1..1024). `POST /api/auth/refresh` accepts exactly
+`{refreshToken}` (one non-whitespace token1..16384). Both return exactly
+`{accessToken,refreshToken,expiresAt,learnerId}`: bounded opaque tokens, positive
+integer Unix seconds expiry and the server-verified UUID. No other Auth fields
+are returned. `POST /api/auth/sign-out` requires the owner bearer and exactly
+`{}`; it returns `{ok:true}` only after GoTrue logout of the current session
+(`scope=local`) succeeds; other device sessions are not targeted. Sign-in and
+refresh are the only unauthenticated application routes (plus allowed preflight).
+Wrong owner and all upstream credential failures return generic
+`UNAUTHENTICATED`, before any returned credentials. Unknown auth routes require
+normal authentication. Auth request bodies are at most20KiB; upstream JSON is
+at most64KiB, bounded while streaming, with a5-second timeout and redirects
+rejected. Upstream URLs are constructed only from validated server configuration;
+there is no caller-selected URL. No passwords/tokens/upstream bodies are logged.
+
+Supabase origin configuration is HTTPS with no userinfo/path/query/fragment.
+Genuine HTTP Auth and PostgREST on an actual loopback hostname (`127.0.0.1`,
+`localhost`, `[::1]`) is allowed only when `NODE_ENV=development` and
+`FIRSTDAY_ALLOW_LOCAL_SUPABASE_HTTP=1`; confusing numeric/encoded host aliases
+are rejected. No protocol rewrite is used. Mobile live APIs require HTTPS;
+HTTP is permitted only for actual loopback with the explicit
+`EXPO_PUBLIC_FIRSTDAY_ALLOW_LOOPBACK_HTTP=1` developer configuration. A physical
+phone requires an already trusted private HTTPS API origin; the launcher creates
+no tunnel, listener exposure or network configuration.
+
+Live mobile access/refresh credentials exist only in RAM. Static
+`EXPO_PUBLIC_FIRSTDAY_SESSION_TOKEN` remains fictional fixture data only.
+A session controller serializes refresh before expiry, never retries a failed
+mutation automatically, and binds every request/result to its generation.
+Sign-out, authentication failure or account switch synchronously invalidate
+credentials and old results, unmount all learner/source state, cancel speech,
+and clear device drafts before a new account becomes active. Late operations
+cannot write prior drafts or send them using a new session. Draft writes use a
+session lease invalidated before clearing; blocked clears prevent new sign-in.
+Network mutation failures retain the same UUID for explicit correction and
+understanding receipt recovery. Failed upstream logout still clears RAM and
+reports a generic failure. GoTrue access JWTs may remain valid until expiry;
+FirstDay does not claim immediate global access-token invalidation.
+
+`npm run demo:live` validates mode/auth/storage/owner/Bedrock/ports before
+starting loopback bridge/API. Expo inherits no `AWS_`, `BEDROCK_`, `SUPABASE_`,
+`FIRSTDAY_`, `BEE_` or `EXPO_PUBLIC_` variables; it uses `EXPO_NO_DOTENV=1` and
+only explicit public mode/API/developer-loopback settings. API CORS permits the
+two exact local web origins at the selected Expo port. No live JWT is
+accepted or bundled. Synthetic/Bedrock launchers apply the same inherited public
+variable filtering. Bridge environment is a small explicit whitelist of runtime
+and Bee configuration, with no Supabase/Bedrock credentials.
 
 The API emits manual CORS headers only for configured, exact serialized origins.
 Requests without `Origin` are allowed for native and server clients. An allowed
@@ -399,13 +519,14 @@ error code always uses its fixed canonical public message.
 
 `buildApiServer(dependencies)` is side-effect free and receives the session
 verifier, Bee gateway, repository, instruction extractor, scenario-engine
-facade, clock, UUID source, and allowed origins. Direct execution validates
+facade, clock, UUID source, allowed origins, and optional trusted-owner/auth
+broker dependencies. Direct execution validates
 configuration and binds only to `127.0.0.1`; importing the module never starts a
 listener. The local deterministic runtime uses a serialized, copy-on-write
-in-memory repository. The SQL migration remains the durable Supabase contract,
-but this MVP has no Supabase persistence adapter: setting `SUPABASE_*` enables
-hosted session verification only and must not be described as durable API
-persistence. The repository interface stays learner-scoped and Supabase-ready.
+in-memory repository in fixture mode. Live mode requires the normalized Supabase
+adapter and its server-only service-role key. Learner-scoped security-invoker
+RPC transactions use a lock and version check; production state survives API
+restart. The checked-in migrations retain the schema, RLS and state guards.
 
 The API talks to exactly one loopback Bee HTTP gateway. It forwards normalized
 `sourceKind`, `query`, `cursor`, and `limit` values without re-filtering or
@@ -413,12 +534,13 @@ rewriting them, authenticates with the server-only bridge token, validates every
 bridge response, and correlates returned list kinds and detail kind/ID to the
 request. Bridge not-found, not-ready, unauthenticated/unavailable, transport,
 timeout, and malformed-output conditions map to the canonical public errors
-without relaying bridge response text. Health treats a successful bridge
+without relaying bridge response text. Fixture/injected health treats a successful bridge
 authentication state as `authenticated` or `unauthenticated`, and all transport,
 timeout, or malformed-output failures as `unavailable`.
 
 | Route | Request schema | Response schema |
 | --- | --- | --- |
+| 2026-09-29 | Defined explicit supported three-card selection/recovery, source-kind-preserving real update selection, transcript exclusions and consent, multiple/empty comparison handling and retry checkpoints. Existing endpoint contracts remain unchanged. | Codex `/root` |
 | `GET /health` | `healthRequestSchema` | `healthResponseSchema` |
 | `GET /api/bee/conversations` | `listBeeConversationsRequestSchema` | `listBeeConversationsResponseSchema` |
 | `GET /api/bee/conversations/:beeSourceId` | `getBeeConversationRequestSchema` | `getBeeConversationResponseSchema` |
@@ -994,7 +1116,7 @@ as follows before Zod validation:
   is the identifier form supported by CLI 0.7.3;
 - every live summary and source gets `sourceKind: "bee"`; the fixture adapter
   emits `sourceKind: "fixture"`;
-- numeric epoch timestamps are normalized to ISO UTC (`>= 10^12` is
+- legacy metadata and absolute interval epoch timestamps are normalized to ISO UTC (`>= 10^12` is
   milliseconds, otherwise seconds), while `null` becomes an omitted field;
 - title uses the first nonblank line of detail `short_summary`, then `summary`,
   trimmed deterministically to 256 characters, then `Bee conversation <id>`;
@@ -1003,16 +1125,18 @@ as follows before Zod validation:
   `processing`;
 - because the CLI exposes no revision field, a full source revision is the
   deterministic adapter-derived upstream change token
-  `bee:<id>:<normalized updated_at>`; list summaries may omit `revision` when
-  upstream omits `updated_at`;
-- detail normalization selects the first non-realtime transcription, falling
-  back to the first transcription, matching the CLI's finalized-transcript
-  presentation rather than its raw all-transcriptions JSON flattening;
-- utterance timestamps become conversation-relative integer milliseconds.
-  Every nonblank utterance must have finite exact `start` and `end` values with
-  `end > start`; `spoken_at` alone never fabricates a span. If a nonblank
-  utterance lacks a valid exact range, full-source normalization fails with
-  `SOURCE_NOT_READY` rather than silently dropping transcript evidence;
+  `bee:<id>:<normalized updated_at>` for valid legacy intervals. Reported point
+  sources append `:reported:<normalized utterance SHA-256>`; list summaries may
+  omit `revision` when upstream omits `updated_at` and never replace the full revision;
+- detail normalization requires exactly one final non-realtime transcription;
+  malformed realtime metadata, ambiguous multiple final records and realtime-only
+  transcripts fail closed. Reported mode requires explicit `realtime: false`;
+- utterance timestamps retain conversation-relative integer intervals when all
+  nonblank final utterances have valid absolute start/end values. Otherwise every
+  nonblank utterance must have a valid literal epoch-millisecond `spoken_at`, and
+  the entire source uses the reported point mode defined above. Missing or invalid
+  reported timestamps fail with `SOURCE_NOT_READY`. Do not fabricate durations,
+  infer units, rebase/clamp points or drop nonblank transcript evidence;
 - the transcript joins timestamp-ordered, validated utterance text with newline
   separators and preserves the exact utterance text. Speaker labels come from
   upstream or use the literal fallback `unknown`. `sourceUrl` is omitted unless
@@ -1076,7 +1200,10 @@ The bridge must:
 
 The extraction prompt must require JSON and enforce these rules:
 
-- extract explicit instructions, conditions, exceptions, and decision points;
+- extract explicit instructions, conditions, exceptions, and decision points, including actionable declarative operating policies as well as imperative procedures;
+- retain distinct time-window or eligibility policies separately from collection identity procedures unless the source explicitly combines them; preserve stated numbers, calendar/business-day basis, counting origin, order, conditions and exceptions without adding unstated actions or targeting a fixed number of cards;
+- keep every mandatory action and quantitative constraint in `expectedAction`, including stated numbers/units, calendar or business-day basis, counting origin and required order; `text` or `situation` alone cannot carry requirements omitted from that action;
+- reserve `exceptions` for genuine conditional modifiers or exemptions; an unconditional counting basis belongs to the ordinary `expectedAction`, never to an exception;
 - attach a source span to every proposed instruction;
 - distinguish instruction from opinion, small talk, and speculation;
 - emit `needsReview` when a speaker, condition, or exception is unclear;
@@ -1163,10 +1290,91 @@ The MVP is complete when all of the following are true:
 - Contract tests cover every endpoint and the main state transitions.
 - The README contains setup and demo instructions, while `TASKS.md` accurately reports remaining work.
 
+## Understanding checks and focused rehearsal
+
+An understanding check is a private, persisted explanation dialogue bound to the learner, immutable instruction snapshot, source revision and instruction revision. It does not assign a mastery score or change the exactly-three standard-practice contract. The learner explains their intended action by voice or text. FirstDay shows that explanation beside exact source evidence and the confirmed action and exceptions, with a **possible mismatch**, never a guessed diagnosis. A bounded provider may select one existing exception by index; it cannot invent a condition, quote or policy. The application supplies the clarification question: whether that exact exception applies. If applicability is unknown, or the learner disputes the source interpretation, grading and rehearsal remain unavailable. For multiple exceptions every applicability must be resolved before rehearsal.
+
+Routes (authenticated owner and current consent required):
+
+- `POST /api/understanding-checks` creates a dialogue from `instructionId`, `sourceRevision`, `instructionRevision`, `explanation`, `inputMode` and a client-generated UUID `requestId` for interrupted-request recovery. Repeating the same request ID with identical content returns the existing record; altered reuse conflicts.
+- `GET /api/source-conversations/:sourceConversationId/understanding-checks` lists that owner's bounded current dialogues and resolved evidence, revalidating source/instruction revisions. Revoked sources are rejected; stale instruction snapshots cannot continue.
+- `PATCH /api/understanding-checks/:checkId` takes `expectedVersion` and an action: `clarify` (all exception applicability booleans or null/unknown), `dispute`, `confirmInterpretation` (explicit learner acceptance only after all context is known), `reopen` (explicit return from dispute after source review, resetting context to unknown), or `rehearse` (voice/text response plus idempotent `requestId`). Optimistic version guards prevent interrupted or concurrent clarification from silently overwriting another result. A dispute hands back to source/correction review and blocks all grading of that instruction, including existing practice. Linked unresolved private trainer questions also withhold grading; resolving a question records a private clarification through the existing question endpoint and never edits source policy. It cannot be cleared by creating another dialogue or ordinary explanation grading. The original check must be explicitly reopened after review; its dispute/reopen event history and earlier rehearsal answers with their own context snapshots remain recorded.
+
+Initial Nova selection is restricted to an exact learner substring and an existing exception index. Supply explicit indexed source-clause choices and a request-specific tool schema whose permitted indexes are exactly those choices or null; never reinterpret a model's invalid one-based index. Application-owned comparison displays that intended action against the exact confirmed action and exception, with a specific context question for the canonical old/new reservation distinction. The offline mode uses the full learner explanation and shows all clauses without claiming semantic diagnosis.
+
+Live extraction preserves a contiguous, explicit new-reservation duration and grandfathered existing-reservation clause directly from trusted source text. Binding requires a uniquely identifiable reservation-window card; a mixed utterance containing collection or refund procedures cannot transfer those clauses to unrelated cards. Mixed-source normalization retains the card's other action obligations. Ambiguous reservation bindings are withheld from extracted instructions and represented by private source-linked review questions, so they cannot be confirmed or graded as an incomplete policy. A source passage containing an explicit exception marker (such as unless, except, otherwise or grandfathered) cannot produce an exception-free instruction unless the bounded clause normalizer accounts for it; unresolved decomposition also requires source review.
+
+When the entire passage contains only the two canonical window clauses, its source establishes the window topic for one uniquely bound reservation-status candidate; conflicting collection/damage candidates are withheld. Mixed passages retain the narrower target test. Remove only exact canonical matched spans before checking for remaining exception markers; one matched policy cannot exempt another unrepresented condition in the same utterance.
+
+At the Nova extraction boundary only an omitted `exceptions` field defaults to an empty array, accommodating procedures with no exception while retaining the source-condition gate above. Present null, string, object or invalid array values remain invalid dependency output. All other required extraction fields remain required and strict; the returned shared instruction contract always includes `exceptions`.
+
+State is `clarifying`, `readyForConfirmation`, `readyToRehearse`, or `disputed`. Initial explanations and clarification are ungraded. Focused rehearsal uses an application-generated prompt with the confirmed situation, explicit learner-provided exception applicability, and asks for the action. The response loop displays source-bound feedback and exact evidence and retains chronological attempts. Offline checking remains conservative and visibly synthetic; Nova Pro supports paraphrase comparison through the same bounded evaluator. Neither model suggestions nor private trainer-question resolutions can edit confirmed source rules. Questions use the existing private `open_questions` route with `shareConsent:false`; source corrections use the explicit correction-review flow. The screen provides exact original-source review and private question resolution/dismissal through the existing question PATCH route. Closing a question records the learner’s clarification and leaves the source policy unchanged; a disputed dialogue still requires explicit reopening and fresh context. Original source evidence is immutable.
+
+Focused Nova comparison receives each exact exception beside its learner-supplied applicability. An applicable exception modifies only conflicting parts of the ordinary action; all unaffected obligations remain required. Conditions on the ordinary action restrict its scope, so an older-reservation answer need not repeat a rule explicitly scoped to new reservations. The echoed full source-action string remains an immutable provenance reference, not a demand to perform every conditional branch simultaneously. Unknown or conflicting meaning remains uncertain; the model cannot add situation facts or policy.
+
+The application supplies a shared active comparison action to Nova, offline comparison and the rehearsal screen. Only the strict canonical sentence `New reservations last <duration> days.` may be removed when one exact applicable `Reservations already made keep their original <duration>-day window.` exception establishes the older context. Preserve every other ordinary-action sentence and applicable exception. Durations come from the confirmed clauses; no fixed demo numbers are substituted. Ambiguous or generic exceptions retain the full ordinary action. Keep the immutable full policy and original quotes visible. Focused inference receives only the application-owned active action and learner answer. Its strict output first contains a nonblank `actionComparison` brief policy/proposed-action comparison (maximum1000 characters), then the classification and exact answer quote. Distinguish a situation's elapsed time from the policy duration. Inference requires an exact nonempty learner-answer quote for every classification, using a plain object schema with minimum quote length1. Validate that quote before returning a comparison; map uncertain quotes to the existing empty application quote after validation. Do not substitute arbitrary quotes for positive comparisons. Discard this untrusted brief comparison; never store/display it or use it to create policy. The provider adapter attaches the known full source-action reference in application code; the model cannot invent or echo it. Unknown applicability or an unconfirmed/disputed stage produces no active action and is rejected before inference.
+
+`public.understanding_checks` stores normalized owner/source/instruction/source-revision/instruction-revision identity, plus a bounded schema-validated dialogue JSONB payload. Its owner-only SELECT policy follows existing authenticated RLS; only the backend service can mutate it through the existing CAS repository RPC. Reads and writes re-resolve current consent, confirmed instruction status, exact instruction content and evidence at commit, including provider races. Device drafts use a distinct understanding context bound to learner/source/instruction/revisions and explanation/rehearsal phase (plus check ID for rehearsal). Restore them only after current authenticated source/check reads validate consent and confirmed instructions; use the existing dual-generation draft store and owner/sign-out/revocation clearing. Source revocation denies dialogue access; raw audio and credentials are never saved. At most100 dialogues per source and20 focused responses per dialogue; max4000 characters per explanation/response. Source evidence is returned as its original exact quote/span rather than model-generated text.
+
+Understanding drafts also retain the request UUID allocated for that exact answer. Persist and verify the draft/UUID before a create/rehearse request; a persistence failure prevents submission. Reopening compares its UUID, trimmed text and input mode with the current source-bound check/response receipts, clears an already committed draft and displays its saved record without another provider call. Uncommitted retries reuse the UUID, even when a server response was lost. Allocate a new UUID only for a changed/new answer. Legacy understanding drafts without UUID remain readable and receive a UUID before their first submission; standard-practice draft format remains unchanged.
+
+## Source correction review
+
+Optional evening review presents up to three learner-selected uncertainties from consented sources. The learner speaks or types, reviews the recognized text, selects an exact source, instruction and original evidence span, previews the meaning and consequences, then explicitly confirms or skips. No policy, source, instruction, grading or practice effect occurs during preview. Sources and evidence are immutable; annotations never become verbatim evidence or trainer policy.
+
+`POST /api/source-corrections/preview` accepts a UUID `requestId`, exact `target` (sourceConversationId/sourceRevision/instructionId/instructionRevision, original instruction snapshot, ordered full SourceEvidence snapshots and original selected utterances with exact speaker objects and timing metadata), correction type and reviewed `after` annotation, recognized text and input mode. The server validates all originals and derives before/after meanings, affected instruction IDs, practice IDs and current dependency fingerprint. Persisting the preview stores review metadata only. `GET /api/source-conversations/:sourceConversationId/corrections` returns owner-bound previews and append-only chronology under active consent. `PATCH /api/source-corrections/:correctionId` accepts UUID requestId, expectedVersion, preview fingerprint and action `confirm`, `skip`, `reopen` or `undo`. Every commit revalidates consent, exact originals, canonical lineage, overlapping annotations and preview-bound dependency state. Idempotent repeated UUIDs reconcile receipts; changed reuse conflicts. Revise creates a new preview with an explicit `revisesId` pointing to a reopened annotation; confirm replaces it atomically. All four types support revise. A revised new-rule annotation may only update local reviewed wording/input mode for the same still-current confirmed canonical change, immutable original target, actual later source and exact replacement lineage. Preview has no preparation effects. Confirmation atomically supersedes the reopened annotation and may create a fresh deterministic current drill after all gates and both consents are checked; it never reexecutes canonical policy replacement. A superseded replacement or revoked/deleted source rejects revised preview/confirmation. Reopening a confirmed annotation reimposes its review gate immediately. Skip has no effects for a new preview; skipping reopened work retains its gate. Undo removes the annotation gate but never restores a historically stale practice or a canonically changed rule. If reopening a confirmed new-rule annotation staled its current canonical Change Drill, undo may create a fresh deterministic drill under that same reviewed canonical version. Revalidate both source consents, latest replacement status/lineage and every active grading gate; a replacement superseded by another later confirmed change cannot regenerate an outdated drill. Retain old scenarios/attempts and record new drill IDs in the append-only undo event. No extra model call is made.
+
+Types remain distinct: `attribution` annotates this conversation's speaker name/role separately from the original speaker and can withhold inappropriate preparation; `transcription` records corrected wording separately, disputes third-party policy and withholds affected grading; `interpretation` annotates suggestion/ambiguity rather than instruction and withholds or decommissions affected preparation; `newRule` requires a selected actual later consented source and an existing canonical ChangeProposal. Its confirmation executes the existing confirmChange transition and retains the exact change ID; typed recollection alone is rejected. Reopening/undo of local new-rule provenance cannot revert canonical change. Local annotations do not retrain models, assign another user's work, message anyone or write back to Bee.
+
+Confirmed or reopened local withholding annotations block generation, standard and focused rehearsal/evaluation of their exact affected instructions across all routes, checks and existing attempts. Unrelated rules remain usable. Contradictory overlapping active annotations require reopening/revising or undo before confirmation. A transcription dispute remains nongraded until undone after source review or an actual source-backed canonical change supplies a replacement instruction. No remembered text creates a graded instruction. Prepared generation, evaluation, initial understanding and focused rehearsal contexts carry a shared correction review fingerprint and only confirmed, nonwithholding annotations for the exact owner/source/revision/instruction target. A canonical new-rule review contributes to fingerprints for its verified original and replacement source/instruction lineage; annotation text is projected only to its original target. Reopen/undo of that review invalidates replacement inference even if the replacement policy text remains unchanged. Retained attribution is explicitly user-corrected conversation-local context; it is never an independent quote or policy. Commits recheck this fingerprint after every provider await, including a confirm followed by undo during inference. Bedrock understanding comparison still receives only activeAction and learnerAnswer; application-owned provenance and approved context are bound outside that model call. Practice generations use a monotonically changing source correction generation bound into preparation and commit. A stale affected set permits a fresh exactly-three set after review; unaffected sets keep their current status. Older scenarios and standard/Change Drill attempts remain historical. If fewer than three eligible rules remain, the existing instruction-selection flow must ask the learner to select adequate confirmed source rules.
+
+Practice GET and understanding GET/list require active consent for every dependent original source, including both sources of a historical Change Drill. Revocation retains stored history but denies retrieval through API and offline/direct repository reads. Understanding GET/list support explicit historical reads retaining original instruction/evidence, explanations, context, responses and review chronology under active source consent. Historical bundles are labeled historical and cannot continue or rehearse. Current mutations still require the exact current instruction and no active correction gate. Device correction drafts contain only learner/source/revisions, exact selected IDs, correction text/input mode/request UUID and pending/skipped metadata; no original transcript cache, tokens or raw audio. Restore after authenticated source and correction reads, reconcile committed UUIDs, preserve up to three pending/skipped items and clear on sign-out/revocation. History lifecycle actions reserve/reuse a device slot bound to their exact owner, source/revisions and correction request UUID; unrelated pending/skipped items cannot be overwritten or cleared. If all three uncertainties are occupied, fail before sending the history request. Clearing a resolved receipt checks its matching UUID atomically. Explicit revision may reuse that correction's own slot with a new request UUID. Preview receipt persistence uses the captured submitted text/annotation/target/UUID, never mutable editing state after an await; all meaning controls are disabled during API or speech work, while final recognized speech delivery remains accepted outside an API operation. Ordinary practice/understanding draft eviction cannot evict correction entries: reserve their bounded capacity within the20-entry store, reject capacity overflow rather than discarding their UUIDs, and clear them only on resolution or explicit clear.
+
+`public.source_corrections` is normalized by owner, source/revision, instruction/revision, request UUID and status/version, with a bounded validated payload and append-only review chronology. Authenticated SELECT for source evidence, instructions, private questions, understanding, correction payloads, changes, practice, scenarios and attempts requires active consent to every original dependent source. Standard practice requires its full instruction set; Change Drill and new-rule payloads require both original and later sources. Acyclic security-invoker policies preserve owner isolation without exposing service repository functions. Plain nontranscript identity/link metadata may remain owner-readable. Owner SELECT requires active consent including selected later source. Only the service CAS repository RPC writes. SQL constraints retain original evidence linkage, instruction identity, bounds, chronology and version guards; relational projection must explicitly whitelist and encode/decode the table. Immutable original instructions/evidence stay in their existing records.
+
 ## Change log
 
+| 2026-09-30 | VALIDATE-001 practice recap | Scope recap rules and attempts to current practice identity/scenarios after stale restoration and fresh selection; clear local rehearsal state while preserving server history. |
+
+| 2026-09-30 | VALIDATE-001 action constraints | Require all mandatory quantitative/calendar/counting/order constraints in ordinary expectedAction and reserve exceptions for genuinely conditional modifications; unconditional counting basis is part of the action. |
+
+| 2026-09-30 | VALIDATE-001 extraction coverage | Clarify actionable declarative operating-policy coverage and distinct time-window/eligibility decisions, preserving exact source detail and existing evidence/uncertainty/review guards without a fixed extraction count. |
+
+| 2026-09-30 | CORRECT quality repairs | Preserve unrelated correction drafts during history lifecycle actions and bind preview receipt storage to captured request identity; guard meaning controls during active work. |
+
+| 2026-09-30 | CORRECT review repairs | Bind canonical replacement review generations, require active consent for authenticated derivative reads, protect pending correction UUID capacity, support safe same-canonical new-rule revision, and expose radio checked state. |
+
+| 2026-09-30 | Defined explicit source correction previews/confirmation, four separate annotation types, canonical new-rule lineage, historical understanding reads, source-bound generation/CAS and durable owner-only provenance. | Codex `/root/corrections` |
+
+| 2026-09-30 | BEE-001 reported timestamps | Preserve uninterpreted raw timing and exact transcript selection when final Bee utterances only establish reported wall timestamps; uniform fail-closed normalization, fingerprinted full revision, typed point evidence/exclusion IDs, matching database constraints and visible unavailable duration. |
+
+| 2026-09-29 | DB-002 source permission | The learner can review and revoke permission for the currently imported source from About. Show the exact source title/revision and consequences before the existing revoke API is called. Clear that learner's device drafts, reset the visible source/review/practice, and refresh saved training after success. A failed device clear is visible and can be retried through Clear local answer drafts. |
+
+| 2026-09-29 | DB-002 fixture drill parity | The prepared bookshop API uses the existing finite bookshop Change Drill template when confirmed under its fixture extractor. Bedrock-backed and grounded extraction use the general source-backed drill. Persisted drills must use the same evaluator family that generated them; tests must submit both an outdated answer and a corrected answer through the HTTP boundary. |
+
+| 2026-09-29 | DB-002 device drafts | Store only the learner's unsubmitted answer, input mode, learner/source/practice/scenario IDs and exact revisions in a bounded local draft cache. Native storage uses the existing Expo filesystem runtime; web uses origin-local storage. Retain two checked generations to recover interrupted writes. Rehydrate a draft only after authenticated server recovery validates the current non-stale practice, learner, scenario and revisions. Never cache tokens, original transcripts or audio. Clear drafts after submission, offline reset, sign-out and source revocation; failed local persistence is visibly reported. |
+
+| 2026-09-29 | DB-002 restore ordering | Internal `practice_sets.recorded_order` and `attempts.recorded_order` identity columns preserve commit order when clocks tie. Session restore chooses the most recent usable saved practice, restores the current failed-answer feedback or next uncovered situation, and shows completed practice as a recap. If all related practice is stale, show its history and update-review recovery while withholding the answer composer. |
+
+| 2026-09-29 | DB-002 proposal review | Add immutable `change_proposals.replacement_snapshot` JSONB containing the exact bounded instruction reviewed when the proposal was created. Database confirmation changes only its controlled status/time. Runtime hydration uses this snapshot; subsequent edits or later changes to the instruction cannot silently replace what the learner reviewed. |
+
+| 2026-09-29 | DB-002 session reads | `GET /api/source-conversations?sourceKind=bee&cursor=<saved-source-uuid>&limit=20` lists the authenticated learner's confirmed saved sources, newest import first with UUID tie-breaker (maximum 100/page). `GET /api/source-conversations/:sourceConversationId/session` returns `sourceConversation`, its immutable `source` preview, `excludedRanges`, optional current `extraction`, and `practices` (up to 100 bundles with `practice` and all chronological `attempts`), plus `changes` (up to 100) and their exact `sourceEvidence`. Attempts are not truncated or limited to 500; retry history must not make a saved practice unreadable or erase an earlier covered result. Session reads reject revoked or unavailable selected sources and omit practice whose dependent source consent was revoked. Existing practice statuses preserve stale history; resumed stale sets cannot be graded. No repeated extraction is required. |
+
+| 2026-09-30 | CONNECT-001 picker review repair | Separate successful authenticated live listing from coarse public health in picker state/action; preserve fixture and suppressed unauthenticated readiness semantics and clear listing proof on load start/failure. |
+| 2026-09-30 | CONNECT-001 review repair | Applied the strict origin and explicit development HTTP opt-in contract to every runtime Supabase storage configuration, including fixture storage; retain fixture actual-loopback restriction and direct injected helper seams. |
+| 2026-09-30 | CONNECT-001 | Defined fixed-origin bounded sign-in/refresh/logout broker, trusted server UUID live owner gate, RAM sessions with generation/draft invalidation, strict explicit local HTTP validation and secret-filtered loopback launcher. |
+| 2026-09-29 | DB-002 | Durable repository uses normalized existing public/private tables. Server-only security-invoker RPCs load one learner's records and commit validated relational deltas under a learner lock and optimistic version check. Change confirmation and revocation use existing controlled database operations; practice children are created while draft and made ready atomically. No service key or private material is exposed through the database client. Fixture memory mode remains explicit; live runtime requires server Supabase storage configuration. Authenticated session restoration returns current imported sources, extraction/review state, practice and historical attempts after checking consent and revisions. |
+
 | Date | Change | Author/session |
+| 2026-09-30 | Require a nonempty exact learner quote in every focused inference classification; clear a validated uncertain quote for the unchanged application contract. | Codex `/root/understanding` |
+| 2026-09-30 | Focused inference uses only the application-owned active action and learner answer; discard a bounded brief comparison before binding exact full source provenance. Understanding device drafts persist retry UUIDs before submission and reconcile committed create/rehearse receipts after interruption. | Codex `/root/understanding` |
+| 2026-09-30 | Resolve only the explicit canonical older/newer reservation branch in shared active comparison, preserve all other obligations/full policy, fail closed for remaining unmatched source exceptions, and align offline private-question grading guards. | Codex `/root/understanding` |
+| 2026-09-30 | Make focused Nova comparison apply conditional source scope without requiring incompatible branches, preserving unaffected ordinary obligations and the exact full policy reference. | Codex `/root/understanding` |
+| 2026-09-30 | Normalize only absent Nova extraction exception arrays; reject malformed values and retain source-exception review gates. | Codex `/root/understanding` |
+| 2026-09-30 | Bind explicit reservation-window exceptions to exact trusted clauses, retain unrelated obligations in mixed utterances, and withhold ambiguous bindings for private source review. | Codex `/root/understanding` |
+| 2026-09-30 | Defined persisted private understanding dialogue, exact source comparison, complete exception-context clarification, explicit interpretation confirmation and non-scored focused voice/text rehearsal with revision/consent guards. | Codex `/root/understanding` |
 | --- | --- | --- |
+| 2026-09-29 | Require the supported Expo SDK 57 scene lifecycle backport for physical iOS 27/Xcode 27 builds, using a build-only configuration plugin and reproducible prebuild output. | Codex `/root` |
 | 2026-09-15 | Defined permission-gated spoken rehearsal, editable transcript review, voice/text attempt parity, cancellation/privacy behavior and native keyboard focus. Existing API payloads remain unchanged. | Codex `/root` |
 | 2026-09-15 | Adapted the supplied Figma Home, Message and appointment layouts to native training, practice and recap screens; added functional search and four tabs that retain in-session review and answer drafts. API contracts remain unchanged. | Codex `/root` |
 | 2026-09-14 | Defined the iPhone-first review/rehearsal/recap flow and conservative source-level uncertainty handling; selected accessible Nova Pro for the Bedrock demo. | Codex `/root` |

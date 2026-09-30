@@ -46,7 +46,8 @@ BEDROCK_MODEL_ID=us.amazon.nova-pro-v1:0
 
 `FIRSTDAY_DATA_MODE` selects source/auth mode separately. The demo uses only
 fixture sources. The normal live configuration uses the authenticated local
-Bee bridge and Supabase sessions; the recording/device path remains unverified.
+Bee bridge and Supabase sessions. See [live setup](live-demo.md) for the
+authenticated launcher and actual-source validation.
 
 ## Validation
 
@@ -71,7 +72,10 @@ Bee bridge and Supabase sessions; the recording/device path remains unverified.
 
 ## Remaining validation
 
-Real Bee recording, physical iPhone testing, durable database integration, and
-voice input remain separate tasks in `TASKS.md`. See
+Authenticated import/extraction/restoration of two actual Bee recordings,
+dedicated local database integration and user-reported physical speech passed.
+The complete real training/update journey, latest physical Release interaction
+and full VoiceOver remain separate gates in `TASKS.md` and [live setup](live-demo.md).
+See
 [design validation](design-validation.md) for the next user test. No judging
 score or user-research result is claimed.

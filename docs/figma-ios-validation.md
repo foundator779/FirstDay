@@ -1,5 +1,21 @@
 # Figma layout and iOS validation
 
+## September 30 update
+
+The sections below retain the earlier dated checks. Physical fictional
+practice/retry/recap and Change Drill subsequently passed; the user directly
+verified Start/Stop speaking, live/final transcript and Check answer without
+errors. The latest custom Release builds and installs on the paired phone;
+opening that installation is pending device unlock.
+
+The latest Simulator Release keeps fixed headers, source selectors, progress
+circles/captions and all four navigation labels readable at the largest
+accessibility text size. Ordinary content remains scalable and scrollable.
+Permission switches retain their width, and actual software-keyboard typing
+and drag dismissal passed in the understanding screen. This does not establish
+a complete VoiceOver pass. See [current live validation](live-demo.md) and
+`TASKS.md` for pending physical/live gates.
+
 ## Implementation
 
 The existing Expo React Native iOS app adapts the user-supplied
