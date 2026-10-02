@@ -90,11 +90,14 @@ verification on an iPhone or Apple Watch.
 
 ## What still needs real integration
 
-- Authenticate the Bee CLI and retrieve consented device-recorded sources.
-- Supply live extraction and generation/evaluation providers; the existing
-  server still rejects live extraction.
-- Wire durable Supabase persistence and backend comparison/change confirmation.
-- Add and test voice input if it remains in the demo scope.
-- Verify on the intended phone and record the real Bee interaction for submission.
+- Complete the live journey with a suitable three-instruction recording and a
+  separately captured policy update. Two existing actual recordings imported,
+  extracted and restored successfully but do not supply that training example.
+- Verify the latest physical Release, private HTTPS connection, cancellation
+  and full VoiceOver. The user already verified basic physical speech.
+- Record the complete real Bee interaction before using it as submission proof.
+
+The authenticated launcher, Bedrock providers and durable repository are now
+implemented. See [live setup and validation](live-demo.md) and `TASKS.md`.
 
 Synthetic fixtures are a development fallback, not proof of Bee-track eligibility.

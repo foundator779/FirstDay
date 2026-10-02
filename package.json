@@ -20,6 +20,7 @@
     "dev": "npm run dev --workspace @firstday/mobile",
     "demo:synthetic": "node scripts/start-synthetic.mjs",
     "demo:ios": "node scripts/start-synthetic.mjs --ios-device",
+    "demo:live": "node --conditions=development --import tsx scripts/start-live.mjs",
     "demo:bedrock": "node scripts/start-bedrock.mjs",
     "smoke:bedrock": "node --env-file=.env --conditions=development --import tsx scripts/smoke-bedrock.mjs",
     "lint": "eslint . --max-warnings=0",

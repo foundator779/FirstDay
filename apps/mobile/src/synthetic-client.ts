@@ -1,4 +1,12 @@
+import {createOfflineCorrectionClient,type CorrectionClient} from './corrections-client';
+import {correctionBlocks,isCanonicalCorrectionRevision,correctionWithholds} from '@firstday/scenario-engine';
+import { updateOpenQuestionRequestSchema, updateOpenQuestionResponseSchema, type UpdateOpenQuestionRequestInput, type UpdateOpenQuestionResponse } from "@firstday/contracts";
+import reservationExceptions from "../../../fixtures/transcripts/reservation-exceptions-onboarding.json";
+import reservationExceptionUpdate from "../../../fixtures/transcripts/reservation-exceptions-policy-update.json";
+import { createOfflineUnderstandingClient, type UnderstandingClient } from "./understanding-client";
 import {
+  revokeConsentRequestSchema, revokeConsentResponseSchema,
+  listSavedSourcesRequestSchema, listSavedSourcesResponseSchema, sourceSessionResponseSchema, type ExcludedRange,
   beeSourceSchema, createTranscriptHash, importConversationRequestSchema, importConversationResponseSchema,
   extractInstructionsRequestSchema, extractInstructionsResponseSchema, updateInstructionRequestSchema,
   updateInstructionResponseSchema, instructionCardSchema, createOpenQuestionRequestSchema, createOpenQuestionResponseSchema,
@@ -21,7 +29,8 @@ import studio from "../../../fixtures/transcripts/studio-onboarding.json";
 import studioUpdate from "../../../fixtures/transcripts/studio-policy-update.json";
 import { FirstDayClientError, type FirstDayClient } from "./api";
 
-export type PracticeClient = FirstDayClient & {
+export type PracticeClient = FirstDayClient & Partial<UnderstandingClient> & Partial<CorrectionClient> & {
+  updateOpenQuestion?(input:UpdateOpenQuestionRequestInput):Promise<UpdateOpenQuestionResponse>;
   createPractice(input: CreatePracticeSetRequestInput): Promise<CreatePracticeSetResponse>;
   getPractice(id: string): Promise<ReturnType<typeof getPracticeSetResponseSchema.parse>>;
   submitAttempt(input: CreateAttemptRequestInput): Promise<CreateAttemptResponse>;
@@ -29,8 +38,9 @@ export type PracticeClient = FirstDayClient & {
   confirmChange(input: ConfirmChangeRequestInput): Promise<ReturnType<typeof confirmChangeResponseSchema.parse>>;
 };
 
-export const SYNTHETIC_SOURCES = [library, libraryUpdate, studio, studioUpdate, onboarding, bookshopUpdate].map((source) => beeSourceSchema.parse(source));
+export const SYNTHETIC_SOURCES = [reservationExceptions, reservationExceptionUpdate, library, libraryUpdate, studio, studioUpdate, onboarding, bookshopUpdate].map((source) => beeSourceSchema.parse(source));
 export const SYNTHETIC_UPDATES: Readonly<Record<string, string>> = {
+  [reservationExceptions.id]:reservationExceptionUpdate.id,
   [library.id]: libraryUpdate.id, [studio.id]: studioUpdate.id, [onboarding.id]: bookshopUpdate.id,
 };
 const LEARNER = "70000000-0000-4000-8000-000000000001";
@@ -46,6 +56,7 @@ export function createSyntheticFirstDayClient(options: { sources?: readonly BeeS
   const updates = options.updates ?? SYNTHETIC_UPDATES;
   const imports = new Map<string, SourceConversation>();
   const extractions = new Map<string, ExtractInstructionsResponse>();
+  const exclusions = new Map<string, ExcludedRange[]>();
   const practices = new Map<string, CreatePracticeSetResponse>();
   const attempts = new Map<string, CreateAttemptResponse["attempt"][]>();
   const proposals = new Map<string, ChangeProposal>();
@@ -54,8 +65,12 @@ export function createSyntheticFirstDayClient(options: { sources?: readonly BeeS
   const id = () => `90000000-0000-4000-8000-${String(sequence++).padStart(12, "0")}`;
   const now = () => new Date().toISOString();
   const sourceFor = (sourceId: string) => sources.find((source) => source.id === sourceId) ?? fail("BEE_SOURCE_NOT_FOUND", "Synthetic conversation not found.");
-  const importedFor = (sourceId: string) => imports.get(sourceId) ?? fail("RESOURCE_NOT_FOUND", "Import this conversation first.");
-  const extractionFor = (sourceId: string) => extractions.get(sourceId) ?? fail("RESOURCE_NOT_FOUND", "Extract this conversation first.");
+  const importedFor = (sourceId: string) => {
+    const imported = imports.get(sourceId) ?? fail("RESOURCE_NOT_FOUND", "Import this conversation first.");
+    if (imported.consentStatus !== "confirmed") fail("CONSENT_REVOKED", "Permission to use this source was revoked.");
+    return imported;
+  };
+  const extractionFor = (sourceId: string) => { importedFor(sourceId); return extractions.get(sourceId) ?? fail("RESOURCE_NOT_FOUND", "Extract this conversation first."); };
   const revision = (actual: string, requested: string) => { if (actual !== requested) fail("REVISION_CONFLICT", "This source revision has changed."); };
   const instructionFor = (instructionId: string) => [...extractions.values()].flatMap((value) => value.items).find((item) => item.id === instructionId) ?? fail("RESOURCE_NOT_FOUND", "Instruction not found.");
   const evidenceFor = (references: readonly string[]): SourceEvidence[] => {
@@ -64,7 +79,110 @@ export function createSyntheticFirstDayClient(options: { sources?: readonly BeeS
   };
   const practiceFor = (practiceId: string) => practices.get(practiceId) ?? fail("RESOURCE_NOT_FOUND", "Practice not found.");
 
+  function assertInstructionReady(instructionId:string){
+    if(correctionBlocks(corrections.snapshot(),instructionId))fail("INVALID_STATE","Review this source correction before grading this instruction.");
+    if(understanding.isDisputed(instructionId))fail("INVALID_STATE","Review the disputed source before rehearsing this instruction.");
+    const instruction=instructionFor(instructionId),extraction=extractionFor(instruction.sourceConversationId);
+    if(extraction.openQuestions.some(q=>q.status==="open"&&q.instructionId===instructionId))fail("INVALID_STATE","Resolve the private trainer question before rehearsing this instruction.");
+  }
+  const understanding=createOfflineUnderstandingClient({instruction(instructionId){const instruction=instructionFor(instructionId),extraction=extractionFor(instruction.sourceConversationId);return {instruction,instructionRevision:extraction.instructionRevision,sourceEvidence:evidenceFor(instruction.sourceEvidence)};},validateSource(sourceId){importedFor(sourceId);},canRehearse:assertInstructionReady,canUseInstruction(instructionId){if(correctionBlocks(corrections.snapshot(),instructionId))fail("INVALID_STATE","Review the source correction before continuing.");},id,now});
+  const corrections=createOfflineCorrectionClient({learnerId:LEARNER,id,now,validateSource:importedFor,
+    validate(request,historical){
+      const t=request.target,source=importedFor(t.sourceConversationId),extraction=extractionFor(t.sourceConversationId),instruction=instructionFor(t.instructionId),previous=request.revisesId?corrections.snapshot().find(c=>c.id===request.revisesId):undefined,canonicalRevision=isCanonicalCorrectionRevision(previous,request);
+      if(!historical&&previous?.request.after.type==='newRule'&&(!canonicalRevision||previous.status!=='reopened'))fail('REVISION_CONFLICT','Review the same current canonical change.');
+      revision(source.sourceRevision,t.sourceRevision);revision(extraction.instructionRevision,t.instructionRevision);
+      const ids=new Set(t.sourceEvidence.flatMap(e=>e.utteranceIds));if(JSON.stringify(t.originalUtterances)!==JSON.stringify(sourceFor(source.beeSourceId).utterances.filter(u=>ids.has(u.id))))fail('REVISION_CONFLICT','Original source speaker/utterance changed.');
+      const original=(i:InstructionCard)=>{const {status,updatedAt,...rest}=i;void status;void updatedAt;return rest;};
+      if(JSON.stringify(historical||canonicalRevision?original(instruction):instruction)!==JSON.stringify(historical||canonicalRevision?original(t.instruction):t.instruction)||JSON.stringify(evidenceFor(instruction.sourceEvidence))!==JSON.stringify(t.sourceEvidence))fail('REVISION_CONFLICT','Original source selection changed.');
+      if(!historical&&!canonicalRevision&&instruction.status!=='confirmed')fail('INVALID_STATE','Select a current confirmed original instruction.');
+      const a=request.after;if(a.type==='newRule'){
+        const change=proposals.get(a.changeId),later=importedFor(a.laterSourceConversationId);revision(later.sourceRevision,a.laterSourceRevision);
+        if(!change||change.previousInstructionId!==instruction.id||change.previousSourceRevision!==t.sourceRevision||change.replacementInstruction.sourceConversationId!==later.id||change.sourceRevision!==later.sourceRevision||later.startedAt<=source.startedAt)fail('INVALID_STATE','Select a later actual source and canonical comparison.');
+        if(!historical){if(canonicalRevision){const replacement=instructionFor(change.replacementInstruction.id);if(change.status!=='confirmed'||instruction.status!=='changed'||replacement.status!=='confirmed'||JSON.stringify(replacement)!==JSON.stringify(change.replacementInstruction))fail('REVISION_CONFLICT','A newer canonical rule superseded this review.');}else if(change.status!=='needsReview')fail('INVALID_STATE','Review this canonical change first.');}
+      }
+    },
+    dependencies(request,saved){return {attempts:[...attempts.entries()].flatMap(([practiceSetId,list])=>list.map(a=>({id:a.id,practiceSetId}))),instructions:[...extractions.values()].flatMap(e=>e.items),practices:[...practices.values()].map(p=>({id:p.practiceSet.id,status:p.practiceSet.status,instructionIds:[...new Set(p.scenarios.flatMap(s=>s.expectedRuleIds))]})),checks:understanding.snapshot().map(v=>({id:v.check.id,version:v.check.version,instructionId:v.check.instruction.id})),corrections:saved,...(request.after.type==='newRule'?{change:proposals.get(request.after.changeId)}:{})};},
+    apply(previous,next){const canonicalRevision=isCanonicalCorrectionRevision(previous.request.revisesId?corrections.snapshot().find(c=>c.id===previous.request.revisesId):undefined,previous.request);if(next.status==='confirmed'&&previous.request.after.type==='newRule'&&!canonicalRevision)confirmChangeLocally({changeId:previous.request.after.changeId,sourceRevision:previous.request.after.laterSourceRevision});if(correctionWithholds(next))for(const p of practices.values())if(p.practiceSet.status!=='stale'&&p.scenarios.some(s=>s.expectedRuleIds.some(id=>next.effects.instructionIds.includes(id))))p.practiceSet={...p.practiceSet,status:'stale',updatedAt:next.updatedAt};
+      if(previous.request.after.type==='newRule'&&(next.status==='undone'&&previous.status==='reopened'||next.status==='confirmed'&&canonicalRevision)){
+        const change=proposals.get(previous.request.after.changeId);if(change?.status==='confirmed'){
+          const before=instructionFor(change.previousInstructionId),after=instructionFor(change.replacementInstruction.id),otherCorrections=corrections.snapshot().filter(c=>c.id!==previous.id&&!(canonicalRevision&&c.id===previous.request.revisesId)),hasCurrent=[...practices.values()].some(p=>p.practiceSet.kind==='changeDrill'&&p.scenarios.some(s=>s.expectedRuleIds.includes(after.id))&&p.practiceSet.status!=='stale');
+          if(!hasCurrent&&before.status==='changed'&&after.status==='confirmed'&&JSON.stringify(after)===JSON.stringify(change.replacementInstruction)&&![before,after].some(i=>correctionBlocks(otherCorrections,i.id)||understanding.isDisputed(i.id)||extractionFor(i.sourceConversationId).openQuestions.some(q=>q.instructionId===i.id&&q.status==='open'))){
+            importedFor(before.sourceConversationId);importedFor(after.sourceConversationId);const response=buildLocalDrill(change,before,after,[],next.updatedAt);practices.set(response.changeDrill.practiceSet.id,{...response.changeDrill,sourceEvidence:response.sourceEvidence});return [response.changeDrill.practiceSet.id];
+          }
+        }
+      }
+    },
+  });
+  function buildLocalDrill(changeProposal:ChangeProposal,old:InstructionCard,candidate:InstructionCard,stalePracticeSetIds:string[],timestamp:string){const previousInstruction=old,replacementInstruction=candidate;
+      const practiceId = id(); const scenarioId = id();
+      const references = [...old.sourceEvidence, ...candidate.sourceEvidence];
+      return confirmChangeResponseSchema.parse({ changeProposal, previousInstruction, replacementInstruction, stalePracticeSetIds,
+        changeDrill: { practiceSet: { id: practiceId, learnerId: LEARNER, sourceConversationId: candidate.sourceConversationId,
+          sourceRevision: candidate.sourceRevision, sourceKind: "fixture", title: "What changed?", kind: "changeDrill",
+          instructionRevision: extractionFor(candidate.sourceConversationId).instructionRevision, status: "ready", scenarioIds: [scenarioId], createdAt: timestamp, updatedAt: timestamp },
+          scenarios: [{ id: scenarioId, practiceSetId: practiceId, sourceRevision: candidate.sourceRevision, kind: "changeDrill", characterId: "guide-maya",
+            prompt: `${candidate.situation.replace(/[.!?]+$/, "")}. What is the updated action?`, context: "The earlier instruction changed. Use the new confirmed source.",
+            expectedRuleIds: [candidate.id], acceptableSignals: [candidate.expectedAction], criticalMisses: [old.expectedAction], retryPrompt: "Compare the earlier and updated source, then try again.", sourceEvidence: references, order: 1 }] },
+        sourceEvidence: evidenceFor(references) });
+  }
+  function confirmChangeLocally(input:Parameters<PracticeClient['confirmChange']>[0]) {
+      const request = confirmChangeRequestSchema.parse(input);
+      const proposal = proposals.get(request.changeId) ?? fail("RESOURCE_NOT_FOUND", "Change not found.");
+      revision(proposal.sourceRevision, request.sourceRevision);
+      const old = instructionFor(proposal.previousInstructionId);
+      const candidate = instructionFor(proposal.replacementInstruction.id);
+      importedFor(old.sourceConversationId); importedFor(candidate.sourceConversationId);
+      if (proposal.status !== "needsReview" || old.status !== "confirmed" || candidate.status !== "needsReview") fail("INVALID_STATE", "This change was already decided.");
+      const timestamp = now();
+      const previousInstruction = { ...old, status: "changed" as const, updatedAt: timestamp };
+      const replacementInstruction = { ...candidate, status: "confirmed" as const, updatedAt: timestamp };
+      const changeProposal = { ...proposal, replacementInstruction, status: "confirmed" as const, updatedAt: timestamp };
+      const stalePracticeSetIds = [...practices.values()].filter((value) => value.scenarios.some((scenario) => scenario.expectedRuleIds.includes(old.id))).map((value) => value.practiceSet.id);
+      const response=buildLocalDrill(changeProposal,previousInstruction,replacementInstruction,stalePracticeSetIds,timestamp);
+      const practiceId=response.changeDrill.practiceSet.id;
+      Object.assign(old, previousInstruction); Object.assign(candidate, replacementInstruction); Object.assign(proposal, changeProposal);
+      for (const staleId of stalePracticeSetIds) { const set = practiceFor(staleId).practiceSet; set.status = "stale"; set.updatedAt = timestamp; }
+      practices.set(practiceId, { ...response.changeDrill, sourceEvidence: response.sourceEvidence });
+      return confirmChangeResponseSchema.parse(response);
+  }
   const client: PracticeClient = {
+    ...understanding,
+    ...corrections,
+    async revokeConsent(input) {
+      const request = revokeConsentRequestSchema.parse(input);
+      const source = imports.get(request.sourceConversationId) ?? fail("RESOURCE_NOT_FOUND", "Source not found.");
+      revision(source.sourceRevision, request.sourceRevision);
+      if (source.consentStatus === "revoked") return revokeConsentResponseSchema.parse({ sourceConversation: source, stalePracticeSetIds: [] });
+      const timestamp = now();
+      const sourceConversation = { ...source, consentStatus: "revoked" as const, consentRevokedAt: timestamp, updatedAt: timestamp };
+      const evidenceIds = new Set(extractions.get(source.id)?.sourceEvidence.map((e) => e.id) ?? []);
+      const affected = [...practices.values()].filter((p) => p.practiceSet.status !== "stale" && (p.practiceSet.sourceConversationId === source.id || p.scenarios.some((s) => s.sourceEvidence.some((id) => evidenceIds.has(id)))));
+      for (const practice of affected) practice.practiceSet = { ...practice.practiceSet, status: "stale", updatedAt: timestamp };
+      imports.set(source.id, sourceConversation); exclusions.delete(source.id);
+      return revokeConsentResponseSchema.parse({ sourceConversation, stalePracticeSetIds: affected.map((p) => p.practiceSet.id) });
+    },
+    async listSavedSources(input) {
+      const query = listSavedSourcesRequestSchema.parse(input);
+      if (query.sourceKind !== "fixture") fail("FORBIDDEN", "Offline examples cannot access Bee sessions.");
+      const saved = [...imports.values()].filter((s) => s.consentStatus === "confirmed").sort((a, b) => b.importedAt.localeCompare(a.importedAt) || a.id.localeCompare(b.id));
+      const offset = query.cursor ? saved.findIndex((s) => s.id === query.cursor) + 1 : 0;
+      if (query.cursor && !offset) fail("REVISION_CONFLICT", "Reload your saved examples.");
+      const items = saved.slice(offset, offset + query.limit);
+      return listSavedSourcesResponseSchema.parse({ items, nextCursor: offset + query.limit < saved.length ? items.at(-1)!.id : null });
+    },
+    async getSourceSession(sourceId) {
+      const sourceConversation = importedFor(sourceId);
+      const usablePractice = [...practices.values()].filter((p) => {
+        const sourceIds = new Set(p.scenarios.flatMap((s) => s.sourceEvidence.map((id) => evidenceFor([id])[0]!.sourceConversationId)));
+        return sourceIds.has(sourceId) && [...sourceIds].every((id) => imports.get(id)?.consentStatus === "confirmed");
+      });
+      const savedPractices = await Promise.all(usablePractice.map(async (p) => ({ practice: await client.getPractice(p.practiceSet.id), attempts: attempts.get(p.practiceSet.id) ?? [] })));
+      const changes = [...proposals.values()].filter((c) => {
+        const sources = [c.replacementInstruction.sourceConversationId, instructionFor(c.previousInstructionId).sourceConversationId];
+        return sources.includes(sourceId) && sources.every((id) => imports.get(id)?.consentStatus === "confirmed");
+      });
+      return sourceSessionResponseSchema.parse({ sourceConversation, source: sourceFor(sourceConversation.beeSourceId), excludedRanges: exclusions.get(sourceId) ?? [], ...(extractions.has(sourceId) ? { extraction: extractions.get(sourceId) } : {}), practices: savedPractices.filter((p) => p.practice.instructions.some((r) => r.sourceConversationId === sourceId)), changes, sourceEvidence: evidenceFor(changes.flatMap((c) => [...c.previousSourceEvidence, ...c.replacementInstruction.sourceEvidence])) });
+    },
     async health() { return { ok: true, service: "firstday-api", version: "0.2.0", beeBridge: "unavailable" }; },
     async listConversations(input) {
       const request = listBeeConversationsRequestSchema.parse(input);
@@ -87,6 +205,7 @@ export function createSyntheticFirstDayClient(options: { sources?: readonly BeeS
       const source = sourceFor(request.beeSourceId);
       revision(source.revision, request.sourceRevision);
       const existing = [...imports.values()].find((item) => item.beeSourceId === source.id);
+      if (existing) importedFor(existing.id);
       const timestamp = now();
       const result = importConversationResponseSchema.parse({ sourceConversation: existing ?? {
         id: id(), learnerId: LEARNER, beeSourceId: source.id, sourceKind: "fixture", title: source.title,
@@ -105,6 +224,7 @@ export function createSyntheticFirstDayClient(options: { sources?: readonly BeeS
       const source = sourceFor(imported.beeSourceId);
       const priorBeeId = Object.entries(updates).find(([, updateId]) => updateId === source.id)?.[0];
       const previous = priorBeeId ? [...imports.values()].find((item) => item.beeSourceId === priorBeeId) : undefined;
+      if (previous) importedFor(previous.id);
       const previousExtraction = previous ? extractions.get(previous.id) : undefined;
       const legacy = source.id === onboarding.id || source.id === bookshopUpdate.id;
       let extraction = legacy ? extractFixtureInstructions(source, {
@@ -125,11 +245,13 @@ export function createSyntheticFirstDayClient(options: { sources?: readonly BeeS
       }
       extraction = extractInstructionsResponseSchema.parse(extraction);
       extractions.set(imported.id, extraction);
+      exclusions.set(imported.id, request.excludedRanges);
       return extractInstructionsResponseSchema.parse(extraction);
     },
     async updateInstruction(input) {
       const request = updateInstructionRequestSchema.parse(input);
       const current = instructionFor(request.instructionId);
+      importedFor(current.sourceConversationId);
       revision(current.sourceRevision, request.sourceRevision);
       if (current.status !== "needsReview" || current.supersedesId) fail("INVALID_STATE", "Use change confirmation for updates; reviewed rules are immutable.");
       const { instructionId: _instructionId, sourceRevision: _sourceRevision, ...edits } = request;
@@ -150,11 +272,18 @@ export function createSyntheticFirstDayClient(options: { sources?: readonly BeeS
       extraction.openQuestions.push(result.openQuestion);
       return createOpenQuestionResponseSchema.parse(result);
     },
+    async updateOpenQuestion(input){
+      const r=updateOpenQuestionRequestSchema.parse(input),question=[...extractions.values()].flatMap(e=>e.openQuestions).find(q=>q.id===r.openQuestionId)??fail("RESOURCE_NOT_FOUND","Private question unavailable.");
+      importedFor(question.sourceConversationId);revision(question.sourceRevision,r.sourceRevision);if(question.status!=="open")fail("INVALID_STATE","This private question is already closed.");
+      const {openQuestionId:_id,sourceRevision:_revision,...changes}=r;void _id;void _revision;
+      const result=updateOpenQuestionResponseSchema.parse({openQuestion:{...question,...changes,updatedAt:now()}});Object.assign(question,result.openQuestion);return result;
+    },
     async createPractice(input) {
       const request = createPracticeSetRequestSchema.parse(input);
       const extraction = extractionFor(request.sourceConversationId);
       revision(extraction.sourceRevision, request.sourceRevision);
-      if ([...practices.values()].some((value) => value.practiceSet.sourceConversationId === request.sourceConversationId && value.practiceSet.kind === "standard")) fail("INVALID_STATE", "This training already has a practice set.");
+      if ([...practices.values()].some((value) => value.practiceSet.sourceConversationId === request.sourceConversationId && value.practiceSet.kind === "standard" && value.practiceSet.status !== "stale")) fail("INVALID_STATE", "This training already has a practice set.");
+      request.instructionIds.forEach(assertInstructionReady);
       const instructions = request.instructionIds.map((instructionId) => instructionFor(instructionId));
       const result = generateSyntheticPractice({ ...request, learnerId: LEARNER, sourceKind: "fixture",
         instructionRevision: extraction.instructionRevision, instructions, sourceEvidence: evidenceFor(instructions.flatMap((item) => item.sourceEvidence)),
@@ -164,6 +293,8 @@ export function createSyntheticFirstDayClient(options: { sources?: readonly BeeS
     },
     async getPractice(practiceId) {
       const practice = practiceFor(practiceId);
+      importedFor(practice.practiceSet.sourceConversationId);
+      for (const evidence of practice.sourceEvidence) importedFor(evidence.sourceConversationId);
       const instructionIds = [...new Set(practice.scenarios.flatMap((scenario) => scenario.expectedRuleIds))];
       let changeProposal: ChangeProposal | undefined;
       if (practice.practiceSet.kind === "changeDrill") {
@@ -180,9 +311,12 @@ export function createSyntheticFirstDayClient(options: { sources?: readonly BeeS
       const set = practice.practiceSet;
       revision(set.sourceRevision, request.sourceRevision); revision(set.instructionRevision, request.instructionRevision);
       if (set.status === "stale") fail("STALE_PRACTICE_SET", "The instruction changed. Open the updated drill.");
+      importedFor(set.sourceConversationId);
+      for (const evidence of practice.sourceEvidence) importedFor(evidence.sourceConversationId);
       if (set.status === "complete") fail("INVALID_STATE", "This practice is complete.");
       const prior = attempts.get(set.id) ?? [];
       if (prior.some((attempt) => attempt.scenarioId === scenario.id && attempt.result === "covered")) fail("INVALID_STATE", "This scenario is already covered.");
+      scenario.expectedRuleIds.forEach(assertInstructionReady);
       const rule = instructionFor(scenario.expectedRuleIds[0]!);
       const proposal = scenario.kind === "changeDrill" ? [...proposals.values()].find((item) => item.status === "confirmed" && item.replacementInstruction.id === rule.id) : undefined;
       const instructions = proposal ? [instructionFor(proposal.previousInstructionId), rule] : [rule];
@@ -233,33 +367,7 @@ export function createSyntheticFirstDayClient(options: { sources?: readonly BeeS
       comparisonResults.set(key, result);
       return compareSourceResponseSchema.parse(result);
     },
-    async confirmChange(input) {
-      const request = confirmChangeRequestSchema.parse(input);
-      const proposal = proposals.get(request.changeId) ?? fail("RESOURCE_NOT_FOUND", "Change not found.");
-      revision(proposal.sourceRevision, request.sourceRevision);
-      const old = instructionFor(proposal.previousInstructionId);
-      const candidate = instructionFor(proposal.replacementInstruction.id);
-      if (proposal.status !== "needsReview" || old.status !== "confirmed" || candidate.status !== "needsReview") fail("INVALID_STATE", "This change was already decided.");
-      const timestamp = now();
-      const previousInstruction = { ...old, status: "changed" as const, updatedAt: timestamp };
-      const replacementInstruction = { ...candidate, status: "confirmed" as const, updatedAt: timestamp };
-      const changeProposal = { ...proposal, replacementInstruction, status: "confirmed" as const, updatedAt: timestamp };
-      const practiceId = id(); const scenarioId = id();
-      const references = [...old.sourceEvidence, ...candidate.sourceEvidence];
-      const stalePracticeSetIds = [...practices.values()].filter((value) => value.scenarios.some((scenario) => scenario.expectedRuleIds.includes(old.id))).map((value) => value.practiceSet.id);
-      const response = confirmChangeResponseSchema.parse({ changeProposal, previousInstruction, replacementInstruction, stalePracticeSetIds,
-        changeDrill: { practiceSet: { id: practiceId, learnerId: LEARNER, sourceConversationId: candidate.sourceConversationId,
-          sourceRevision: candidate.sourceRevision, sourceKind: "fixture", title: "What changed?", kind: "changeDrill",
-          instructionRevision: extractionFor(candidate.sourceConversationId).instructionRevision, status: "ready", scenarioIds: [scenarioId], createdAt: timestamp, updatedAt: timestamp },
-          scenarios: [{ id: scenarioId, practiceSetId: practiceId, sourceRevision: candidate.sourceRevision, kind: "changeDrill", characterId: "guide-maya",
-            prompt: `${candidate.situation.replace(/[.!?]+$/, "")}. What is the updated action?`, context: "The earlier instruction changed. Use the new confirmed source.",
-            expectedRuleIds: [candidate.id], acceptableSignals: [candidate.expectedAction], criticalMisses: [old.expectedAction], retryPrompt: "Compare the earlier and updated source, then try again.", sourceEvidence: references, order: 1 }] },
-        sourceEvidence: evidenceFor(references) });
-      Object.assign(old, previousInstruction); Object.assign(candidate, replacementInstruction); Object.assign(proposal, changeProposal);
-      for (const staleId of stalePracticeSetIds) { const set = practiceFor(staleId).practiceSet; set.status = "stale"; set.updatedAt = timestamp; }
-      practices.set(practiceId, { ...response.changeDrill, sourceEvidence: response.sourceEvidence });
-      return confirmChangeResponseSchema.parse(response);
-    },
+    async confirmChange(input) {return confirmChangeLocally(input);},
   };
   return client;
 }

@@ -1,0 +1,21 @@
+{
+  "id": "fixture-reservation-exceptions-update",
+  "sourceKind": "fixture",
+  "title": "Reservation exceptions - synthetic policy update",
+  "startedAt": "2026-09-30T16:00:00.000Z",
+  "status": "processed",
+  "revision": "fixture-reservation-exceptions-update-r1",
+  "transcript": "Update: When a customer asks whether a reservation is active, New reservations last five days. Reservations already made keep their original seven-day window.",
+  "utterances": [
+    {
+      "id": "reservation-exception-update-1",
+      "startMs": 0,
+      "endMs": 10000,
+      "text": "Update: When a customer asks whether a reservation is active, New reservations last five days. Reservations already made keep their original seven-day window.",
+      "speaker": {
+        "label": "trainer",
+        "name": "Maya"
+      }
+    }
+  ]
+}

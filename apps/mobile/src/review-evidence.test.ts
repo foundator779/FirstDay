@@ -138,3 +138,17 @@ describe("review evidence detail", () => {
     );
   });
 });
+
+describe("reported timestamp review", () => {
+  const point = { id: "a", startMs: 1780000000000, endMs: 1780000000000, text: "Exact fictional quote.", timing: { basis: "reportedTimestamp" as const } };
+  const excluded = { startMs: point.startMs, endMs: point.endMs, timing: { basis: "reportedTimestamps" as const }, utteranceIds: ["a"] };
+  it("excludes and highlights exact IDs independently at coincident times", () => {
+    expect(isUtteranceExcluded(point, [excluded])).toBe(true);
+    expect(isUtteranceExcluded({ ...point, id: "b" }, [excluded])).toBe(false);
+    const evidence = { ...excluded, id: "evd_fake" as const, sourceConversationId: "fictional", sourceRevision: "r1", quote: point.text };
+    expect(evidenceTranscriptRows([point, { ...point, id: "b" }], [evidence]).map(r => r.highlighted)).toEqual([true, false]);
+  });
+  it("displays wall timestamps and makes unavailable duration explicit", () => {
+    expect(formatEvidenceSpan(point)).toBe("2026-05-28T20:26:40.000Z · duration unavailable");
+  });
+});

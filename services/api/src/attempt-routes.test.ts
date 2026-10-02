@@ -509,9 +509,10 @@ describe("scenario attempt routes", () => {
     expect(errorEnvelopeSchema.parse(rejected.json()).error.code).toBe(
       "STALE_PRACTICE_SET",
     );
-    const historical = await readPractice(server);
-    expect(historical.practiceSet.status).toBe("stale");
-    expect(historical.progress).toEqual({ completed: 0, total: 3 });
+    expect(revoked.json().stalePracticeSetIds).toContain(BOOKSHOP_FIXTURE_IDS.standardPracticeSetId);
+    const historical=await server.inject({method:"GET",url:`/api/practice-sets/${BOOKSHOP_FIXTURE_IDS.standardPracticeSetId}`,headers:headers()});
+    expect(historical.statusCode).toBe(409);
+    expect(errorEnvelopeSchema.parse(historical.json()).error.code).toBe("CONSENT_REVOKED");
   });
 
   it("stales a completed set on revocation and blocks subsequent attempts", async () => {
@@ -536,9 +537,9 @@ describe("scenario attempt routes", () => {
       sourceConversation: { consentStatus: "revoked" },
       stalePracticeSetIds: [BOOKSHOP_FIXTURE_IDS.standardPracticeSetId],
     });
-    const historical = await readPractice(server);
-    expect(historical.practiceSet.status).toBe("stale");
-    expect(historical.progress).toEqual({ completed: 3, total: 3 });
+    const historical=await server.inject({method:"GET",url:`/api/practice-sets/${BOOKSHOP_FIXTURE_IDS.standardPracticeSetId}`,headers:headers()});
+    expect(historical.statusCode).toBe(409);
+    expect(errorEnvelopeSchema.parse(historical.json()).error.code).toBe("CONSENT_REVOKED");
 
     const blocked = await server.inject(
       attemptRequest(EVALUATIONS[4]!.scenarioId, EVALUATIONS[4]!.responseText, "voice"),

@@ -1,5 +1,12 @@
 # FirstDay
 
+## Run with your Bee recordings
+
+`npm run demo:live -- --env-file=/absolute/private.env` starts the local Bee
+bridge, durable authenticated API and learner sign-in screen. See the
+[live setup guide](docs/live-demo.md) for private configuration, local database
+setup, phone connectivity and the remaining validation gates.
+
 ## Run with Amazon Bedrock
 
 With the backend credentials in the ignored root `.env`, run
@@ -17,8 +24,18 @@ what you covered. Change Drill compares an updated instruction with its earlier
 version, marks old practice stale, and rehearses the new action. Tentative
 language stays in private trainer questions.
 
-The target is an Expo React Native iOS app. The Windows preview is a responsive
-web build; physical iPhone and live Bee verification remain outstanding. See
+**Check what I understood** compares your intended action with the exact source,
+asks about exceptions before rehearsal, and keeps unresolved context outside
+grading. **Evening review** lets you review, confirm, revise or undo a correction
+to attribution, transcription or interpretation, or confirm an actual later
+rule. Original quotes remain visible and unchanged. Connected training restores
+server-saved progress; offline examples remain temporary.
+
+The target is an Expo React Native iOS app, with a responsive web preview.
+Physical iPhone fictional practice and user-reported speech checks passed.
+Authenticated import, extraction and restoration of two actual Bee recordings
+passed against the dedicated local database. The complete real training/update
+journey and full VoiceOver check remain open. See
 [design validation](docs/design-validation.md) for the planned user test.
 
 The current layout adapts the supplied Figma kit: League Spartan typography,
@@ -41,7 +58,8 @@ grading still expects the confirmed action wording; Bedrock supports paraphrases
 For the native offline preview, run `npm run demo:ios` and open its Expo QR code
 on an iPhone with a compatible Expo Go app on the same Wi-Fi network. This runs
 the React Native app with fictional examples; it does not require a Bedrock key
-on the phone. Native device validation remains to be performed.
+on the phone. Physical speech was verified by the user in a custom Release
+build; see the [current validation record](docs/live-demo.md#validation-and-limits).
 
 ## Run the synthetic demo now
 

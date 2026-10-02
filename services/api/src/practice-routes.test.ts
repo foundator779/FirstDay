@@ -424,7 +424,7 @@ describe("standard practice routes", () => {
     expect(errorEnvelopeSchema.parse(response.json()).error.code).toBe("RESOURCE_NOT_FOUND");
   });
 
-  it("atomically stales affected sets on revocation while preserving historical reads", async () => {
+  it("atomically stales affected sets on revocation and denies historical reads", async () => {
     const server = makeServer();
     await importAndExtract(server);
     await confirmAll(server);
@@ -447,8 +447,8 @@ describe("standard practice routes", () => {
       url: `/api/practice-sets/${BOOKSHOP_FIXTURE_IDS.standardPracticeSetId}`,
       headers: headers(),
     });
-    expect(historical.statusCode).toBe(200);
-    expect(getPracticeSetResponseSchema.parse(historical.json()).practiceSet.status).toBe("stale");
+    expect(historical.statusCode).toBe(409);
+    expect(errorEnvelopeSchema.parse(historical.json()).error.code).toBe("CONSENT_REVOKED");
 
     const blocked = await createPractice(server);
     expect(blocked.statusCode).toBe(409);

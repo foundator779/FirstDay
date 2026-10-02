@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  createSupabaseAuthBroker,
   createFixtureSessionVerifier,
   createSupabaseSessionVerifier,
   type FetchImplementation,
@@ -16,6 +17,7 @@ import {
 import { createFixtureInstructionExtractor } from "./extraction.js";
 import { createBedrockProvider } from "./bedrock.js";
 import { createMemoryRepository } from "./memory-repository.js";
+import { createSupabaseRepository } from "./supabase-repository.js";
 import {
   buildApiServer,
   deterministicScenarioEngine,
@@ -53,12 +55,12 @@ export function createProductionApiServer(
   config: ApiRuntimeConfig,
   options: ProductionApiOptions = {},
 ): ApiServer {
+  if(config.dataMode==="live"&&(config.auth.kind!=="supabase"||config.storage===undefined||config.bedrock===undefined||config.ownerId===undefined))throw new Error(API_START_FAILURE_MESSAGE);
   const fetchImplementation = options.fetchImplementation;
   const sessionVerifier = config.auth.kind === "fixture"
     ? createFixtureSessionVerifier({ token: config.auth.token, learnerId: config.auth.learnerId })
     : createSupabaseSessionVerifier({
-        supabaseUrl: config.auth.supabaseUrl,
-        anonKey: config.auth.anonKey,
+        ...config.auth,
         ...(fetchImplementation === undefined ? {} : { fetchImplementation }),
       });
   const beeGateway = options.beeGateway ?? createHttpBeeGateway({
@@ -69,9 +71,11 @@ export function createProductionApiServer(
   const bedrock = config.bedrock === undefined ? undefined : createBedrockProvider(config.bedrock,
     options.bedrockFetchImplementation === undefined ? {} : { fetchImplementation: options.bedrockFetchImplementation });
   return buildApiServer({
+    ...(config.auth.kind==="supabase"&&config.ownerId!==undefined?{ownerId:config.ownerId,authBroker:createSupabaseAuthBroker({...config.auth,ownerId:config.ownerId,...(fetchImplementation===undefined?{}:{fetchImplementation})})}:{}),
     sessionVerifier,
     beeGateway,
-    repository: createMemoryRepository({ groundedExtraction: bedrock !== undefined }),
+    repository: config.storage === undefined ? createMemoryRepository({ groundedExtraction: bedrock !== undefined }) : createSupabaseRepository({ ...config.storage, groundedExtraction: bedrock !== undefined, ...(fetchImplementation === undefined ? {} : { fetchImplementation }) }),
+    ...(bedrock ? {understandingComparator:bedrock.compareUnderstanding,understandingInitialComparator:bedrock.compareUnderstandingInitial}:{}),
     extractor: bedrock?.extractor ?? createFixtureInstructionExtractor(),
     scenarioEngine: bedrock === undefined ? deterministicScenarioEngine : {
       ...deterministicScenarioEngine,

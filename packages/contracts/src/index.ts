@@ -149,6 +149,8 @@ export type SourceEvidenceIdentity = {
   sourceRevision: string;
   startMs: number;
   endMs: number;
+  timing?: { basis: "reportedTimestamps" } | undefined;
+  utteranceIds?: readonly string[] | undefined;
 };
 
 function deriveSourceEvidenceId(identity: SourceEvidenceIdentity): `evd_${string}` {
@@ -157,7 +159,7 @@ function deriveSourceEvidenceId(identity: SourceEvidenceIdentity): `evd_${string
     identity.sourceRevision,
     identity.startMs,
     identity.endMs,
-  ].join("\n");
+  ].join("\n") + (identity.timing ? `\nreportedTimestamps\n${JSON.stringify(identity.utteranceIds)}` : "");
   return `evd_${sha256Hex(canonical)}`;
 }
 
@@ -237,6 +239,15 @@ export const beeSpeakerSchema = z
   })
   .strict();
 
+const reportedEpochSchema = millisecondSchema.max(8_640_000_000_000_000);
+const reportedSelectionTimingSchema = z.object({ basis: z.literal("reportedTimestamps") }).strict();
+const reportedUtteranceTimingSchema = z.object({
+  basis: z.literal("reportedTimestamp"),
+  rawStart: z.number().finite().nullable().optional(),
+  rawEnd: z.number().finite().nullable().optional(),
+}).strict();
+const utteranceSelectionIdsSchema = z.array(requiredShortTextSchema).min(1).max(TRANSPORT_COLLECTION_MAX).refine(hasUniqueStrings, "utteranceIds must be unique");
+
 export const beeUtteranceSchema = z
   .object({
     id: requiredShortTextSchema,
@@ -244,10 +255,11 @@ export const beeUtteranceSchema = z
     endMs: millisecondSchema,
     text: requiredLongTextSchema,
     speaker: beeSpeakerSchema.optional(),
+    timing: reportedUtteranceTimingSchema.optional(),
   })
   .strict()
-  .refine(({ endMs, startMs }) => endMs > startMs, {
-    message: "endMs must be greater than startMs",
+  .refine(({ endMs, startMs, timing }) => timing ? endMs === startMs && reportedEpochSchema.safeParse(startMs).success : endMs > startMs, {
+    message: "timing must describe a reported point or a positive interval",
     path: ["endMs"],
   });
 
@@ -295,6 +307,9 @@ export const beeSourceSchema = z
     { message: "endedAt cannot precede startedAt", path: ["endedAt"] },
   )
   .superRefine((value, context) => {
+    if (value.utterances.some(u => !!u.timing !== !!value.utterances[0]?.timing)) {
+      context.addIssue({ code: "custom", message: "source timing must be uniform", path: ["utterances"] });
+    }
     const utteranceIds = value.utterances.map(({ id }) => id);
     if (new Set(utteranceIds).size !== utteranceIds.length) {
       context.addIssue({
@@ -311,7 +326,8 @@ export const beeSourceSchema = z
         previous !== undefined &&
         current !== undefined &&
         (current.startMs < previous.startMs ||
-          (current.startMs === previous.startMs && current.endMs < previous.endMs))
+          (current.startMs === previous.startMs && current.endMs < previous.endMs) ||
+          (current.timing && current.startMs === previous.startMs && current.endMs === previous.endMs && current.id < previous.id))
       ) {
         context.addIssue({
           code: "custom",
@@ -335,10 +351,12 @@ export const excludedRangeSchema = z
     startMs: millisecondSchema,
     endMs: millisecondSchema,
     reason: requiredLongTextSchema.optional(),
+    timing: reportedSelectionTimingSchema.optional(),
+    utteranceIds: utteranceSelectionIdsSchema.optional(),
   })
   .strict()
-  .refine(({ endMs, startMs }) => endMs > startMs, {
-    message: "endMs must be greater than startMs",
+  .refine(({ endMs, startMs, timing, utteranceIds }) => timing ? endMs >= startMs && !!utteranceIds && (utteranceIds.length !== 1 || endMs === startMs) && reportedEpochSchema.safeParse(startMs).success && reportedEpochSchema.safeParse(endMs).success : endMs > startMs && utteranceIds === undefined, {
+    message: "reported selections require timestamp bounds and IDs; intervals require positive duration",
     path: ["endMs"],
   });
 
@@ -350,6 +368,7 @@ export const sourceEvidenceSchema = z
     startMs: millisecondSchema,
     endMs: millisecondSchema,
     quote: requiredLongTextSchema,
+    timing: reportedSelectionTimingSchema.optional(),
     utteranceIds: z
       .array(requiredShortTextSchema)
       .min(1)
@@ -358,8 +377,8 @@ export const sourceEvidenceSchema = z
     speakerLabel: requiredShortTextSchema.optional(),
   })
   .strict()
-  .refine(({ endMs, startMs }) => endMs > startMs, {
-    message: "endMs must be greater than startMs",
+  .refine(({ endMs, startMs, timing, utteranceIds }) => timing ? endMs >= startMs && (utteranceIds.length !== 1 || endMs === startMs) && reportedEpochSchema.safeParse(startMs).success && reportedEpochSchema.safeParse(endMs).success : endMs > startMs, {
+    message: "reported selections require timestamp bounds; intervals require positive duration",
     path: ["endMs"],
   })
   .refine(
@@ -2060,3 +2079,152 @@ export interface BeeAdapter {
 }
 
 export type BeeAdapterRegistry = Record<SourceKind, BeeAdapter>;
+
+export const listSavedSourcesRequestSchema = z.object({ sourceKind: sourceKindSchema, cursor: uuidSchema.optional(), limit: pageLimitSchema.default(20) }).strict();
+export const listSavedSourcesResponseSchema = z.object({ items: z.array(sourceConversationSchema).max(100), nextCursor: uuidSchema.nullable() }).strict();
+export const getSourceSessionRequestSchema = z.object({ sourceConversationId: uuidSchema }).strict();
+/** Current review state permits reviewed statuses; initial extraction stays strict. */
+export const reviewSnapshotSchema = z.object(extractInstructionsResponseSchema.shape).strict().superRefine((value, context) => {
+  const records = [...value.items, ...value.openQuestions];
+  if (new Set(records.map((r) => r.id)).size !== records.length) context.addIssue({ code: "custom", message: "Review record IDs must be unique" });
+  for (const record of records) if (record.sourceConversationId !== value.sourceConversationId || record.sourceRevision !== value.sourceRevision) context.addIssue({ code: "custom", message: "Review records must match their source" });
+  const references = referencedEvidenceIds(records);
+  validateEvidenceResolution(references, value.sourceEvidence, context);
+  validateEvidenceProvenance(references, value.sourceEvidence, value, context);
+});
+export const sourceSessionResponseSchema = z.object({
+  sourceConversation: sourceConversationSchema,
+  source: beeSourceSchema,
+  excludedRanges: z.array(excludedRangeSchema).max(100),
+  extraction: reviewSnapshotSchema.optional(),
+  practices: z.array(z.object({ practice: getPracticeSetResponseSchema, attempts: z.array(attemptSchema) }).strict()).max(100),
+  changes: z.array(changeProposalSchema).max(100),
+  sourceEvidence: z.array(sourceEvidenceSchema).max(EVIDENCE_BUNDLE_MAX),
+}).strict().superRefine((value, context) => {
+  const source = value.sourceConversation;
+  if (source.consentStatus !== "confirmed" || source.status !== "ready" || value.source.id !== source.beeSourceId || value.source.sourceKind !== source.sourceKind || value.source.revision !== source.sourceRevision || createTranscriptHash(value.source.transcript) !== source.transcriptHash) context.addIssue({ code: "custom", message: "Session source must match the consented immutable import", path: ["source"] });
+  if (value.extraction && (value.extraction.sourceConversationId !== source.id || value.extraction.sourceRevision !== source.sourceRevision)) context.addIssue({ code: "custom", message: "Extraction must match the selected source", path: ["extraction"] });
+  for (const [index, bundle] of value.practices.entries()) {
+    const practice = bundle.practice;
+    if (practice.practiceSet.learnerId !== source.learnerId || practice.practiceSet.sourceKind !== source.sourceKind || !practice.instructions.some((r) => r.sourceConversationId === source.id)) context.addIssue({ code: "custom", message: "Practice must belong to this learner and selected source", path: ["practices", index] });
+    for (const attempt of bundle.attempts) {
+      const scenario = practice.scenarios.find((s) => s.id === attempt.scenarioId);
+      if (!scenario || attempt.sourceRevision !== practice.practiceSet.sourceRevision || attempt.instructionRevision !== practice.practiceSet.instructionRevision || !sameStringSet(attempt.sourceEvidence, scenario.sourceEvidence) || !sameStringSet([...attempt.matchedRuleIds, ...attempt.missedRuleIds], scenario.expectedRuleIds)) context.addIssue({ code: "custom", message: "Attempt must match the saved practice and evidence", path: ["practices", index, "attempts"] });
+    }
+  }
+  const references = new Set(value.changes.flatMap((c) => [...c.previousSourceEvidence, ...c.replacementInstruction.sourceEvidence]));
+  validateEvidenceResolution(references, value.sourceEvidence, context);
+});
+export type ListSavedSourcesRequest = z.output<typeof listSavedSourcesRequestSchema>;
+export type ListSavedSourcesRequestInput = z.input<typeof listSavedSourcesRequestSchema>;
+export type ListSavedSourcesResponse = z.output<typeof listSavedSourcesResponseSchema>;
+export type SourceSessionResponse = z.output<typeof sourceSessionResponseSchema>;
+
+/** Private intended-action dialogue; source/interpretation comparison never supplies a grade. */
+export const understandingResponseSchema = z.object({ requestId: uuidSchema, responseText: requiredLongTextSchema, inputMode: z.enum(["voice", "text"]), applicability:z.array(z.boolean()).max(20), feedback: requiredLongTextSchema, comparison: z.enum(["consistent", "possibleMismatch", "uncertain"]), createdAt: isoUtcDateTimeSchema }).strict();
+export const understandingInitialComparisonSchema = z.object({ answerQuote: requiredLongTextSchema, exceptionIndex: z.number().int().min(0).max(19).nullable() }).strict();
+export const understandingCheckSchema = z.object({
+  initialComparison: understandingInitialComparisonSchema,
+  reviewHistory:z.array(z.object({action:z.enum(["disputed","reopened"]),version:z.number().int().positive(),createdAt:isoUtcDateTimeSchema}).strict()).max(100),
+  id: uuidSchema, requestId: uuidSchema, instruction: instructionCardSchema, instructionRevision: instructionRevisionSchema,
+  explanation: requiredLongTextSchema, inputMode: z.enum(["voice", "text"]), version: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
+  status: z.enum(["clarifying", "readyForConfirmation", "readyToRehearse", "disputed"]), applicability: z.array(z.boolean().nullable()).max(20),
+  responses: z.array(understandingResponseSchema).max(20), createdAt: isoUtcDateTimeSchema, updatedAt: isoUtcDateTimeSchema,
+}).strict().superRefine((v, c) => {
+  if (!v.explanation.includes(v.initialComparison.answerQuote) || (v.initialComparison.exceptionIndex !== null && !v.instruction.exceptions[v.initialComparison.exceptionIndex])) c.addIssue({ code:"custom", message:"Initial comparison must use the learner's exact words and an existing exception" });
+  if (v.instruction.status !== "confirmed" || v.applicability.length !== v.instruction.exceptions.length) c.addIssue({ code: "custom", message: "Dialogue must match a confirmed instruction and all exceptions" });
+  if ((v.status === "readyForConfirmation" || v.status === "readyToRehearse") && v.applicability.includes(null)) c.addIssue({ code: "custom", message: "Unknown context cannot enter rehearsal" });
+  if (v.status === "clarifying" && !v.applicability.includes(null)) c.addIssue({ code: "custom", message: "Clarification requires unknown context" });
+  if (new Set(v.responses.map(r => r.requestId)).size !== v.responses.length) c.addIssue({ code: "custom", message: "Response IDs must be unique" });
+});
+export const createUnderstandingRequestSchema = z.object({ instructionId: uuidSchema, sourceRevision: sourceRevisionSchema, instructionRevision: instructionRevisionSchema, requestId: uuidSchema, explanation: requiredLongTextSchema, inputMode: z.enum(["voice", "text"]) }).strict();
+const understandingUpdateBase = { checkId: uuidSchema, expectedVersion: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER) };
+export const updateUnderstandingRequestSchema = z.discriminatedUnion("action", [
+  z.object({ ...understandingUpdateBase, action: z.literal("clarify"), applicability: z.array(z.boolean().nullable()).max(20) }).strict(),
+  z.object({ ...understandingUpdateBase, action: z.literal("dispute") }).strict(),
+  z.object({ ...understandingUpdateBase, action: z.literal("reopen") }).strict(),
+  z.object({ ...understandingUpdateBase, action: z.literal("confirmInterpretation") }).strict(),
+  z.object({ ...understandingUpdateBase, action: z.literal("rehearse"), requestId: uuidSchema, responseText: requiredLongTextSchema, inputMode: z.enum(["voice", "text"]) }).strict(),
+]);
+export const understandingBundleSchema = z.object({ historical:z.boolean().optional(), check: understandingCheckSchema, sourceEvidence: z.array(sourceEvidenceSchema).max(EVIDENCE_BUNDLE_MAX) }).strict().superRefine((v,c) => {
+  const refs = new Set(v.check.instruction.sourceEvidence); validateEvidenceResolution(refs,v.sourceEvidence,c); validateEvidenceProvenance(refs,v.sourceEvidence,v.check.instruction,c);
+});
+const historicalReadSchema=z.preprocess(value=>value==="true"?true:value==="false"?false:value,z.boolean().optional());
+export const listUnderstandingRequestSchema = z.object({ sourceConversationId: uuidSchema,historical:historicalReadSchema }).strict();
+export const getUnderstandingRequestSchema=z.object({checkId:uuidSchema,historical:historicalReadSchema}).strict();
+export const listUnderstandingResponseSchema = z.object({ items: z.array(understandingBundleSchema).max(100) }).strict();
+export type UnderstandingCheck = z.infer<typeof understandingCheckSchema>;
+export type UnderstandingResponse = z.infer<typeof understandingResponseSchema>;
+export type UnderstandingBundle = z.infer<typeof understandingBundleSchema>;
+export type CreateUnderstandingRequest = z.infer<typeof createUnderstandingRequestSchema>;
+export type UpdateUnderstandingRequest = z.infer<typeof updateUnderstandingRequestSchema>;
+
+/** Source point selections use utterance IDs; legacy intervals retain half-open overlap. */
+type TranscriptSelection = { startMs: number; endMs: number; timing?: { basis: "reportedTimestamp" | "reportedTimestamps" } | undefined; id?: string | undefined; utteranceIds?: readonly string[] | undefined };
+export function transcriptSelectionsOverlap(left: TranscriptSelection, right: TranscriptSelection): boolean {
+  if (left.timing || right.timing) {
+    if (!left.timing || !right.timing) return false;
+    const leftIds = left.utteranceIds ?? (left.id ? [left.id] : []);
+    const rightIds = right.utteranceIds ?? (right.id ? [right.id] : []);
+    return leftIds.some(id => rightIds.includes(id));
+  }
+  return left.startMs < right.endMs && right.startMs < left.endMs;
+}
+
+export function excludedRangeForUtterance(utterance: BeeUtterance): ExcludedRange {
+  return { startMs: utterance.startMs, endMs: utterance.endMs, ...(utterance.timing ? { timing: { basis: "reportedTimestamps" as const }, utteranceIds: [utterance.id] } : {}) };
+}
+
+/** Bind reported selections to the immutable source before any processing. */
+export function excludedRangesMatchSource(source: BeeSource, ranges: readonly ExcludedRange[]): boolean {
+  return ranges.every(range => {
+    if (!!range.timing !== !!source.utterances[0]?.timing) return false;
+    if (!range.timing) return true;
+    const selected = source.utterances.filter(u => range.utteranceIds?.includes(u.id));
+    return selected.length === range.utteranceIds?.length &&
+      selected.every((u, index) => u.id === range.utteranceIds?.[index]) &&
+      range.startMs === selected[0]?.startMs && range.endMs === selected.at(-1)?.endMs;
+  });
+}
+
+export function sourceEvidenceForUtterance(sourceConversationId: string, sourceRevision: string, utterance: BeeUtterance): SourceEvidence {
+  const identity = { sourceConversationId, sourceRevision, startMs: utterance.startMs, endMs: utterance.endMs, utteranceIds: [utterance.id], ...(utterance.timing ? { timing: { basis: "reportedTimestamps" as const } } : {}) };
+  return sourceEvidenceSchema.parse({ ...identity, id: createSourceEvidenceId(identity), quote: utterance.text, ...(utterance.speaker ? { speakerLabel: utterance.speaker.label } : {}) });
+}
+
+/** Local review annotations. Original instruction and evidence snapshots are never edited. */
+export const correctionTargetSchema = z.object({ sourceConversationId: uuidSchema, sourceRevision: sourceRevisionSchema, instructionId: uuidSchema, instructionRevision: instructionRevisionSchema, instruction: instructionCardSchema, originalUtterances:z.array(beeUtteranceSchema).min(1).max(100), sourceEvidence: z.array(sourceEvidenceSchema).min(1).max(100) }).strict().superRefine((v,c)=>{
+  if(v.instruction.id!==v.instructionId||v.instruction.sourceConversationId!==v.sourceConversationId||v.instruction.sourceRevision!==v.sourceRevision)c.addIssue({code:'custom',message:'Correction target must match the original instruction'});
+  const ids=new Set(v.sourceEvidence.flatMap(e=>e.utteranceIds));if(ids.size!==v.originalUtterances.length||new Set(v.originalUtterances.map(u=>u.id)).size!==ids.size||v.originalUtterances.some(u=>!ids.has(u.id)))c.addIssue({code:'custom',message:'Original utterances must resolve the exact evidence selection'});
+  validateEvidenceResolution(new Set(v.instruction.sourceEvidence),v.sourceEvidence,c);validateEvidenceProvenance(new Set(v.instruction.sourceEvidence),v.sourceEvidence,v.instruction,c);
+});
+export const correctionAnnotationSchema = z.discriminatedUnion('type',[
+  z.object({type:z.literal('attribution'),speakerName:requiredShortTextSchema,speakerRole:requiredShortTextSchema,preparation:z.enum(['retain','withhold'])}).strict(),
+  z.object({type:z.literal('transcription'),correctedText:requiredLongTextSchema}).strict(),
+  z.object({type:z.literal('interpretation'),meaning:z.enum(['suggestion','uncertain','originalInstruction'])}).strict(),
+  z.object({type:z.literal('newRule'),changeId:uuidSchema,laterSourceConversationId:uuidSchema,laterSourceRevision:sourceRevisionSchema}).strict(),
+]);
+export const previewCorrectionRequestSchema = z.object({requestId:uuidSchema,target:correctionTargetSchema,after:correctionAnnotationSchema,recognizedText:requiredLongTextSchema,inputMode:z.enum(['voice','text']),revisesId:uuidSchema.optional()}).strict();
+export const correctionEffectsSchema = z.object({instructionIds:z.array(uuidSchema).min(1).max(100),practiceSetIds:z.array(uuidSchema).max(100),withholdGrading:z.boolean(),generation:z.number().int().nonnegative(),dependencyFingerprint:requiredShortTextSchema,consequence:requiredLongTextSchema}).strict();
+export const updateCorrectionRequestSchema=z.object({correctionId:uuidSchema,requestId:uuidSchema,expectedVersion:z.number().int().positive().max(Number.MAX_SAFE_INTEGER),action:z.enum(['confirm','skip','reopen','undo']),dependencyFingerprint:requiredShortTextSchema.optional()}).strict().superRefine((v,c)=>{if(v.action==='confirm'&&!v.dependencyFingerprint)c.addIssue({code:'custom',message:'Confirmation requires the reviewed dependency fingerprint'});});
+export const correctionReviewEventSchema=z.object({requestId:uuidSchema,action:z.enum(['preview','confirm','skip','reopen','undo','supersede']),version:z.number().int().positive(),learnerId:uuidSchema,createdAt:isoUtcDateTimeSchema,request:updateCorrectionRequestSchema.optional(),practiceSetIds:z.array(uuidSchema).max(100).optional()}).strict();
+export const sourceCorrectionSchema=z.object({id:uuidSchema,learnerId:uuidSchema,request:previewCorrectionRequestSchema,beforeMeaning:requiredLongTextSchema,afterMeaning:requiredLongTextSchema,effects:correctionEffectsSchema,status:z.enum(['preview','confirmed','skipped','reopened','undone','superseded']),version:z.number().int().positive().max(Number.MAX_SAFE_INTEGER),confirmedBy:uuidSchema.optional(),confirmedAt:isoUtcDateTimeSchema.optional(),createdAt:isoUtcDateTimeSchema,updatedAt:isoUtcDateTimeSchema,reviewHistory:z.array(correctionReviewEventSchema).min(1).max(100)}).strict().superRefine((v,c)=>{
+  if(v.reviewHistory.some(e=>e.learnerId!==v.learnerId)||v.reviewHistory[0]?.requestId!==v.request.requestId||v.reviewHistory.at(-1)?.version!==v.version||v.confirmedBy&&v.confirmedBy!==v.learnerId)c.addIssue({code:'custom',message:'Correction chronology must belong to the confirming owner'});
+});
+export const listCorrectionsRequestSchema=z.object({sourceConversationId:uuidSchema}).strict();
+export const listCorrectionsResponseSchema=z.object({items:z.array(sourceCorrectionSchema).max(100)}).strict();
+export type CorrectionTarget=z.infer<typeof correctionTargetSchema>;
+export type CorrectionAnnotation=z.infer<typeof correctionAnnotationSchema>;
+export type PreviewCorrectionRequest=z.infer<typeof previewCorrectionRequestSchema>;
+export type UpdateCorrectionRequest=z.infer<typeof updateCorrectionRequestSchema>;
+export type SourceCorrection=z.infer<typeof sourceCorrectionSchema>;
+
+// Learner credentials are transported once and retained only in client RAM.
+export const authTokenSchema = z.string().min(1).max(16384).regex(/^\S+$/u);
+export const signInRequestSchema = z.object({email:z.string().email().max(254),password:z.string().min(1).max(1024)}).strict();
+export const refreshSessionRequestSchema = z.object({refreshToken:authTokenSchema}).strict();
+export const learnerCredentialsSchema = z.object({accessToken:authTokenSchema,refreshToken:authTokenSchema,expiresAt:z.number().int().positive().max(Number.MAX_SAFE_INTEGER),learnerId:uuidSchema}).strict();
+export const signOutRequestSchema = z.object({}).strict();
+export const signOutResponseSchema = z.object({ok:z.literal(true)}).strict();
+export type LearnerCredentials=z.infer<typeof learnerCredentialsSchema>;
+export type SignInRequest=z.infer<typeof signInRequestSchema>;

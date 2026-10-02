@@ -1,5 +1,6 @@
 import { uuidSchema } from "@firstday/contracts";
 
+import { supabaseOrigin } from "./auth.js";
 import { ApiError } from "./errors.js";
 import { readBedrockConfig, type BedrockConfig } from "./bedrock.js";
 
@@ -19,9 +20,13 @@ type SupabaseAuthConfig = {
   kind: "supabase";
   supabaseUrl: string;
   anonKey: string;
+  allowLocalHttp?:boolean;
+  nodeEnv?:string;
 };
 
 export type ApiRuntimeConfig = {
+  ownerId?:string;
+  storage?: { kind: "supabase"; supabaseUrl: string; serviceRoleKey: string };
   bedrock?: BedrockConfig;
   dataMode: "fixture" | "live";
   port: number;
@@ -88,12 +93,25 @@ export function readApiRuntimeConfig(
     throw new ApiError("INVALID_STATE");
   }
   const dataMode: "fixture" | "live" = rawDataMode;
+  const localHttp = environment["FIRSTDAY_ALLOW_LOCAL_SUPABASE_HTTP"] === "1" && environment["NODE_ENV"] === "development";
+  const storageMode = environment["FIRSTDAY_STORAGE_MODE"] ?? (dataMode === "live" ? "supabase" : "memory");
+  if ((storageMode !== "memory" && storageMode !== "supabase") || (dataMode === "live" && storageMode !== "supabase")) throw new ApiError("INVALID_STATE");
+  const storage = storageMode === "supabase" ? { kind: "supabase" as const, supabaseUrl: required(environment["SUPABASE_URL"]), serviceRoleKey: required(environment["SUPABASE_SERVICE_ROLE_KEY"]) } : undefined;
+  if (storage !== undefined) {
+    const origin = supabaseOrigin(storage.supabaseUrl, localHttp, environment["NODE_ENV"]);
+    if (dataMode === "fixture" && !["127.0.0.1", "localhost", "[::1]"].includes(new URL(origin).hostname)) {
+      throw new ApiError("INVALID_STATE");
+    }
+  }
+  if (storage !== undefined && (storage.serviceRoleKey === environment["SUPABASE_ANON_KEY"] || storage.serviceRoleKey === environment["FIRSTDAY_BEE_BRIDGE_TOKEN"])) throw new ApiError("INVALID_STATE");
   const bedrock = readBedrockConfig(environment);
+  if(dataMode==="live"&&bedrock===undefined)throw new ApiError("INVALID_STATE");
   const bridgeToken = required(environment["FIRSTDAY_BEE_BRIDGE_TOKEN"]);
   const bridgePort = port(environment["FIRSTDAY_BEE_BRIDGE_PORT"], 3_100);
   if (bridgePort === 0) throw new ApiError("INVALID_STATE");
 
   const shared = {
+    ...(storage === undefined ? {} : { storage }),
     ...(bedrock === undefined ? {} : { bedrock }),
     dataMode,
     port: port(environment["FIRSTDAY_API_PORT"], DEFAULT_API_PORT),
@@ -118,7 +136,9 @@ export function readApiRuntimeConfig(
 
   return {
     ...shared,
+    ownerId:uuidSchema.parse(required(environment["FIRSTDAY_BEE_OWNER_ID"])),
     auth: {
+      ...(localHttp?{allowLocalHttp:true,nodeEnv:"development"}:{}),
       kind: "supabase",
       supabaseUrl: required(environment["SUPABASE_URL"]),
       anonKey: required(environment["SUPABASE_ANON_KEY"]),

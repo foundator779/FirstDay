@@ -1,3 +1,4 @@
+import { transcriptSelectionsOverlap } from "@firstday/contracts";
 import type {
   BeeSource,
   BeeUtterance,
@@ -7,7 +8,7 @@ import type {
   SourceEvidence,
 } from "@firstday/contracts";
 
-type TimeRange = Pick<ExcludedRange, "startMs" | "endMs">;
+type TimeRange = { startMs: number; endMs: number; timing?: { basis: "reportedTimestamp" | "reportedTimestamps" } | undefined };
 
 export function halfOpenRangesOverlap(left: TimeRange, right: TimeRange): boolean {
   return left.startMs < right.endMs && right.startMs < left.endMs;
@@ -17,7 +18,7 @@ export function isUtteranceExcluded(
   utterance: BeeUtterance,
   excludedRanges: readonly ExcludedRange[],
 ): boolean {
-  return excludedRanges.some((range) => halfOpenRangesOverlap(utterance, range));
+  return excludedRanges.some((range) => transcriptSelectionsOverlap(utterance, range));
 }
 
 export function countIncludedUtterances(
@@ -61,6 +62,11 @@ function formatTranscriptTime(milliseconds: number): string {
 }
 
 export function formatEvidenceSpan(evidence: TimeRange): string {
+  if (evidence.timing) {
+    const start = new Date(evidence.startMs).toISOString();
+    const end = evidence.endMs === evidence.startMs ? "" : `–${new Date(evidence.endMs).toISOString()}`;
+    return `${start}${end} · duration unavailable`;
+  }
   return `${formatTranscriptTime(evidence.startMs)}–${formatTranscriptTime(evidence.endMs)}`;
 }
 
@@ -70,7 +76,7 @@ export function evidenceTranscriptRows(
 ): { utterance: BeeUtterance; highlighted: boolean }[] {
   return utterances.map((utterance) => ({
     utterance,
-    highlighted: evidence.some((item) => halfOpenRangesOverlap(utterance, item)),
+    highlighted: evidence.some((item) => transcriptSelectionsOverlap(utterance, item)),
   }));
 }
 

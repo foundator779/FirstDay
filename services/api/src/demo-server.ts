@@ -25,7 +25,7 @@ export function createDemoGateway(sources: BeeSource[]): BeeGateway {
 }
 
 export async function loadDemoSources(): Promise<BeeSource[]> {
-  return Promise.all(["library", "studio", "bookshop"].flatMap((name) => ["onboarding", "policy-update"].map(async (kind) => beeSourceSchema.parse(JSON.parse(await readFile(new URL(`../../../fixtures/transcripts/${name}-${kind}.json`, import.meta.url), "utf8"))))));
+  return Promise.all(["library", "studio", "bookshop", "reservation-exceptions"].flatMap((name) => ["onboarding", "policy-update"].map(async (kind) => beeSourceSchema.parse(JSON.parse(await readFile(new URL(`../../../fixtures/transcripts/${name}-${kind}.json`, import.meta.url), "utf8"))))));
 }
 
 export async function startBedrockDemo(env: Readonly<Record<string, string | undefined>> = process.env) {

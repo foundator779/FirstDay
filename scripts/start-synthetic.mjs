@@ -1,3 +1,4 @@
+import {expoEnvironment} from "./launcher-config.mjs";
 import { spawn } from "node:child_process";
 import process from "node:process";
 import { createRequire } from "node:module";
@@ -7,10 +8,7 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const expoDirectory = dirname(require.resolve("expo/package.json"));
-const mobileEnvironment = { ...process.env };
-for (const name of Object.keys(mobileEnvironment)) {
-  if (/^(AWS_|BEDROCK_|SUPABASE_|FIRSTDAY_)/.test(name)) delete mobileEnvironment[name];
-}
+const mobileEnvironment = expoEnvironment(process.env,{});
 const devicePreview = process.argv.includes("--ios-device");
 const child = spawn(process.execPath, [resolve(expoDirectory, "bin/cli"), "start", ...(devicePreview ? ["--lan"] : ["--web", "--localhost"]), "--port", devicePreview ? "8084" : "8081"], {
   cwd: resolve(projectRoot, "apps/mobile"),

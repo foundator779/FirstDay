@@ -1,4 +1,9 @@
+import {previewCorrectionRequestSchema,updateCorrectionRequestSchema,sourceCorrectionSchema,listCorrectionsResponseSchema} from '@firstday/contracts';
+import { updateOpenQuestionRequestSchema, updateOpenQuestionResponseSchema } from "@firstday/contracts";
+import { createUnderstandingRequestSchema, updateUnderstandingRequestSchema, understandingBundleSchema, listUnderstandingRequestSchema, listUnderstandingResponseSchema } from "@firstday/contracts";
 import {
+  revokeConsentRequestSchema, revokeConsentResponseSchema, type RevokeConsentRequestInput, type RevokeConsentResponse,
+  getSourceSessionRequestSchema, listSavedSourcesRequestSchema, listSavedSourcesResponseSchema, sourceSessionResponseSchema, type ListSavedSourcesRequestInput, type ListSavedSourcesResponse, type SourceSessionResponse,
   createPracticeSetRequestSchema, createPracticeSetResponseSchema, getPracticeSetRequestSchema,
   getPracticeSetResponseSchema, createAttemptRequestSchema, createAttemptResponseSchema,
   compareSourceRequestSchema, compareSourceResponseSchema, confirmChangeRequestSchema, confirmChangeResponseSchema,
@@ -53,9 +58,10 @@ export class FirstDayClientError extends Error {
   }
 }
 
+export type FirstDayFetchOptions=RequestInit&{cache?:"no-store";credentials?:"omit"};
 export type FetchImplementation = (
   input: string,
-  init?: RequestInit,
+  init?: FirstDayFetchOptions,
 ) => Promise<Response>;
 
 type ResponseSchema<T> = {
@@ -65,6 +71,9 @@ type ResponseSchema<T> = {
 };
 
 export type FirstDayClient = {
+  revokeConsent(request: RevokeConsentRequestInput): Promise<RevokeConsentResponse>;
+  listSavedSources(request: ListSavedSourcesRequestInput, signal?: AbortSignal): Promise<ListSavedSourcesResponse>;
+  getSourceSession(id: string, signal?: AbortSignal): Promise<SourceSessionResponse>;
   health(signal?: AbortSignal): Promise<HealthResponse>;
   listConversations(
     request: ListBeeConversationsRequestInput,
@@ -94,7 +103,12 @@ export type FirstDayClient = {
 
 export type FirstDayApiClientOptions = {
   baseUrl: string;
-  sessionToken: string;
+  sessionToken?: string;
+  getSessionToken?:()=>Promise<string>;
+  assertSession?:()=>void;
+  onAuthFailure?:()=>Promise<void>;
+  live?:boolean;
+  allowLoopbackHttp?:boolean;
   fetchImplementation?: FetchImplementation;
 };
 
@@ -147,7 +161,7 @@ async function parseResponse<T>(
 async function safeFetch(
   fetchImplementation: FetchImplementation,
   input: string,
-  init: RequestInit,
+  init: FirstDayFetchOptions,
 ): Promise<Response> {
   try {
     return await fetchImplementation(input, init);
@@ -163,9 +177,14 @@ export function createFirstDayApiClient({
   baseUrl,
   sessionToken,
   fetchImplementation = fetch,
+  getSessionToken, assertSession=()=>{}, onAuthFailure, live=false,allowLoopbackHttp=false,
 }: FirstDayApiClientOptions): PracticeClient {
   const apiBaseUrl = normalizedBaseUrl(baseUrl);
-  const authorization = `Bearer ${sessionToken}`;
+  if(live){
+    let valid=false;try{const url=new URL(baseUrl);valid=(baseUrl===url.origin||baseUrl===`${url.origin}/`)&&!url.username&&!url.password&&(url.protocol==='https:'||allowLoopbackHttp&&url.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(url.hostname));}catch{/* Safe configuration error. */}
+    if(!valid||getSessionToken===undefined||sessionToken!==undefined)throw new FirstDayClientError('INVALID_STATE','The live API needs a trusted HTTPS origin and sign-in.');
+  }
+
 
   async function authenticatedJson<T>(
     path: string,
@@ -174,8 +193,12 @@ export function createFirstDayApiClient({
     body: unknown | undefined,
     signal: AbortSignal | undefined,
   ): Promise<T> {
+    assertSession();
+    const token=getSessionToken?await getSessionToken():sessionToken;
+    assertSession();
+    const authorization=`Bearer ${token}`;
     const response = await safeFetch(fetchImplementation, `${apiBaseUrl}${path}`, {
-      method,
+      method, redirect:"error", cache:"no-store",
       headers: {
         authorization,
         accept: "application/json",
@@ -184,10 +207,35 @@ export function createFirstDayApiClient({
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       ...(signal === undefined ? {} : { signal }),
     });
-    return parseResponse(response, schema);
+    assertSession();
+    if((response.status===401||response.status===403)&&onAuthFailure)await onAuthFailure();
+    const parsed=await parseResponse(response, schema);
+    assertSession();
+    return parsed;
   }
 
   return {
+    async previewCorrection(input){return authenticatedJson('/api/source-corrections/preview','POST',sourceCorrectionSchema,previewCorrectionRequestSchema.parse(input),undefined);},
+    async updateCorrection(input){const {correctionId,...body}=updateCorrectionRequestSchema.parse(input);return authenticatedJson(`/api/source-corrections/${encodeURIComponent(correctionId)}`,'PATCH',sourceCorrectionSchema,body,undefined);},
+    async listCorrections(id){const {sourceConversationId}=getSourceSessionRequestSchema.parse({sourceConversationId:id});return authenticatedJson(`/api/source-conversations/${encodeURIComponent(sourceConversationId)}/corrections`,'GET',listCorrectionsResponseSchema,undefined,undefined);},
+    async updateOpenQuestion(input){const {openQuestionId,...body}=updateOpenQuestionRequestSchema.parse(input);return authenticatedJson(`/api/open-questions/${encodeURIComponent(openQuestionId)}`,"PATCH",updateOpenQuestionResponseSchema,body,undefined);},
+    async createUnderstanding(input) {return authenticatedJson("/api/understanding-checks","POST",understandingBundleSchema,createUnderstandingRequestSchema.parse(input),undefined);},
+    async listUnderstanding(id,historical=false) {const request=listUnderstandingRequestSchema.parse({sourceConversationId:id});return authenticatedJson(`/api/source-conversations/${encodeURIComponent(request.sourceConversationId)}/understanding-checks${historical?"?historical=true":""}`,"GET",listUnderstandingResponseSchema,undefined,undefined);},
+    async updateUnderstanding(input) {const {checkId,...body}=updateUnderstandingRequestSchema.parse(input);return authenticatedJson(`/api/understanding-checks/${encodeURIComponent(checkId)}`,"PATCH",understandingBundleSchema,body,undefined);},
+    async revokeConsent(input) {
+      const { sourceConversationId, ...body } = revokeConsentRequestSchema.parse(input);
+      return authenticatedJson(`/api/source-conversations/${encodeURIComponent(sourceConversationId)}/consent/revoke`, "POST", revokeConsentResponseSchema, body, undefined);
+    },
+    async listSavedSources(input, signal) {
+      const request = listSavedSourcesRequestSchema.parse(input);
+      const query = new URLSearchParams({ sourceKind: request.sourceKind, limit: String(request.limit) });
+      if (request.cursor) query.set("cursor", request.cursor);
+      return authenticatedJson(`/api/source-conversations?${query}`, "GET", listSavedSourcesResponseSchema, undefined, signal);
+    },
+    async getSourceSession(id, signal) {
+      const { sourceConversationId } = getSourceSessionRequestSchema.parse({ sourceConversationId: id });
+      return authenticatedJson(`/api/source-conversations/${encodeURIComponent(sourceConversationId)}/session`, "GET", sourceSessionResponseSchema, undefined, signal);
+    },
     async createPractice(input) {
       return authenticatedJson("/api/practice-sets", "POST", createPracticeSetResponseSchema, createPracticeSetRequestSchema.parse(input), undefined);
     },
@@ -221,16 +269,7 @@ export function createFirstDayApiClient({
       if (request.query !== undefined) query.set("query", request.query);
       if (request.cursor !== undefined) query.set("cursor", request.cursor);
       if (request.limit !== undefined) query.set("limit", String(request.limit));
-      const response = await safeFetch(
-        fetchImplementation,
-        `${apiBaseUrl}/api/bee/conversations?${query.toString()}`,
-        {
-          method: "GET",
-          headers: { authorization, accept: "application/json" },
-          ...(signal === undefined ? {} : { signal }),
-        },
-      );
-      return parseResponse(response, listBeeConversationsResponseSchema);
+      return authenticatedJson(`/api/bee/conversations?${query.toString()}`,"GET",listBeeConversationsResponseSchema,undefined,signal);
     },
     async getConversation(input, signal) {
       const request = getBeeConversationRequestSchema.parse(input);

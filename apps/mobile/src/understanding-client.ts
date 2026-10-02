@@ -1,0 +1,28 @@
+import { createUnderstandingRequestSchema, updateUnderstandingRequestSchema, understandingBundleSchema, understandingCheckSchema, type UnderstandingBundle, type CreateUnderstandingRequest, type UpdateUnderstandingRequest, type InstructionCard, type SourceEvidence } from "@firstday/contracts";
+import { createUnderstandingCheck, updateUnderstandingCheck, understandingPrompt, understandingActiveAction } from "@firstday/scenario-engine";
+import { FirstDayClientError } from "./api";
+export type UnderstandingClient = {
+  createUnderstanding(input:CreateUnderstandingRequest):Promise<UnderstandingBundle>;
+  listUnderstanding(sourceConversationId:string,historical?:boolean):Promise<{items:UnderstandingBundle[]}>;
+  updateUnderstanding(input:UpdateUnderstandingRequest):Promise<UnderstandingBundle>;
+};
+export function hasUnderstandingClient(client:Partial<UnderstandingClient>):client is UnderstandingClient {return !!client.createUnderstanding && !!client.listUnderstanding && !!client.updateUnderstanding;}
+export function createOfflineUnderstandingClient(input:{ instruction(id:string):{instruction:InstructionCard;instructionRevision:string;sourceEvidence:SourceEvidence[]}; validateSource(id:string):void; canRehearse?(instructionId:string):void; id():string; now():string; canUseInstruction?(id:string):void }):UnderstandingClient & {snapshot():UnderstandingBundle[];isDisputed(instructionId:string):boolean} {
+  const checks=new Map<string,UnderstandingBundle>();
+  const invalid=()=>{throw new FirstDayClientError("INVALID_STATE","Review this instruction and its unresolved question before rehearsing.");};
+  function validate(bundle:UnderstandingBundle){input.canUseInstruction?.(bundle.check.instruction.id);input.validateSource(bundle.check.instruction.sourceConversationId);const current=input.instruction(bundle.check.instruction.id);if(JSON.stringify(current.instruction)!==JSON.stringify(bundle.check.instruction)||current.instructionRevision!==bundle.check.instructionRevision)throw new FirstDayClientError("REVISION_CONFLICT","This source interpretation changed. Review it again.");return understandingBundleSchema.parse(bundle);}
+  return {
+    snapshot(){return [...checks.values()];},
+    isDisputed(id){return [...checks.values()].some(v=>v.check.instruction.id===id&&v.check.status==="disputed");},
+    async createUnderstanding(data){input.canUseInstruction?.(data.instructionId);const r=createUnderstandingRequestSchema.parse(data),context=input.instruction(r.instructionId);input.validateSource(context.instruction.sourceConversationId);if(context.instruction.status!=="confirmed")invalid();if(context.instruction.sourceRevision!==r.sourceRevision||context.instructionRevision!==r.instructionRevision)throw new FirstDayClientError("REVISION_CONFLICT","This instruction changed.");const old=[...checks.values()].find(v=>v.check.requestId===r.requestId);if(old){if(old.check.explanation!==r.explanation||old.check.inputMode!==r.inputMode||old.check.instruction.id!==r.instructionId)throw new FirstDayClientError("REVISION_CONFLICT","This request was already used.");return validate(old);}if([...checks.values()].filter(v=>v.check.instruction.sourceConversationId===context.instruction.sourceConversationId).length>=100)invalid();const check=createUnderstandingCheck({id:input.id(),requestId:r.requestId,instruction:context.instruction,instructionRevision:r.instructionRevision,explanation:r.explanation,inputMode:r.inputMode,timestamp:input.now()});const bundle=understandingBundleSchema.parse({check,sourceEvidence:context.sourceEvidence});checks.set(check.id,bundle);return validate(bundle);},
+    async listUnderstanding(sourceId,historical=false){input.validateSource(sourceId);return {items:[...checks.values()].filter(v=>v.check.instruction.sourceConversationId===sourceId).flatMap(v=>{if(historical)return [understandingBundleSchema.parse({...v,historical:true})];try{return [validate(v)];}catch{return [];}})};},
+    async updateUnderstanding(data){const r=updateUnderstandingRequestSchema.parse(data),bundle=checks.get(r.checkId);if(!bundle)throw new FirstDayClientError("RESOURCE_NOT_FOUND","Understanding check unavailable.");const {check}=validate(bundle);
+      if(r.action==="rehearse"){const old=check.responses.find(v=>v.requestId===r.requestId);if(old){if(old.responseText!==r.responseText||old.inputMode!==r.inputMode)throw new FirstDayClientError("REVISION_CONFLICT","Response ID was already used.");return validate(bundle);}}
+      if(check.version!==r.expectedVersion)throw new FirstDayClientError("REVISION_CONFLICT","Reload the saved understanding check.");
+      let next;
+      if(r.action==="rehearse") {input.canRehearse?.(check.instruction.id);if(!understandingPrompt(check)||check.responses.length>=20)invalid();const action=understandingActiveAction(check);const same=action!==null&&r.responseText.trim().toLowerCase()===action.trim().toLowerCase();next=understandingCheckSchema.parse({...check,version:check.version+1,updatedAt:input.now(),responses:[...check.responses,{requestId:r.requestId,responseText:r.responseText,inputMode:r.inputMode,applicability:check.applicability,comparison:same?"consistent":"uncertain",feedback:same?"Your words match the confirmed action for the context you supplied.":"This offline comparison cannot confidently assess different wording. Compare your answer with the confirmed action and exact source, or save a private trainer question.",createdAt:input.now()}]});}
+      else{try{next=updateUnderstandingCheck(check,r,input.now());}catch{invalid();}}
+      const result=understandingBundleSchema.parse({...bundle,check:next});checks.set(check.id,result);return validate(result);
+    },
+  };
+}
