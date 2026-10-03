@@ -1,5 +1,14 @@
 # FirstDay
 
+## New: FirstDay Go (runs in Expo Go)
+
+`expo-go-app/` is a standalone, ADHD-first app with a hand-drawn minimalist UI.
+It covers everything the Bee app does: capture, summaries, to-dos, reminders,
+memories and chat. It also adds FirstDay's work training: confirm instructions
+against the quote, role-play practice, Check what I understood, Change Drill,
+Ask your trainer and Evening review. Run `cd expo-go-app && npm install && npx expo start`.
+See [its README](expo-go-app/README.md).
+
 ## Run with your Bee recordings
 
 `npm run demo:live -- --env-file=/absolute/private.env` starts the local Bee

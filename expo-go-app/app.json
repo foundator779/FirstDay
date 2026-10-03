@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "FirstDay Go",
+    "slug": "firstday-go",
+    "version": "1.0.0",
+    "scheme": "firstdaygo",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": ["expo-router"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
