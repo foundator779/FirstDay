@@ -55,6 +55,18 @@ export default function Sort() {
             Your head just got a little lighter.
           </Txt>
         </View>
+        {last && (
+          <Btn
+            kind="quiet"
+            icon="undo"
+            label="Undo last"
+            onPress={() => {
+              actions.restore(last.kind, last.before);
+              setI(last.index);
+              setLast(null);
+            }}
+          />
+        )}
       </Screen>
     );
   }

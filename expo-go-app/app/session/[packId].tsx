@@ -163,7 +163,6 @@ export default function Session() {
         footer={
           <>
             <Btn kind="primary" icon="check" label="Done for now" onPress={quit} />
-            <Btn kind="quiet" label="Another round" onPress={() => router.replace(`/session/${pack.id}?mode=review`)} />
           </>
         }
       >

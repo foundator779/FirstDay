@@ -99,7 +99,7 @@ const ANALYZE_SCHEMA = {
 
 const ANALYZE_TASK =
   "Analyse one captured conversation. 'Me'/'I' lines are the user. Return: a 2-5 word title; up to 3 summary bullets; " +
-  "to-dos the user committed to or was asked to do (imperative, under 10 words, with dueISO only if a time was said, relative to `now`); " +
+  "to-dos the user committed to or was asked to do (imperative, under 10 words, with dueISO only if a time was said, relative to `now`, written with the same UTC offset as `now`, e.g. 2026-10-04T09:00:00-07:00); " +
   "memories: durable facts about the user or people in their life, written in second person for the user ('Your shift ends at 4 on Fridays.') or naming the person; " +
   "rules: explicit work procedures a trainer stated, with situation as a short scene ('A customer returns a damaged book.') and action including every required step, number and order; " +
   "set isUpdate when the speaker says a rule changed. Uncertain language ('maybe', 'usually', 'I think') never becomes a rule: put it in questions as a question to ask the trainer. " +
@@ -107,7 +107,7 @@ const ANALYZE_TASK =
 
 const routes = {
   "GET /health": async () => ({ ok: true, ai: AI, bee: beeAvailable }),
-  "POST /analyze": async (b) => infer(ANALYZE_TASK, { now: b.now, text: String(b.text).slice(0, 60_000) }, ANALYZE_SCHEMA),
+  "POST /analyze": async (b) => infer(ANALYZE_TASK, { now: b.now, timeZone: b.timeZone, text: String(b.text).slice(0, 60_000) }, ANALYZE_SCHEMA),
   "POST /ask": async (b) =>
     infer(
       "Answer the user's question using only the supplied notes (their conversations, to-dos and memories). Lead with the answer in one or two sentences. If the notes don't say, say so. List the note ids you used.",

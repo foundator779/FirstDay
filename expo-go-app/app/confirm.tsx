@@ -46,11 +46,15 @@ export default function Confirm() {
 
   const save = (list: SuggestedRule[]) => {
     if (!list.length) {
+      for (const r of queue) actions.dismissRule(r.id);
       setStage("done");
       setOutcome(null);
       return;
     }
-    const sourceText = state.conversations.find((c) => c.id === list[0]!.fromId)?.text ?? "";
+    const sourceText = [...new Set(list.map((r) => r.fromId))]
+      .map((id) => state.conversations.find((c) => c.id === id)?.text ?? "")
+      .filter(Boolean)
+      .join("\n\n");
     const res = actions.saveConfirmedRules(
       list,
       target.kind === "pack" ? { packId: target.packId } : { title: title || "My training", trainer, source: sourceText },

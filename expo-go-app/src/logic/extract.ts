@@ -105,8 +105,11 @@ export function matchUpdates(
         bestScore = score;
       }
     }
-    if (best && bestScore >= 0.5) {
+    const generic = c.situation === "During your shift." || best?.situation === "During your shift.";
+    if (best && bestScore >= 0.5 && (!generic || overlap(best.action, c.action) >= 0.5)) {
       if (overlap(best.action, c.action) >= 0.999 && best.action.length === c.action.length) continue;
+      const dup = updates.findIndex((u) => u.ruleId === best!.id);
+      if (dup >= 0) updates.splice(dup, 1);
       updates.push({ ruleId: best.id, newAction: c.action, newKeywords: keywordsFor(c.action), quote: c.quote });
     } else {
       added.push(ruleFromCandidate(c, newId()));

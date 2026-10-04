@@ -59,6 +59,18 @@ export default function Review() {
             {queue.length ? "Everything from today is checked. Rest well." : "When you capture things today, they'll show up here tonight."}
           </Txt>
         </View>
+        {last && (
+          <Btn
+            kind="quiet"
+            icon="undo"
+            label="Undo last"
+            onPress={() => {
+              actions.restore(last.kind, last.before);
+              setI(last.index);
+              setLast(null);
+            }}
+          />
+        )}
       </Screen>
     );
   }

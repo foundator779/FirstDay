@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppState as RNAppState } from "react-native";
 import { brainApi } from "./brain";
-import { cancelReminder, remind, setHaptics } from "./device";
+import { cancelAllReminders, cancelReminder, remind, setHaptics } from "./device";
 import { analyzeLocally, sentencesOf, type Analysis } from "./logic/analyze";
 import { askLocally } from "./logic/ask";
 import { matchUpdates, ruleFromCandidate } from "./logic/extract";
@@ -91,9 +91,15 @@ function makeActions(get: () => AppState, set: (fn: (s: AppState) => AppState) =
   }
 
   async function scheduleFor(todo: Todo) {
-    if (!todo.due || !get().settings.nudges || todo.suggested || todo.bucket === "done") return;
+    if (!todo.due || todo.notificationId || !get().settings.nudges || todo.suggested || todo.bucket === "done") return;
     const id = await remind("Gentle nudge", todo.text, todo.due);
-    if (id) set((s) => ({ ...s, todos: s.todos.map((t) => (t.id === todo.id ? { ...t, notificationId: id } : t)) }));
+    if (!id) return;
+    const still = get().todos.find((t) => t.id === todo.id);
+    if (!still || still.suggested || still.bucket === "done" || still.due !== todo.due) {
+      void cancelReminder(id);
+      return;
+    }
+    set((s) => ({ ...s, todos: s.todos.map((t) => (t.id === todo.id ? { ...t, notificationId: id } : t)) }));
   }
 
   const patchTodo = (id: string, fn: (t: Todo) => Todo) =>
@@ -103,6 +109,11 @@ function makeActions(get: () => AppState, set: (fn: (s: AppState) => AppState) =
     // ---------- settings / brain ----------
     setSettings(patch: Partial<Settings>) {
       if (patch.haptics !== undefined) setHaptics(patch.haptics);
+      if (patch.nudges === false) {
+        void cancelAllReminders();
+        set((s) => ({ ...s, todos: s.todos.map(({ notificationId: _n, ...t }) => t) }));
+      }
+      if (patch.nudges === true) setTimeout(() => get().todos.forEach((t) => void scheduleFor(t)), 300);
       set((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
     },
     setBrain(brain: Brain | null) {
@@ -227,9 +238,18 @@ function makeActions(get: () => AppState, set: (fn: (s: AppState) => AppState) =
     },
     /** Restore an item exactly as it was before a review action. */
     restore(kind: "todo" | "memory" | "convo", item: Todo | Memory | Conversation) {
+      if (kind === "todo") {
+        // Reminders follow the restored state, never the snapshot's old notification id.
+        void cancelReminder(get().todos.find((t) => t.id === item.id)?.notificationId);
+        const restored = item as Todo;
+        setTimeout(() => {
+          const { notificationId: _n, ...rest } = restored;
+          void scheduleFor(rest);
+        }, 300);
+      }
       set((s) => {
         if (kind === "todo") {
-          const t = item as Todo;
+          const { notificationId: _old, ...t } = item as Todo;
           return { ...s, todos: s.todos.some((x) => x.id === t.id) ? s.todos.map((x) => (x.id === t.id ? t : x)) : [t, ...s.todos] };
         }
         if (kind === "memory") {

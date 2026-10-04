@@ -39,6 +39,8 @@ function ensureHandler() {
   } catch {}
 }
 
+ensureHandler();
+
 export async function canNotify(): Promise<boolean> {
   try {
     ensureHandler();
@@ -62,6 +64,12 @@ export async function remind(title: string, body: string, at: number): Promise<s
   } catch {
     return undefined;
   }
+}
+
+export async function cancelAllReminders() {
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  } catch {}
 }
 
 export async function cancelReminder(id?: string) {
