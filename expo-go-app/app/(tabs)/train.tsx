@@ -5,7 +5,7 @@ import { nextTraining, packStats } from "../../src/logic/training";
 import { useStore } from "../../src/store";
 import { Face, CAST } from "../../src/ui/faces";
 import { Icon } from "../../src/ui/icons";
-import { Btn, Dots, Label, Screen, Sketch, Txt } from "../../src/ui/kit";
+import { Btn, Dots, Label, Screen, Sketch, Stat, TopBar, Txt } from "../../src/ui/kit";
 import { colors } from "../../src/ui/theme";
 
 export default function Train() {
@@ -14,14 +14,27 @@ export default function Train() {
   const next = nextTraining(state, now);
   const nextPack = next.kind !== "done" ? state.packs.find((p) => p.id === next.packId) : undefined;
   const todayCount = state.today.date === dayKey(now) ? state.today.count : 0;
+  const totals = state.packs.reduce(
+    (a, p) => {
+      const st = packStats(p, state.progress, now);
+      return { seen: a.seen + st.seen, total: a.total + st.total, due: a.due + st.due };
+    },
+    { seen: 0, total: 0, due: 0 },
+  );
 
   return (
     <Screen>
-      <Txt v="title">Train</Txt>
-      <Txt dim>Practise your next shift before it happens, using what your trainer actually said.</Txt>
+      <TopBar title="Train" />
+      <Txt dim center>Practise your next shift before it happens, using what your trainer actually said.</Txt>
+
+      <View style={{ flexDirection: "row", gap: 8, paddingVertical: 4 }}>
+        <Stat value={todayCount} label="Today" />
+        <Stat value={`${totals.seen}/${totals.total}`} label="Learned" />
+        <Stat value={totals.due} label="Due" />
+      </View>
 
       {next.kind !== "done" && nextPack ? (
-        <Sketch seed="train-next" shadow style={{ padding: 20, gap: 12 }}>
+        <Sketch seed="train-next" fill={colors.ink} radius={24} style={{ padding: 20, gap: 12 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             <Face who={CAST[0]!} size={58} />
             <View style={{ flex: 1 }}>
@@ -54,18 +67,16 @@ export default function Train() {
         </Sketch>
       )}
 
-      {todayCount > 0 && <Txt v="small" dim>Practised today: {todayCount}. Every one counts.</Txt>}
-
       {state.suggestedRules.length > 0 && (
         <Btn icon="bulb" label={`Check ${state.suggestedRules.length} new work step${state.suggestedRules.length > 1 ? "s" : ""}`} onPress={() => router.push("/confirm")} />
       )}
 
-      <Label>Your trainings</Label>
+      <Label line>Your trainings</Label>
       {state.packs.map((p) => {
         const st = packStats(p, state.progress, now);
         return (
           <Pressable key={p.id} accessibilityRole="button" accessibilityLabel={`${p.title}, ${st.seen} of ${st.total} learned`} onPress={() => router.push(`/pack/${p.id}`)}>
-            <Sketch seed={p.id} style={{ padding: 16, gap: 8 }}>
+            <Sketch seed={p.id} style={{ padding: 16, gap: 10 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Txt v="h2" style={{ flex: 1 }} numberOfLines={1}>
                   {p.title}

@@ -5,7 +5,7 @@ import { friendlyDue, parseDue } from "../../src/logic/dates";
 import type { Todo } from "../../src/logic/types";
 import { useStore } from "../../src/store";
 import { Icon } from "../../src/ui/icons";
-import { Btn, CheckBox, Chip, Empty, Screen, Sketch, Txt, useUI } from "../../src/ui/kit";
+import { Btn, CheckBox, Chip, Empty, Screen, Sketch, TopBar, Txt, useUI } from "../../src/ui/kit";
 import { colors, fonts } from "../../src/ui/theme";
 
 const BUCKETS: { key: Todo["bucket"]; label: string }[] = [
@@ -34,7 +34,7 @@ export default function Todos() {
 
   return (
     <Screen>
-      <Txt v="title">Do</Txt>
+      <TopBar title="Do" />
       <View style={{ flexDirection: "row", gap: 8 }}>
         {BUCKETS.map((b) => (
           <Chip key={b.key} label={b.label} on={bucket === b.key} onPress={() => setBucket(b.key)} />
@@ -53,8 +53,8 @@ export default function Todos() {
             accessibilityLabel="New to-do"
             style={{ flex: 1, fontFamily: fonts.body, fontSize: s.body, color: colors.ink, paddingVertical: 10 }}
           />
-          <Pressable accessibilityRole="button" accessibilityLabel="Add" onPress={add} hitSlop={8} style={{ padding: 8 }}>
-            <Icon name="plus" size={26} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Add" onPress={add} hitSlop={8} style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}>
+            <Icon name="plus" size={22} color={colors.onHighlight} strokeWidth={2.4} />
           </Pressable>
         </Sketch>
       )}
@@ -73,19 +73,23 @@ export default function Todos() {
       {list.length === 0 ? (
         <Empty icon={bucket === "done" ? "star" : "check"} text={bucket === "now" ? "Nothing for now. Enjoy it." : bucket === "later" ? "Later is empty." : "Finished things show up here."} />
       ) : (
-        list.map((t) => (
-          <View key={t.id} style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 6 }}>
-            <CheckBox label={t.text} on={t.bucket === "done"} onPress={() => actions.moveTodo(t.id, t.bucket === "done" ? "now" : "done")} />
-            <Pressable style={{ flex: 1 }} accessibilityRole="button" accessibilityHint="Opens focus view" onPress={() => router.push(`/focus/${t.id}`)}>
-              <Txt style={t.bucket === "done" ? { textDecorationLine: "line-through", color: colors.pencil } : undefined}>{t.text}</Txt>
-              {(t.due || t.steps.length > 0) && (
-                <Txt v="small" dim>
-                  {[t.due && t.bucket !== "done" ? friendlyDue(t.due, now) : "", t.steps.length ? `${t.steps.filter((x) => x.done).length}/${t.steps.length} tiny steps` : ""].filter(Boolean).join(" · ")}
-                </Txt>
-              )}
-            </Pressable>
-          </View>
-        ))
+        list.map((t) => {
+          const done = t.bucket === "done";
+          return (
+            <Sketch key={t.id} seed={t.id} fill={done ? colors.ink : colors.card} radius={18} style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 14 }}>
+              <CheckBox label={t.text} on={done} onPress={() => actions.moveTodo(t.id, done ? "now" : "done")} />
+              <Pressable style={{ flex: 1 }} accessibilityRole="button" accessibilityHint="Opens focus view" onPress={() => router.push(`/focus/${t.id}`)}>
+                <Txt dim={done} style={done ? { textDecorationLine: "line-through" } : undefined}>{t.text}</Txt>
+                {(t.due || t.steps.length > 0) && (
+                  <Txt v="small" dim>
+                    {[t.due && !done ? friendlyDue(t.due, now) : "", t.steps.length ? `${t.steps.filter((x) => x.done).length}/${t.steps.length} tiny steps` : ""].filter(Boolean).join(" · ")}
+                  </Txt>
+                )}
+              </Pressable>
+              {!done && <Icon name="chevron" size={18} color={colors.pencil} />}
+            </Sketch>
+          );
+        })
       )}
     </Screen>
   );

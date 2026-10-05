@@ -246,7 +246,7 @@ export default function Capture() {
           style={{ fontFamily: fonts.body, fontSize: s.body, color: colors.ink, borderBottomWidth: 1.5, borderBottomColor: colors.faint, paddingVertical: 10 }}
         />
       ) : (
-        <Txt dim>Tap the 🎤 on your keyboard and just talk. Messy is fine.</Txt>
+        <Txt dim>Tap the mic key on your keyboard and just talk. Messy is fine.</Txt>
       )}
       <Sketch seed={mode} style={{ padding: 14, minHeight: 260 }}>
         <TextInput

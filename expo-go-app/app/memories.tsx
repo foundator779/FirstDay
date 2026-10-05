@@ -63,7 +63,7 @@ export default function Memories() {
         if (!list.length) return null;
         return (
           <View key={k.key} style={{ gap: 8 }}>
-            <Label>{k.label}</Label>
+            <Label line>{k.label}</Label>
             {list.map((m) => (
               <Pressable key={m.id} accessibilityRole="button" accessibilityHint="Shows options" onPress={() => { setOpen(open === m.id ? null : m.id); setEdit(null); }}>
                 <Sketch seed={m.id} style={{ padding: 14, gap: 10 }}>

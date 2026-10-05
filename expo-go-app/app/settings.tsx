@@ -78,7 +78,7 @@ export default function SettingsScreen() {
     <Screen>
       <TopBar onBack={() => router.back()} title="Settings" />
 
-      <Label>Account</Label>
+      <Label line>Account</Label>
       <Btn
         icon="link"
         align="left"
@@ -88,13 +88,13 @@ export default function SettingsScreen() {
       <Toggle
         label="Smarter reading (Amazon Bedrock)"
         hint={session ? "Captures and questions are read by Bedrock through FirstDay's AWS endpoint. Nothing is stored there." : "Sign in to turn this on. Without it, everything is read on your phone."}
-        on={st.cloudAi}
-        onChange={(v) => set({ cloudAi: v })}
+        on={!!session && st.cloudAi}
+        onChange={(v) => (session ? set({ cloudAi: v }) : router.push("/account"))}
       />
       {session && st.cloudAi && <Btn small kind="quiet" align="left" icon="check" label="Check it works" onPress={() => void checkCloud()} />}
       {!!cloudMsg && <Txt v="small">{cloudMsg}</Txt>}
 
-      <Label>Practice</Label>
+      <Label line>Practice</Label>
       <Txt v="small" dim>Cards per session</Txt>
       <View style={{ flexDirection: "row", gap: 8 }}>
         {([3, 5, 10] as const).map((n) => (
@@ -113,7 +113,7 @@ export default function SettingsScreen() {
         ))}
       </View>
 
-      <Label>Comfort</Label>
+      <Label line>Comfort</Label>
       <Toggle label="Read cards aloud" hint="Hear every situation without reading." on={st.readAloud} onChange={(v) => set({ readAloud: v })} />
       <Toggle label="Bigger text" on={st.bigText} onChange={(v) => set({ bigText: v })} />
       <Toggle label="Little buzzes" hint="Haptic taps when you finish things." on={st.haptics} onChange={(v) => set({ haptics: v })} />
@@ -129,7 +129,7 @@ export default function SettingsScreen() {
         }}
       />
 
-      <Label>Brain (optional)</Label>
+      <Label line>Brain (optional)</Label>
       <Sketch seed="brain" fill={colors.wash} style={{ padding: 16, gap: 8 }}>
         <Txt v="small">
           Run <Txt v="small" bold>node brain/server.mjs</Txt> on your computer. It adds smarter AI (Amazon Bedrock) and your real Bee conversations. Keys stay on the computer. Type the address and code it prints:
@@ -144,7 +144,7 @@ export default function SettingsScreen() {
 
       {state.brain?.bee && (
         <>
-          <Label>Bee</Label>
+          <Label line>Bee</Label>
           <Txt v="small" dim>
             {state.bee.syncedAt ? `Last synced: ${friendlyDay(state.bee.syncedAt, Date.now())}.` : "Not synced yet."}
             {state.brain.live ? " Watching live: new conversations show up on Today." : ""}
@@ -161,7 +161,7 @@ export default function SettingsScreen() {
         </>
       )}
 
-      <Label>Your data</Label>
+      <Label line>Your data</Label>
       <Txt v="small" dim>Your conversations, to-dos, memories and practice live on this phone. An account is optional: it only unlocks smarter reading, and nothing you capture is stored in the cloud.</Txt>
       <Btn
         kind="quiet"

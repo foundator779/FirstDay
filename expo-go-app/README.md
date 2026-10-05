@@ -2,7 +2,7 @@
 
 **Bee track entry for Build, Ship, Shape: Amazon Developer Hackathon.**
 
-A calm, hand-drawn iPhone app for ADHD brains. It turns your Bee conversations into one next step at a time,
+A calm, black-and-white iPhone app for ADHD brains. It turns your Bee conversations into one next step at a time,
 and turns a trainer's spoken instructions into role-play practice, so you can rehearse your next shift before it happens.
 It covers the core of the Bee app (capture, summaries, to-dos, reminders, memories, chat) and adds FirstDay's work training.
 
@@ -122,7 +122,7 @@ The brain keeps a small state file (`brain/.brain-state.json`, git-ignored) with
 What FirstDay adds that Bee doesn't have:
 
 - **Work steps from conversations.** Trainer instructions are found automatically, and you confirm each one against the exact quote.
-- **Role-play practice.** A doodle customer says the situation (it can be read aloud); you answer with choices or in your own words.
+- **Role-play practice.** A line-drawn customer says the situation (it can be read aloud); you answer with choices or in your own words.
 - **Every piece of feedback quotes the trainer.**
 - **Check what I understood.** Compare your own words with the source before practising. It isn't scored.
 - **Change Drill.** When a rule is updated you see old vs. new, and the old answer becomes a trap choice.
@@ -134,9 +134,9 @@ The ADHD design choices:
 
 - One primary action per screen, at thumb height. One idea per welcome screen, always skippable.
 - Today shows a single "next thing", plus at most 3 "no rush" items.
-- 3-card sessions by default, with progress dots.
+- 3-card sessions by default, with a segmented progress bar.
 - Optional focus sprint and break prompt. **Park a thought** during practice.
-- Key words swiped in highlighter; one highlighter colour, everything else pencil.
+- No colour: white screens, black for what is selected or next, grey for the rest. Key words in bold on a grey band.
 - Read-aloud, bigger text and haptics settings.
 - Kind, retry-without-penalty feedback. No streaks to lose.
 - Leave any time: progress resumes.
@@ -153,7 +153,7 @@ The ADHD design choices:
 
 - `app/`: screens (expo-router). Tabs: Today, Do, Ask, Train. Center **+** opens Capture. `welcome.tsx` is the first run.
 - `src/logic/`: pure TypeScript (extraction, analysis, dates, grading, spaced review, search, Bee sync merge). No React.
-- `src/ui/`: the hand-drawn kit (`kit.tsx` sketch frames, `icons.tsx` doodle icons, `faces.tsx` role-play cast).
+- `src/ui/`: the UI kit (`kit.tsx` cards, pill headers, buttons and progress bars; `icons.tsx` line icons; `faces.tsx` role-play cast).
 - `src/store.tsx`: app state (saved on the device), AI routing, Bee write-back and live polling.
 - `src/brain.ts`, `src/cloud.ts`, `src/auth.ts`: the brain client, the AWS endpoint, Amazon Cognito accounts.
 - `brain/`: the computer-side helper: `server.mjs` (HTTP), `bee.mjs` (Bee CLI), `ai.mjs` (Bedrock prompts, shared with Lambda),

@@ -6,7 +6,7 @@ import { isSameDay } from "../src/logic/dates";
 import type { Conversation, Memory, Todo } from "../src/logic/types";
 import { useStore } from "../src/store";
 import { Icon } from "../src/ui/icons";
-import { Btn, Dots, Label, Quote, Screen, Sketch, TopBar, Txt, useUI } from "../src/ui/kit";
+import { Btn, Label, Quote, Screen, Sketch, TopBar, Txt, useUI } from "../src/ui/kit";
 import { colors, fonts } from "../src/ui/theme";
 
 type Kind = "convo" | "todo" | "memory";
@@ -121,7 +121,7 @@ export default function Review() {
         )
       }
     >
-      <TopBar onBack={() => router.back()} close title="Evening review" right={<Dots total={Math.min(queue.length, 12)} done={Math.min(i, 12)} current={i} />} />
+      <TopBar onBack={() => router.back()} close title="Evening review" progress={{ total: Math.min(queue.length, 12), done: Math.min(i, 12), current: i }} />
       <Txt v="small" dim>
         {i + 1} of {queue.length} · about {Math.max(1, Math.round(queue.length * 0.2))} min
       </Txt>
@@ -134,7 +134,7 @@ export default function Review() {
             multiline
             autoFocus
             accessibilityLabel="Correction"
-            style={{ fontFamily: fonts.body, fontSize: s.h2, color: colors.ink, minHeight: 80, borderBottomWidth: 2, borderBottomColor: colors.highlight, textAlignVertical: "top" }}
+            style={{ fontFamily: fonts.body, fontSize: s.h2, color: colors.ink, minHeight: 80, borderBottomWidth: 2, borderBottomColor: colors.ink, textAlignVertical: "top" }}
           />
         ) : isConvo ? (
           convo!.summary.map((l, k) => (

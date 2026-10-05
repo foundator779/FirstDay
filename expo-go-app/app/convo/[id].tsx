@@ -64,7 +64,7 @@ export default function Convo() {
 
       {todos.length > 0 && (
         <View style={{ gap: 4 }}>
-          <Label>To-dos</Label>
+          <Label line>To-dos</Label>
           {todos.map((t) => (
             <Txt key={t.id} style={t.bucket === "done" ? { textDecorationLine: "line-through", color: colors.pencil } : undefined}>
               {t.suggested ? "○" : "•"} {t.text}
@@ -74,7 +74,7 @@ export default function Convo() {
       )}
       {memories.length > 0 && (
         <View style={{ gap: 4 }}>
-          <Label>Memories</Label>
+          <Label line>Memories</Label>
           {memories.map((m) => (
             <Txt key={m.id}>
               {m.suggested ? "○" : "•"} {m.text}

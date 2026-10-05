@@ -196,7 +196,7 @@ export default function Account() {
         autoFocus
         maxLength={6}
         accessibilityLabel="6-digit code"
-        style={{ fontFamily: fonts.hand, fontSize: 36, letterSpacing: 10, textAlign: "center", color: colors.ink, paddingVertical: 8 }}
+        style={{ fontFamily: fonts.bodyBold, fontSize: 32, letterSpacing: 10, textAlign: "center", color: colors.ink, paddingVertical: 8 }}
       />
     </Sketch>
   );

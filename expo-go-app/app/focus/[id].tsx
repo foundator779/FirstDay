@@ -82,7 +82,7 @@ export default function Focus() {
       <TopBar onBack={() => router.back()} title="Just this one" />
       <Sketch seed={todo.id} shadow style={{ padding: 22, gap: 12 }}>
         <Txt v="hero">{todo.text}</Txt>
-        {todo.due && <Txt dim>⏰ {friendlyDue(todo.due, Date.now())}</Txt>}
+        {todo.due && <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}><Icon name="timer" size={18} color={colors.pencil} /><Txt dim>{friendlyDue(todo.due, Date.now())}</Txt></View>}
         {nextStep && (
           <Sketch seed="next-step" fill={colors.highlightSoft} style={{ padding: 12 }}>
             <Txt v="tiny" dim bold>
@@ -93,7 +93,7 @@ export default function Focus() {
         )}
       </Sketch>
 
-      <Label>Timer</Label>
+      <Label line>Timer</Label>
       {endsAt ? (
         <Sketch seed="timer" style={{ padding: 16, alignItems: "center", gap: 6 }}>
           <Txt v="hero" style={{ fontSize: 56, lineHeight: 64 }}>
@@ -112,7 +112,7 @@ export default function Focus() {
         </View>
       )}
 
-      <Label>Tiny steps</Label>
+      <Label line>Tiny steps</Label>
       {todo.steps.length === 0 ? (
         tinyBusy ? (
           <ActivityIndicator color={colors.ink} />

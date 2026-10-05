@@ -4,7 +4,7 @@ import { friendlyDay, friendlyDue, isSameDay } from "../../src/logic/dates";
 import { nextTraining } from "../../src/logic/training";
 import { useStore } from "../../src/store";
 import { Icon } from "../../src/ui/icons";
-import { Btn, IconBtn, Label, Screen, Scribble, Sketch, Txt } from "../../src/ui/kit";
+import { Btn, IconBtn, Label, Screen, Sketch, TopBar, Txt } from "../../src/ui/kit";
 import { colors } from "../../src/ui/theme";
 
 type Next = { kicker: string; title: string; sub: string; cta: string; go: () => void; dismiss?: () => void };
@@ -62,32 +62,26 @@ export default function Today() {
 
   return (
     <Screen>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Icon name="bee" size={34} />
-        <View style={{ flex: 1 }}>
-          <Txt v="title">FirstDay Go</Txt>
-          <Txt v="small" dim>
-            {new Date(now).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}
-          </Txt>
-        </View>
-        <IconBtn name="moon" label="Evening review" onPress={() => router.push("/review")} badge={reviewCount} />
-        <IconBtn name="sliders" label="Settings" onPress={() => router.push("/settings")} />
-      </View>
+      <TopBar
+        title="Today"
+        left={<IconBtn name="moon" label="Evening review" onPress={() => router.push("/review")} badge={reviewCount} />}
+        right={<IconBtn name="sliders" label="Settings" onPress={() => router.push("/settings")} />}
+        sub={new Date(now).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}
+      />
 
       {main ? (
-        <Sketch seed="next-up" shadow style={{ padding: 20, gap: 10 }}>
+        <Sketch seed="next-up" fill={colors.ink} radius={24} style={{ padding: 22, gap: 10 }}>
           <Txt v="tiny" dim bold style={{ letterSpacing: 1.2 }}>
             {main.kicker.toUpperCase()}
           </Txt>
           <Txt v="hero">{main.title}</Txt>
-          <Scribble width={110} />
-          <Txt dim>{main.sub}</Txt>
+          <Txt dim style={{ marginBottom: 6 }}>{main.sub}</Txt>
           <Btn kind="primary" label={main.cta} icon="play" onPress={main.go} />
           {main.dismiss && <Btn kind="quiet" label="Not now" onPress={main.dismiss} />}
         </Sketch>
       ) : (
-        <Sketch seed="clear" shadow style={{ padding: 22, gap: 8, alignItems: "center" }}>
-          <Icon name="star" size={46} />
+        <Sketch seed="clear" shadow radius={24} style={{ padding: 22, gap: 8, alignItems: "center" }}>
+          <Icon name="star" size={40} />
           <Txt v="hero" center>
             All clear.
           </Txt>
@@ -99,7 +93,7 @@ export default function Today() {
 
       {also.length > 0 && (
         <View style={{ gap: 8 }}>
-          <Label>Also waiting (no rush)</Label>
+          <Label line>Also waiting (no rush)</Label>
           {also.map((o) => (
             <Pressable key={o.kicker} accessibilityRole="button" accessibilityLabel={`${o.kicker}: ${o.title}`} onPress={o.go}>
               <Sketch seed={o.kicker} style={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -118,7 +112,7 @@ export default function Today() {
 
       {todays.length > 0 && (
         <View style={{ gap: 8 }}>
-          <Label>Your day so far</Label>
+          <Label line>Your day so far</Label>
           <Sketch seed="day" fill={colors.wash} style={{ padding: 16, gap: 6 }}>
             {todays.slice(0, 3).map((c) => (
               <Txt key={c.id}>• {c.summary[0] ?? c.title}</Txt>
@@ -130,7 +124,7 @@ export default function Today() {
 
       {(state.bee.daily || state.bee.insights.length > 0) && (
         <View style={{ gap: 8 }}>
-          <Label>From your Bee</Label>
+          <Label line>From your Bee</Label>
           <Sketch seed="bee-day" fill={colors.wash} style={{ padding: 16, gap: 6 }}>
             {state.bee.daily?.lines.map((l, i) => (
               <Txt key={`d${i}`}>• {l}</Txt>
@@ -146,10 +140,10 @@ export default function Today() {
 
       {recent.length > 0 && (
         <View style={{ gap: 8 }}>
-          <Label>Conversations</Label>
+          <Label line>Conversations</Label>
           {recent.map((c) => (
             <Pressable key={c.id} accessibilityRole="button" accessibilityLabel={`Open ${c.title}`} onPress={() => router.push(`/convo/${c.id}`)}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.faint }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.line }}>
                 <Icon name={c.source === "bee" ? "bee" : c.source === "note" ? "pencil" : "chat"} size={22} color={colors.pencil} />
                 <View style={{ flex: 1 }}>
                   <Txt numberOfLines={1}>{c.title}</Txt>

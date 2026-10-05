@@ -5,7 +5,7 @@ import { buzz } from "../src/device";
 import type { SuggestedRule } from "../src/logic/types";
 import { useStore } from "../src/store";
 import { Icon } from "../src/ui/icons";
-import { Btn, Chip, Dots, Label, Quote, Screen, Sketch, TopBar, Txt, useUI } from "../src/ui/kit";
+import { Btn, Chip, Label, Quote, Screen, Sketch, TopBar, Txt, useUI } from "../src/ui/kit";
 import { colors, fonts } from "../src/ui/theme";
 
 type Target = { kind: "new" } | { kind: "pack"; packId: string };
@@ -146,7 +146,7 @@ export default function Confirm() {
         )
       }
     >
-      <TopBar onBack={() => router.back()} close title="Is this right?" right={<Dots total={queue.length} done={i} current={i} />} />
+      <TopBar onBack={() => router.back()} close title="Is this right?" progress={{ total: queue.length, done: i, current: i }} />
       <Sketch seed={r.id} shadow style={{ padding: 20, gap: 14 }}>
         <Label>When</Label>
         {edit ? (

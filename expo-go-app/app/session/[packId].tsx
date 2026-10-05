@@ -195,7 +195,7 @@ export default function Session() {
     <View style={{ gap: 8 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
         <IconBtn name="close" label="Stop. Progress is saved." onPress={quit} />
-        <View style={{ flex: 1, alignItems: "center" }}>
+        <View style={{ flex: 1, paddingHorizontal: 4 }}>
           <Dots total={plan.ids.length} done={index} current={index} />
         </View>
         <IconBtn name="bulb" label="Park a thought" onPress={() => setParkOpen(true)} />
@@ -290,7 +290,7 @@ export default function Session() {
               <TextInput
                 value={understand.text}
                 onChangeText={(t) => setUnderstand({ text: t })}
-                placeholder="Type, or tap 🎤 on the keyboard"
+                placeholder="Type, or use the keyboard mic"
                 placeholderTextColor={colors.pencil}
                 multiline
                 accessibilityLabel="What you will do"
@@ -406,7 +406,7 @@ export default function Session() {
               onChangeText={setAnswer}
               multiline
               autoFocus
-              placeholder="Type it, or tap 🎤 on the keyboard and say it"
+              placeholder="Type it, or say it with the keyboard mic"
               placeholderTextColor={colors.pencil}
               accessibilityLabel="Your answer"
               style={{ minHeight: 100, fontFamily: fonts.body, fontSize: s.body, color: colors.ink, textAlignVertical: "top" }}

@@ -44,7 +44,7 @@ export default function PackScreen() {
         {st.seen}/{st.total} learned · {st.solid} solid{st.due ? ` · ${st.due} due now` : ""}
       </Txt>
 
-      <Label>Steps</Label>
+      <Label line>Steps</Label>
       {pack.rules.map((r) => {
         const level = state.progress[r.id]?.level ?? 0;
         return (
@@ -71,7 +71,7 @@ export default function PackScreen() {
 
       {pack.questions.length > 0 && (
         <View style={{ gap: 8 }}>
-          <Label>Ask your trainer</Label>
+          <Label line>Ask your trainer</Label>
           {pack.questions.map((q) => (
             <Sketch key={q} seed={q} dashed fill={colors.wash} style={{ padding: 12, gap: 6 }}>
               <Txt v="small">{q}</Txt>

@@ -6,7 +6,7 @@ import { say } from "../../src/device";
 import { useSmartAi } from "../../src/smart";
 import { useStore } from "../../src/store";
 import { Icon } from "../../src/ui/icons";
-import { Btn, IconBtn, Sketch, Txt, useUI } from "../../src/ui/kit";
+import { Btn, IconBtn, Sketch, TopBar, Txt, useUI } from "../../src/ui/kit";
 import { colors, fonts } from "../../src/ui/theme";
 
 const STARTERS = ["What should I do next?", "What did I talk about today?", "What do you remember about me?"];
@@ -42,11 +42,8 @@ export default function Ask() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: colors.paper, paddingTop: insets.top }}>
-      <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 16 }}>
-        <Txt v="title" style={{ flex: 1 }}>
-          Ask
-        </Txt>
-        {state.chat.length > 0 && <IconBtn name="trash" label="Clear chat" onPress={actions.clearChat} />}
+      <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+        <TopBar title="Ask" right={state.chat.length > 0 ? <IconBtn name="trash" label="Clear chat" onPress={actions.clearChat} /> : undefined} />
       </View>
       <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 24 }} onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })}>
         <Btn small icon="brain" label={`What I remember about you (${memories})`} onPress={() => router.push("/memories")} />
@@ -66,13 +63,13 @@ export default function Ask() {
         {state.chat.map((m) =>
           m.role === "me" ? (
             <View key={m.id} style={{ alignSelf: "flex-end", maxWidth: "85%" }}>
-              <Sketch seed={m.id} fill={colors.highlightSoft} style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
+              <Sketch seed={m.id} fill={colors.ink} radius={18} style={{ paddingHorizontal: 14, paddingVertical: 10, borderBottomRightRadius: 6 }}>
                 <Txt>{m.text}</Txt>
               </Sketch>
             </View>
           ) : (
             <View key={m.id} style={{ alignSelf: "flex-start", maxWidth: "92%", gap: 6 }}>
-              <Sketch seed={m.id} style={{ paddingHorizontal: 14, paddingVertical: 12, gap: 8 }}>
+              <Sketch seed={m.id} radius={18} style={{ paddingHorizontal: 14, paddingVertical: 12, gap: 8, borderBottomLeftRadius: 6 }}>
                 <Txt>{m.text}</Txt>
                 <Pressable accessibilityRole="button" accessibilityLabel="Read answer aloud" onPress={() => say(m.text)} hitSlop={8} style={{ alignSelf: "flex-start" }}>
                   <Icon name="speaker" size={22} color={colors.pencil} />
@@ -99,14 +96,14 @@ export default function Ask() {
             value={draft}
             onChangeText={setDraft}
             onSubmitEditing={() => void send(draft)}
-            placeholder="Ask anything… (tap 🎤 on the keyboard to talk)"
+            placeholder="Ask anything…"
             placeholderTextColor={colors.pencil}
             returnKeyType="send"
             accessibilityLabel="Question"
             style={{ flex: 1, fontFamily: fonts.body, fontSize: s.body, color: colors.ink, paddingVertical: 10 }}
           />
-          <Pressable accessibilityRole="button" accessibilityLabel="Send" onPress={() => void send(draft)} hitSlop={8} style={{ padding: 8 }}>
-            <Icon name="play" size={24} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Send" onPress={() => void send(draft)} hitSlop={8} style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}>
+            <Icon name="play" size={18} color={colors.onHighlight} strokeWidth={2.2} />
           </Pressable>
         </Sketch>
       </View>

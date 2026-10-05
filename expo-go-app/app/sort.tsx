@@ -6,7 +6,7 @@ import { friendlyDue } from "../src/logic/dates";
 import type { Memory, Todo } from "../src/logic/types";
 import { useStore } from "../src/store";
 import { Icon } from "../src/ui/icons";
-import { Btn, Dots, Quote, Screen, Sketch, TopBar, Txt, useUI } from "../src/ui/kit";
+import { Btn, Quote, Screen, Sketch, TopBar, Txt, useUI } from "../src/ui/kit";
 import { colors, fonts } from "../src/ui/theme";
 
 type Item = { kind: "todo"; id: string } | { kind: "memory"; id: string };
@@ -101,7 +101,7 @@ export default function Sort() {
         )
       }
     >
-      <TopBar onBack={() => router.back()} close title="Sort" right={<Dots total={Math.min(queue.length, 12)} done={Math.min(k, 12)} current={k} />} />
+      <TopBar onBack={() => router.back()} close title="Sort" progress={{ total: Math.min(queue.length, 12), done: Math.min(k, 12), current: k }} />
       <Txt v="small" dim>
         {k + 1} of {queue.length}. You can stop any time.
       </Txt>
@@ -116,12 +116,12 @@ export default function Sort() {
             autoFocus
             multiline
             accessibilityLabel="Edit text"
-            style={{ fontFamily: fonts.hand, fontSize: s.title, color: colors.ink, borderBottomWidth: 2, borderBottomColor: colors.highlight }}
+            style={{ fontFamily: fonts.bodyBold, fontSize: s.title, color: colors.ink, borderBottomWidth: 2, borderBottomColor: colors.ink }}
           />
         ) : (
           <Txt v="title">{current.text}</Txt>
         )}
-        {todo?.due && <Txt dim>⏰ {friendlyDue(todo.due, now)}</Txt>}
+        {todo?.due && <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}><Icon name="timer" size={18} color={colors.pencil} /><Txt dim>{friendlyDue(todo.due, now)}</Txt></View>}
         {current.quote && <Quote text={current.quote} />}
         {from && (
           <Txt v="small" dim>

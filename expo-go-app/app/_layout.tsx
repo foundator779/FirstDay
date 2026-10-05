@@ -1,5 +1,4 @@
 import { AtkinsonHyperlegible_400Regular, AtkinsonHyperlegible_700Bold } from "@expo-google-fonts/atkinson-hyperlegible";
-import { PatrickHand_400Regular } from "@expo-google-fonts/patrick-hand";
 import { useFonts } from "expo-font";
 import { router, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -35,7 +34,7 @@ function NotificationRouter() {
 }
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({ PatrickHand_400Regular, AtkinsonHyperlegible_400Regular, AtkinsonHyperlegible_700Bold });
+  const [loaded, error] = useFonts({ AtkinsonHyperlegible_400Regular, AtkinsonHyperlegible_700Bold });
   if (!loaded && !error) return <Loading />;
   return (
     <StoreProvider fallback={<Loading />}>

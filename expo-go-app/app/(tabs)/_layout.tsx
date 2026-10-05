@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { buzz } from "../../src/device";
 import { useStore } from "../../src/store";
 import { Icon, type IconName } from "../../src/ui/icons";
-import { Sketch } from "../../src/ui/kit";
 import { colors, fonts } from "../../src/ui/theme";
 
 const TABS: { name: string; label: string; icon: IconName }[] = [
@@ -21,6 +20,22 @@ function Bar({ state, navigation }: BarProps) {
   const { state: app } = useStore();
   const nowCount = app.todos.filter((t) => !t.suggested && t.bucket === "now").length;
   const current = state.routes[state.index]?.name;
+  const tile = (on: boolean, dark?: boolean) => ({
+    height: 58,
+    borderRadius: 16,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    gap: 3,
+    backgroundColor: dark ? colors.ink : colors.card,
+    borderWidth: 2,
+    borderStyle: on || dark ? ("solid" as const) : ("dotted" as const),
+    borderColor: on || dark ? colors.ink : colors.faint,
+  });
+  const caption = (text: string, color: string) => (
+    <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 0.8, color }}>
+      {text.toUpperCase()}
+    </Text>
+  );
   const tab = (t: (typeof TABS)[number]) => {
     const on = current === t.name;
     return (
@@ -33,17 +48,30 @@ function Bar({ state, navigation }: BarProps) {
           buzz.tap();
           navigation.navigate(t.name);
         }}
-        style={{ flex: 1, alignItems: "center", paddingVertical: 6, gap: 2 }}
+        style={{ flex: 1 }}
       >
-        <View style={{ paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12, backgroundColor: on ? colors.highlight : "transparent" }}>
-          <Icon name={t.icon} size={26} strokeWidth={on ? 2.4 : 1.8} color={on ? colors.ink : colors.pencil} />
-        </View>
-        <Text style={{ fontFamily: fonts.hand, fontSize: 16, color: on ? colors.ink : colors.pencil }}>{t.label}</Text>
+        {({ pressed }) => (
+          <View style={[tile(on), { opacity: pressed ? 0.6 : 1 }]}>
+            <Icon name={t.icon} size={22} strokeWidth={on ? 2.2 : 1.9} color={on ? colors.ink : colors.pencil} />
+            {caption(t.label, on ? colors.ink : colors.pencil)}
+          </View>
+        )}
       </Pressable>
     );
   };
   return (
-    <View style={{ flexDirection: "row", alignItems: "flex-end", paddingBottom: Math.max(insets.bottom - 6, 8), paddingTop: 6, backgroundColor: colors.paper, borderTopWidth: 1.5, borderTopColor: colors.faint }}>
+    <View
+      style={{
+        flexDirection: "row",
+        gap: 8,
+        paddingHorizontal: 12,
+        paddingTop: 10,
+        paddingBottom: Math.max(insets.bottom - 8, 10),
+        backgroundColor: colors.bar,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+      }}
+    >
       {TABS.slice(0, 2).map(tab)}
       <Pressable
         accessibilityRole="button"
@@ -52,12 +80,13 @@ function Bar({ state, navigation }: BarProps) {
           buzz.tap();
           router.push("/capture");
         }}
-        style={{ flex: 1, alignItems: "center", marginTop: -26 }}
+        style={{ flex: 1 }}
       >
         {({ pressed }) => (
-          <Sketch seed="capture" radius={34} shadow={!pressed} fill={colors.highlight} style={{ width: 66, height: 66, alignItems: "center", justifyContent: "center", transform: [{ translateY: pressed ? 3 : 0 }] }}>
-            <Icon name="plus" size={34} strokeWidth={2.6} />
-          </Sketch>
+          <View style={[tile(false, true), { opacity: pressed ? 0.8 : 1 }]}>
+            <Icon name="plus" size={24} strokeWidth={2.6} color={colors.onHighlight} />
+            {caption("Capture", colors.onHighlight)}
+          </View>
         )}
       </Pressable>
       {TABS.slice(2).map(tab)}

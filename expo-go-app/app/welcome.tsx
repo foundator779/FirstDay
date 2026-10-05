@@ -4,7 +4,7 @@ import { View } from "react-native";
 import { say } from "../src/device";
 import { useStore } from "../src/store";
 import { Icon, type IconName } from "../src/ui/icons";
-import { Btn, Dots, IconBtn, Scribble, Screen, Sketch, Txt } from "../src/ui/kit";
+import { Btn, Dots, IconBtn, Screen, Txt } from "../src/ui/kit";
 import { colors } from "../src/ui/theme";
 
 // First run: one idea per screen, short lines, always skippable.
@@ -54,16 +54,21 @@ export default function Welcome() {
         </>
       }
     >
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <Dots total={PAGES.length} done={i} current={i} />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+        <View style={{ flex: 1 }}>
+          <Dots total={PAGES.length} done={i} current={i} />
+        </View>
         <IconBtn name="speaker" label="Read this aloud" onPress={() => say(`${page.title} ${page.lines.join(" ")}`)} />
       </View>
       <View style={{ gap: 18, paddingTop: 36 }}>
-        <Sketch seed={`welcome-${i}`} fill={colors.highlightSoft} radius={60} style={{ width: 120, height: 120, alignItems: "center", justifyContent: "center" }}>
-          <Icon name={page.icon} size={64} strokeWidth={2.2} />
-        </Sketch>
+        <View style={{ alignSelf: "center", width: 168, height: 168, borderRadius: 84, borderWidth: 2, borderStyle: "dotted", borderColor: colors.faint, alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+          <View style={{ width: 120, height: 120, borderRadius: 60, backgroundColor: colors.wash, alignItems: "center", justifyContent: "center" }}>
+            <View style={{ width: 76, height: 76, borderRadius: 22, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center" }}>
+              <Icon name={page.icon} size={40} strokeWidth={2.2} color={colors.onHighlight} />
+            </View>
+          </View>
+        </View>
         <Txt v="hero">{page.title}</Txt>
-        <Scribble width={120} seed={i + 5} />
         {page.lines.map((l) => (
           <Txt key={l}>{l}</Txt>
         ))}
