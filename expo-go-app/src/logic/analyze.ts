@@ -124,7 +124,13 @@ function thirdPerson(text: string, who: string): string {
 
 export function analyzeLocally(text: string, now: number): Analysis {
   const sentences = sentencesOf(text);
-  const { candidates, questions } = extract(text);
+  const extracted = extract(text);
+  const questions = extracted.questions;
+  // Bare commands count as work rules only when this clearly is a training (2+ clear rules);
+  // in an everyday note "Call mom tomorrow" is a to-do.
+  const strong = extracted.candidates.filter((c) => !c.weak);
+  const candidates = strong.length >= 2 ? extracted.candidates : strong;
+  const weakTodos = new Set(strong.length >= 2 ? [] : extracted.candidates.filter((c) => c.weak).map((c) => c.quote));
   const ruleQuotes = [...new Set(candidates.map((c) => c.quote))];
   const todos: Analysis["todos"] = [];
   const memories: Analysis["memories"] = [];
@@ -132,7 +138,8 @@ export function analyzeLocally(text: string, now: number): Analysis {
   for (const line of speakerLines(text)) {
     for (const s of line.text.replace(/([.!?])\s+/g, "$1\n").split("\n").map((x) => x.trim()).filter(Boolean)) {
       if (ruleQuotes.some((q) => q.includes(s) || s.includes(q))) continue;
-      const todo = TODO.exec(s);
+      const bare = [...weakTodos].some((q) => q.includes(s) || s.includes(q));
+      const todo = bare ? ([s, s] as unknown as RegExpExecArray) : TODO.exec(s);
       if (todo && !(line.speaker && FIRST_PERSON_TODO.test(todo[0]))) {
         const t = cleanTodo(todo[1]!);
         if (t.split(/\s+/).length >= 2 && !seen.has(t.toLowerCase())) {

@@ -1334,6 +1334,8 @@ Practice GET and understanding GET/list require active consent for every depende
 
 ## Change log
 
+| 2026-10-04 | GO-003 FirstDay Go helper: Bee sync, live inbox, coach skill, AWS AI | FirstDay Go's own helper (`expo-go-app/brain/`, separate from the Local Bee bridge contract above) adds `GET /bee/sync` (facts, to-dos, suggestions, daily summary, insights, with per-list `complete` flags so the app mirrors deletions only from whole lists), write-back routes `/bee/facts/{confirm,update,create,delete}`, `/bee/todos/{create,complete}`, `/bee/suggestions/{accept,dismiss}`, live `GET /bee/inbox` + `POST /bee/inbox/ack` driven by `bee stream --json`, and `POST /sync/packs` (confirmed rules for the `firstday-coach` skill). Credential boundary unchanged: Bee credentials stay on the computer, the phone holds only the pairing code (5 wrong codes lock an address out for 15 minutes), IDs are pattern-validated, and on Windows free text goes through `bee proxy` as JSON. The phone may call a separate AWS Lambda Function URL for `/analyze`, `/ask`, `/steps`, `/grade` with a Cognito access token; captures are not stored there. |
+
 | 2026-09-30 | VALIDATE-001 practice recap | Scope recap rules and attempts to current practice identity/scenarios after stale restoration and fresh selection; clear local rehearsal state while preserving server history. |
 
 | 2026-09-30 | VALIDATE-001 action constraints | Require all mandatory quantitative/calendar/counting/order constraints in ordinary expectedAction and reserve exceptions for genuinely conditional modifications; unconditional counting basis is part of the action. |

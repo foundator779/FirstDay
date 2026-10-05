@@ -32,7 +32,7 @@ export default function Convo() {
       <TopBar onBack={() => router.back()} right={<IconBtn name="speaker" label="Read summary aloud" onPress={() => say(`${c.title}. ${c.summary.join(" ")}`)} />} />
       <Txt v="title">{c.title}</Txt>
       <Txt v="small" dim>
-        {friendlyDay(c.at, Date.now())} · {c.source === "bee" ? "from Bee" : c.source === "note" ? "your note" : c.source === "sample" ? "sample" : "pasted"} · read {c.analyzedBy === "brain" ? "by your brain helper" : "on phone"}
+        {friendlyDay(c.at, Date.now())} · {c.source === "bee" ? "from Bee" : c.source === "note" ? "your note" : c.source === "sample" ? "sample" : "pasted"} · read {c.analyzedBy === "brain" ? "by Bedrock (brain)" : c.analyzedBy === "cloud" ? "by Bedrock (cloud)" : "on phone"}
       </Txt>
 
       <Sketch seed={`sum${c.id}`} fill={colors.wash} style={{ padding: 16, gap: 8 }}>

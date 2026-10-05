@@ -4,25 +4,34 @@ import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 import { brainApi } from "../src/brain";
 import { buzz } from "../src/device";
 import { friendlyDay } from "../src/logic/dates";
+import { AI_LABEL, useSmartAi } from "../src/smart";
 import { useStore } from "../src/store";
 import { Icon } from "../src/ui/icons";
-import { Btn, Empty, Screen, Sketch, TopBar, Txt, useUI } from "../src/ui/kit";
+import { Btn, CheckBox, Empty, Screen, Sketch, TopBar, Txt, useUI } from "../src/ui/kit";
 import { colors, fonts } from "../src/ui/theme";
 
 type Mode = "pick" | "note" | "paste" | "bee";
 type Result = { id: string };
 
 export default function Capture() {
-  const params = useLocalSearchParams<{ mode?: string }>();
+  // beeId/beeTitle/beeAt arrive from the "New from Bee" banner or notification.
+  const params = useLocalSearchParams<{ mode?: string; beeId?: string; beeTitle?: string; beeAt?: string }>();
   const { state, actions } = useStore();
+  const smart = useSmartAi();
   const { s } = useUI();
-  const [mode, setMode] = useState<Mode>((params.mode as Mode) || "pick");
+  const fromInbox = typeof params.beeId === "string" && params.beeId ? params.beeId : "";
+  const [mode, setMode] = useState<Mode>(fromInbox ? "bee" : (params.mode as Mode) || "pick");
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
-  const [beeList, setBeeList] = useState<{ id: string; title: string; at: number }[] | null>(null);
+  const [beeList, setBeeList] = useState<{ id: string; title: string; at: number; ready?: boolean }[] | null>(null);
   const [beeError, setBeeError] = useState("");
+  // A Bee conversation waiting for the learner's consent before it's read.
+  const [pending, setPending] = useState<{ id: string; title: string; at: number } | null>(
+    fromInbox ? { id: fromInbox, title: params.beeTitle || "Bee conversation", at: Number(params.beeAt) || Date.now() } : null,
+  );
+  const [consent, setConsent] = useState(false);
 
   useEffect(() => {
     if (mode !== "bee" || !state.brain?.bee || beeList) return;
@@ -86,7 +95,7 @@ export default function Capture() {
     );
   }
 
-  const back = () => (mode === "pick" || params.mode ? router.back() : setMode("pick"));
+  const back = () => (mode === "pick" || params.mode || fromInbox ? router.back() : setMode("pick"));
 
   if (mode === "pick") {
     const Option = ({ icon, title: t, sub, onPress }: { icon: "mic" | "bee" | "chat"; title: string; sub: string; onPress: () => void }) => (
@@ -112,6 +121,54 @@ export default function Capture() {
     );
   }
 
+  if (mode === "bee" && pending) {
+    const already = state.conversations.find((c) => c.beeId === pending.id);
+    const importIt = async () => {
+      if (already) {
+        actions.dismissBeeInbox([pending.id]);
+        router.replace(`/convo/${already.id}`);
+        return;
+      }
+      if (!state.brain) return;
+      setBusy(true);
+      try {
+        const full = await brainApi.beeGet(state.brain, pending.id);
+        setPending(null);
+        actions.dismissBeeInbox([full.id]);
+        await finish({ text: full.text, source: "bee", title: full.title, at: full.at, beeId: full.id });
+      } catch (e) {
+        setBusy(false);
+        setPending(null);
+        setBeeError(e instanceof Error ? e.message : "Couldn't load that conversation.");
+      }
+    };
+    return (
+      <Screen footer={<Btn kind="primary" icon="check" label="Use this conversation" disabled={!consent} onPress={() => void importIt()} />}>
+        <TopBar title="Before we read it" onBack={() => (fromInbox ? router.back() : setPending(null))} />
+        <Sketch seed={`bee-${pending.id}`} style={{ padding: 16, gap: 4 }}>
+          <Txt v="tiny" dim bold>
+            REAL BEE RECORDING
+          </Txt>
+          <Txt v="h2">{pending.title}</Txt>
+          <Txt v="small" dim>
+            {friendlyDay(pending.at, Date.now())}
+          </Txt>
+        </Sketch>
+        <View style={{ flexDirection: "row", gap: 12, alignItems: "flex-start" }}>
+          <CheckBox label="Everyone agreed" on={consent} onPress={() => setConsent(!consent)} />
+          <Txt style={{ flex: 1 }}>Everyone who speaks in this recording agreed to it being used for my practice.</Txt>
+        </View>
+        <Txt v="small" dim>
+          {smart === "cloud"
+            ? "The transcript is read by Amazon Bedrock through your FirstDay account (not stored there) and saved only on this phone. You can delete it any time."
+            : smart === "brain"
+              ? "The transcript is read by Amazon Bedrock through the brain on your computer and saved only on this phone. You can delete it any time."
+              : "The transcript is read on this phone and saved only here. You can delete it any time."}
+        </Txt>
+      </Screen>
+    );
+  }
+
   if (mode === "bee") {
     return (
       <Screen>
@@ -121,42 +178,45 @@ export default function Capture() {
             <Txt>To bring in Bee conversations, run the small brain helper on your computer (it uses your Bee CLI login), then connect it here.</Txt>
             <Btn small icon="link" label="Connect the brain" onPress={() => router.push("/settings")} />
           </Sketch>
-        ) : beeError ? (
+        ) : beeError && !beeList ? (
           <Empty icon="close" text={beeError} />
         ) : !beeList ? (
           <ActivityIndicator color={colors.ink} />
         ) : beeList.length === 0 ? (
           <Empty icon="bee" text="No Bee conversations yet." />
         ) : (
-          beeList.map((b) => {
+          <>
+            {!!beeError && (
+              <Sketch seed="bee-err" fill={colors.highlightSoft} style={{ padding: 12 }}>
+                <Txt v="small" bold>
+                  {beeError}
+                </Txt>
+              </Sketch>
+            )}
+            {beeList.map((b) => {
             const have = state.conversations.some((c) => c.beeId === b.id);
             return (
               <Pressable
                 key={b.id}
                 accessibilityRole="button"
-                disabled={have}
-                onPress={async () => {
-                  if (!state.brain) return;
-                  setBusy(true);
-                  try {
-                    const full = await brainApi.beeGet(state.brain, b.id);
-                    await finish({ text: full.text, source: "bee", title: full.title, at: full.at, beeId: full.id });
-                  } catch {
-                    setBusy(false);
-                    setBeeError("Couldn't load that conversation.");
-                  }
+                disabled={have || b.ready === false}
+                onPress={() => {
+                  setBeeError("");
+                  setConsent(false);
+                  setPending({ id: b.id, title: b.title, at: b.at });
                 }}
               >
-                <Sketch seed={b.id} style={{ padding: 14, opacity: have ? 0.5 : 1 }}>
+                <Sketch seed={b.id} style={{ padding: 14, opacity: have || b.ready === false ? 0.5 : 1 }}>
                   <Txt numberOfLines={2}>{b.title}</Txt>
                   <Txt v="small" dim>
                     {friendlyDay(b.at, Date.now())}
-                    {have ? " · already here" : ""}
+                    {have ? " · already here" : b.ready === false ? " · Bee is still processing" : ""}
                   </Txt>
                 </Sketch>
               </Pressable>
             );
-          })
+          })}
+          </>
         )}
       </Screen>
     );
@@ -202,7 +262,7 @@ export default function Capture() {
         />
       </Sketch>
       <Txt v="small" dim>
-        {state.brain?.ai ? "Read by your brain helper (Bedrock). Stays between your phone and computer." : "Read on your phone. Nothing leaves it."}
+        {AI_LABEL[smart ?? "phone"]}
       </Txt>
     </Screen>
   );

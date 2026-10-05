@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  FirstDay Go AI endpoint. Lambda Function URL + Amazon Bedrock (Nova Pro), Amazon Cognito tokens
+  required. Pay-per-request only: no servers, no API Gateway, no idle cost. Deploy with infra/deploy.sh
+  (it checks the AWS account first).
+
+Parameters:
+  CognitoPoolId:
+    Type: String
+    Default: us-east-1_mZfIndG7K
+  CognitoClientId:
+    Type: String
+    Default: 2ml0g4qv3uj1o66do3mm15r7os
+  ModelId:
+    Type: String
+    Default: us.amazon.nova-pro-v1:0
+  PerUserPerHour:
+    Type: Number
+    Default: 120
+  ReservedConcurrency:
+    Type: String
+    Default: ""
+    Description: Optional cap on simultaneous runs (leave empty if the account's Lambda concurrency limit is low).
+
+Conditions:
+  CapConcurrency: !Not [!Equals [!Ref ReservedConcurrency, ""]]
+
+Resources:
+  Logs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/firstday-go-ai
+      RetentionInDays: 7
+
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: bedrock-nova
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: bedrock:InvokeModel
+                Resource:
+                  - arn:aws:bedrock:*::foundation-model/amazon.nova-*
+                  - !Sub arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/us.amazon.nova-*
+
+  Function:
+    Type: AWS::Lambda::Function
+    DependsOn: Logs
+    Properties:
+      FunctionName: firstday-go-ai
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      Handler: index.handler
+      MemorySize: 256
+      Timeout: 60
+      Role: !GetAtt Role.Arn
+      ReservedConcurrentExecutions: !If [CapConcurrency, !Ref ReservedConcurrency, !Ref AWS::NoValue]
+      Environment:
+        Variables:
+          COGNITO_POOL_ID: !Ref CognitoPoolId
+          COGNITO_CLIENT_ID: !Ref CognitoClientId
+          BEDROCK_MODEL_ID: !Ref ModelId
+          PER_USER_PER_HOUR: !Ref PerUserPerHour
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 503, body: '{"error":"Code not uploaded yet: run infra/deploy.sh"}' });
+
+  Url:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref Function
+      AuthType: NONE
+      Cors:
+        AllowOrigins: ["*"]
+        AllowMethods: [GET, POST]
+        AllowHeaders: [authorization, content-type]
+        MaxAge: 3600
+
+  PublicUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+Outputs:
+  FunctionUrl:
+    Value: !GetAtt Url.FunctionUrl

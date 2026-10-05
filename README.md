@@ -1,15 +1,33 @@
 # FirstDay
 
-## New: FirstDay Go (runs in Expo Go)
+## Main app: FirstDay Go (iPhone via Expo Go)
 
-`expo-go-app/` is a standalone, ADHD-first app with a hand-drawn minimalist UI.
-It covers everything the Bee app does: capture, summaries, to-dos, reminders,
-memories and chat. It also adds FirstDay's work training: confirm instructions
-against the quote, role-play practice, Check what I understood, Change Drill,
-Ask your trainer and Evening review. Run `cd expo-go-app && npm install && npx expo start`.
-See [its README](expo-go-app/README.md).
+**[`expo-go-app/`](expo-go-app/README.md) is the submitted iOS app** for the Bee track.
+It's an ADHD-first, hand-drawn iPhone app that runs in Expo Go, served from a Windows, Mac or Linux computer:
 
-## Run with your Bee recordings
+- Real Bee conversations come in through the signed-in Bee CLI (`expo-go-app/brain/`), live from `bee stream`,
+  after the learner confirms everyone in the recording agreed.
+- Two-way sync with Bee: facts ⇄ memories, to-dos and suggestions ⇄ to-do lists, plus Bee's daily summary and insights.
+- Amazon Bedrock (Nova Pro) finds the trainer's instructions, to-dos and memories, each tied to its exact quote,
+  through a pay-per-request AWS Lambda endpoint for signed-in users (Amazon Cognito), or on the computer.
+- The learner confirms each instruction, practises it with a role-play character, checks what they understood,
+  and drills any rule that later changes (Change Drill). A `firstday-coach` Agent Skill quizzes them from any agent.
+
+Quick start: `cd expo-go-app && npm install && npx expo install --fix && npx expo start`, then scan the QR code
+with an iPhone. Full steps, real-Bee setup and judge testing: [expo-go-app/README.md](expo-go-app/README.md).
+
+- Submission package (Devpost text, product feedback, testing steps, video plan): [docs/submission/](docs/submission/README.md)
+- Friction log: [docs/friction-log.md](docs/friction-log.md)
+- Accuracy eval: [expo-go-app/eval/RESULTS.md](expo-go-app/eval/RESULTS.md)
+- AWS endpoint: [expo-go-app/infra/](expo-go-app/infra/README.md)
+
+## Original native app and backend (reference)
+
+The sections below describe the earlier Expo native app (`apps/mobile`), its local API, Bee bridge and
+Supabase storage. They hold the 691-test backend work and the real-recording import evidence that
+FirstDay Go's Bee path is modelled on.
+
+### Run with your Bee recordings
 
 `npm run demo:live -- --env-file=/absolute/private.env` starts the local Bee
 bridge, durable authenticated API and learner sign-in screen. See the

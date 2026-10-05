@@ -1,0 +1,112 @@
+{
+  "about": "Held-out fictional transcripts written after the on-phone extractor was tuned on corpus.json. Not used for tuning. Same label format.",
+  "version": 1,
+  "cases": [
+    {
+      "id": "garden-center",
+      "transcript": "Rosa: Okay so plants. If a customer buys a tree, offer the free planting guide.\nMe: Where are those?\nRosa: Under the register. And when the hose cart is empty, refill it from the back tap.\nRosa: Watering happens at 7 and at 3, every day.\nRosa: We might do a pumpkin thing in October.",
+      "rules": [
+        { "action": ["free", "planting", "guide"] },
+        { "action": ["refill", "back", "tap"] },
+        { "action": ["7", "3"] }
+      ],
+      "questions": [],
+      "notRules": ["pumpkin"]
+    },
+    {
+      "id": "movie-theater",
+      "transcript": "Eli: At the ticket stand, check the age on R-rated tickets.\nEli: Spilled popcorn gets swept before the next show starts.\nEli: When the fire alarm goes, open all exit doors and walk people out, no running.\nEli: I think the manager prefers we upsell the large combo, but don't push it.",
+      "rules": [
+        { "action": ["check", "age"] },
+        { "action": ["swept", "next", "show"] },
+        { "action": ["exit", "doors", "walk"] }
+      ],
+      "questions": ["upsell"],
+      "notRules": ["upsell", "combo"]
+    },
+    {
+      "id": "car-wash",
+      "transcript": "Dev: Before a car goes in, fold the mirrors in.\nDev: Never take a car with a roof rack, send it to hand wash.\nMe: What if they argue?\nDev: Then get me.\nDev: Tips go in the jar by the vacuum.",
+      "rules": [
+        { "action": ["fold", "mirrors"] },
+        { "action": ["roof", "rack", "hand", "wash"] },
+        { "action": ["tips", "jar", "vacuum"] }
+      ],
+      "questions": [],
+      "notRules": []
+    },
+    {
+      "id": "museum-guide",
+      "transcript": "Ines: Tours start every hour on the hour.\nInes: If a kid touches an exhibit, gently remind the parent about the no-touch rule.\nInes: Lost items go to the coat check with a note of where you found them.\nInes: Honestly the audio guides break a lot, maybe check them before opening.",
+      "rules": [
+        { "action": ["every", "hour"] },
+        { "action": ["remind", "parent", "touch"] },
+        { "action": ["coat", "check", "note"] }
+      ],
+      "questions": ["audio"],
+      "notRules": ["audio"]
+    },
+    {
+      "id": "food-truck",
+      "transcript": "Marco: Cash goes in the lockbox, never in your pocket, not even for a second.\nMarco: When we run out of an item, flip its card on the menu board.\nMarco: Make sure the generator is off before you refuel it.\nMarco: Sunday hours are probably changing.",
+      "rules": [
+        { "action": ["cash", "lockbox"] },
+        { "action": ["flip", "card", "menu"] },
+        { "action": ["generator", "off", "refuel"] }
+      ],
+      "questions": ["sunday"],
+      "notRules": ["sunday"]
+    },
+    {
+      "id": "school-office",
+      "transcript": "Ms. Park: For late arrivals, the student signs the late book and gets a pink slip.\nMs. Park: If a parent calls to say a child is sick, write it in the absence log with the time of the call.\nMs. Park: Visitors wear a sticker badge the whole time they are in the building.\nMs. Park: The copier code is on the wall.",
+      "rules": [
+        { "action": ["late", "book", "pink", "slip"] },
+        { "action": ["absence", "log", "time"] },
+        { "action": ["visitor", "sticker", "badge"] }
+      ],
+      "questions": [],
+      "notRules": []
+    },
+    {
+      "id": "ice-rink",
+      "transcript": "Tom: Skate rentals need a shoe left as a deposit.\nTom: When the ice gets choppy, tell the Zamboni driver on the radio.\nTom: Anyone without a helmet under 12 can't go on the ice.\nTom: Kind of a slow day today, enjoy it.",
+      "rules": [
+        { "action": ["shoe", "deposit"] },
+        { "action": ["zamboni", "radio"] },
+        { "action": ["helmet", "12"] }
+      ],
+      "questions": [],
+      "notRules": ["slow"]
+    },
+    {
+      "id": "laundromat",
+      "transcript": "June: Drop-off laundry gets a numbered ticket, one half on the bag, one half to the customer.\nJune: If a machine eats coins, refund from the coin drawer and put an out-of-order sign on it.\nJune: Close up at 10 sharp.\nMe: Okay. Anything else?\nJune: Nope, that's it.",
+      "rules": [
+        { "action": ["numbered", "ticket", "bag", "customer"] },
+        { "action": ["refund", "coin", "drawer", "sign"] },
+        { "action": ["close", "10"] }
+      ],
+      "questions": [],
+      "notRules": []
+    },
+    {
+      "id": "farm-stand",
+      "transcript": "Abby: Eggs stay in the cooler, not on the table.\nAbby: When someone pays by card, use the little reader and give them the paper receipt.\nAbby: If it rains, pull the berries under the tent.\nAbby: My dad usually comes by around noon to restock, I think.",
+      "rules": [
+        { "action": ["eggs", "cooler"] },
+        { "action": ["reader", "receipt"] },
+        { "action": ["berries", "tent"] }
+      ],
+      "questions": ["noon"],
+      "notRules": ["dad"]
+    },
+    {
+      "id": "small-talk-2",
+      "transcript": "Liz: Did you see the game last night?\nMe: No, I missed it. Who won?\nLiz: We did, barely. You should come watch with us next time.\nMe: Sure, maybe.",
+      "rules": [],
+      "questions": [],
+      "notRules": ["game", "watch"]
+    }
+  ]
+}

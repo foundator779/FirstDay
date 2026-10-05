@@ -1,0 +1,163 @@
+{
+  "about": "Fictional training transcripts written for FirstDay Go's extraction check. Each case lists the work rules a careful extractor should find (as key words that must appear in the extracted action), the vague lines that must become questions instead of rules, and lines that must NOT become rules. Written by the FirstDay team; small and hand-labeled, so treat scores as a regression check, not a general accuracy claim.",
+  "version": 1,
+  "cases": [
+    {
+      "id": "library-desk",
+      "transcript": "Maya: Welcome to the front desk.\nMaya: When a visitor borrows a reading kit, record the kit number in the blue ledger.\nMaya: If a visitor collects a reserved map, ask for the collection code before handing it over.\nMaya: Whenever a visitor returns a torn poster, place it in the green repair tray.\nMaya: If a visitor asks for an extension, maybe allow another day.",
+      "rules": [
+        { "action": ["kit", "number", "blue", "ledger"] },
+        { "action": ["collection", "code"] },
+        { "action": ["green", "repair", "tray"] }
+      ],
+      "questions": ["extension"],
+      "notRules": ["extension"]
+    },
+    {
+      "id": "cafe-opening",
+      "transcript": "Sam: Okay, opening shift basics.\nSam: Before you open the doors, check that the fridge reads below 5 degrees.\nSam: Always wash your hands before touching the pastry case.\nMe: Got it.\nSam: If the milk smells off, pour it out and write it on the waste sheet.\nSam: The grinder is kind of loud, sorry about that.",
+      "rules": [
+        { "action": ["fridge", "below", "5"] },
+        { "action": ["wash", "hands"] },
+        { "action": ["pour", "waste", "sheet"] }
+      ],
+      "questions": [],
+      "notRules": ["grinder"]
+    },
+    {
+      "id": "retail-returns",
+      "transcript": "Priya: Returns are the tricky part.\nPriya: When a customer returns something without a receipt, offer store credit only.\nPriya: If the item is over 30 days old, call a manager before doing anything.\nPriya: I think we usually let gift cards slide, but check with Jordan.\nMe: What about online orders?\nPriya: Online orders go in the grey bin behind the counter.",
+      "rules": [
+        { "action": ["store", "credit"] },
+        { "action": ["call", "manager"] },
+        { "action": ["grey", "bin"] }
+      ],
+      "questions": ["gift"],
+      "notRules": ["gift"]
+    },
+    {
+      "id": "warehouse-picking",
+      "transcript": "Lee: For picking, scan the shelf label first, then scan the item.\nLee: Never stack more than four boxes on a cart.\nLee: When a scanner shows a red light, take it to the charging wall.\nLee: Lunch is at noon, usually.",
+      "rules": [
+        { "action": ["scan", "shelf", "label", "item"] },
+        { "action": ["four", "boxes"] },
+        { "action": ["charging", "wall"] }
+      ],
+      "questions": ["lunch"],
+      "notRules": ["lunch"]
+    },
+    {
+      "id": "hotel-checkin",
+      "transcript": "Ana: At check-in, ask for a photo ID and the card used to book.\nAna: If a guest wants a late checkout, it's free until 1 pm; after that it's 20 dollars.\nAna: Room keys go in the small envelope with the room number written on it.\nAna: The lobby music is on a timer, don't worry about it.",
+      "rules": [
+        { "action": ["photo", "card"] },
+        { "action": ["free", "1", "20"] },
+        { "action": ["envelope", "room", "number"] }
+      ],
+      "questions": [],
+      "notRules": ["music"]
+    },
+    {
+      "id": "kitchen-hygiene",
+      "transcript": "Chef: Listen up. Raw chicken only goes on the yellow board.\nChef: When you finish a shift, wipe the steel tables with the blue spray.\nChef: Make sure every container has a date label.\nChef: Probably we'll get a new dishwasher next month.",
+      "rules": [
+        { "action": ["yellow", "board"] },
+        { "action": ["wipe", "blue", "spray"] },
+        { "action": ["date", "label"] }
+      ],
+      "questions": [],
+      "notRules": ["dishwasher"]
+    },
+    {
+      "id": "gym-front",
+      "transcript": "Rio: When a member forgets their card, look them up by phone number and check their photo.\nRio: Guests pay 15 dollars and sign the waiver on the tablet.\nRio: If someone gets hurt, call the duty manager and fill in the incident form.\nRio: I'm not sure if we still do the towel deal, ask Kim.",
+      "rules": [
+        { "action": ["phone", "number", "photo"] },
+        { "action": ["15", "waiver"] },
+        { "action": ["duty", "manager", "incident", "form"] }
+      ],
+      "questions": ["towel"],
+      "notRules": ["towel"]
+    },
+    {
+      "id": "helpdesk",
+      "transcript": "Jo: Tickets first. When someone reports a password problem, verify their employee number before resetting anything.\nJo: If a laptop won't turn on, swap it from the spare shelf and log the serial number.\nJo: Always close the ticket with a one-line note.\nMe: Okay.\nJo: Printers are a mystery, honestly.",
+      "rules": [
+        { "action": ["verify", "employee", "number"] },
+        { "action": ["spare", "shelf", "serial"] },
+        { "action": ["close", "ticket", "note"] }
+      ],
+      "questions": [],
+      "notRules": ["printers"]
+    },
+    {
+      "id": "dog-daycare",
+      "transcript": "Tess: At drop-off, check the vaccine tag before the dog goes in the play room.\nTess: Small dogs and big dogs play in separate rooms.\nTess: If a dog seems sick, put it in the quiet room and call the owner.\nTess: Maybe we'll start grooming on Fridays.",
+      "rules": [
+        { "action": ["vaccine", "tag"] },
+        { "action": ["separate", "rooms"] },
+        { "action": ["quiet", "room", "call", "owner"] }
+      ],
+      "questions": [],
+      "notRules": ["grooming"]
+    },
+    {
+      "id": "bike-shop",
+      "transcript": "Kai: Every repair gets a paper tag with the customer's name and phone number.\nKai: When you take a bike in, pump both tires and note the pressure on the tag.\nKai: Before handing a bike back, test ride it around the lot.\nKai: The coffee machine is broken again.",
+      "rules": [
+        { "action": ["tag", "name", "phone"] },
+        { "action": ["pump", "tires", "pressure"] },
+        { "action": ["test", "ride"] }
+      ],
+      "questions": [],
+      "notRules": ["coffee"]
+    },
+    {
+      "id": "call-center",
+      "transcript": "Nina: Every call, say your first name and the company name.\nNina: If a caller asks to cancel, transfer them to retention, don't try to save it yourself.\nNina: When a call drops, call back within five minutes.\nNina: Usually we don't record internal calls, I think.",
+      "rules": [
+        { "action": ["first", "name", "company"] },
+        { "action": ["transfer", "retention"] },
+        { "action": ["call", "back", "five", "minutes"] }
+      ],
+      "questions": ["record"],
+      "notRules": ["record"]
+    },
+    {
+      "id": "bookshop-update",
+      "transcript": "Dana: There is one reservation update before today's shift.\nDana: Starting today, we hold each customer reservation for seven calendar days, counting the day we set it aside as day one.\nMe: Does anything else change?\nDana: No. This update only changes how long reservations are held.",
+      "rules": [
+        { "action": ["seven", "calendar", "days"], "update": true }
+      ],
+      "questions": [],
+      "notRules": []
+    },
+    {
+      "id": "studio-update",
+      "transcript": "Maya: This changes one procedure from the earlier training.\nMaya: Update: When a guest borrows a display stand, write the stand number in the checkout notebook.",
+      "rules": [
+        { "action": ["stand", "number", "checkout", "notebook"], "update": true }
+      ],
+      "questions": [],
+      "notRules": []
+    },
+    {
+      "id": "chatty-no-rules",
+      "transcript": "Ben: How was your weekend?\nMe: Pretty good, we went hiking.\nBen: Nice! I've been meaning to try that trail.\nMe: You should, it's not too steep.\nBen: Maybe next month.",
+      "rules": [],
+      "questions": [],
+      "notRules": ["trail", "hiking"]
+    },
+    {
+      "id": "pharmacy-counter",
+      "transcript": "Grace: At the counter, never say a customer's medication name out loud.\nGrace: When someone picks up a prescription, confirm their date of birth.\nGrace: If the line has more than five people, page a second cashier.\nGrace: We might change the closing time, not sure yet.",
+      "rules": [
+        { "action": ["never", "medication", "name"] },
+        { "action": ["date", "birth"] },
+        { "action": ["five", "page", "cashier"] }
+      ],
+      "questions": ["closing"],
+      "notRules": ["closing"]
+    }
+  ]
+}

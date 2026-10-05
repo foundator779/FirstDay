@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { Alert, Pressable, TextInput, View } from "react-native";
 import type { Memory } from "../src/logic/types";
 import { useStore } from "../src/store";
 import { Icon } from "../src/ui/icons";
@@ -23,6 +23,16 @@ export default function Memories() {
   const [edit, setEdit] = useState<string | null>(null);
   const kept = state.memories.filter((m) => !m.suggested);
   const suggested = state.memories.length - kept.length;
+  const beeLinked = !!state.brain?.bee && state.settings.syncToBee;
+
+  const forget = (m: Memory) => {
+    if (!m.beeFactId || !beeLinked) return actions.deleteMemory(m.id);
+    Alert.alert("Forget this?", "It also lives in your Bee.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Only here", onPress: () => actions.deleteMemory(m.id, false) },
+      { text: "Here and in Bee", style: "destructive", onPress: () => actions.deleteMemory(m.id, true) },
+    ]);
+  };
 
   return (
     <Screen>
@@ -60,7 +70,10 @@ export default function Memories() {
                   {edit !== null && open === m.id ? (
                     <TextInput value={edit} onChangeText={setEdit} multiline autoFocus accessibilityLabel="Edit memory" style={{ fontFamily: fonts.body, fontSize: s.body, color: colors.ink }} />
                   ) : (
-                    <Txt>{m.text}</Txt>
+                    <View style={{ flexDirection: "row", gap: 8, alignItems: "flex-start" }}>
+                      <Txt style={{ flex: 1 }}>{m.text}</Txt>
+                      {m.beeFactId && <Icon name="bee" size={18} color={colors.pencil} />}
+                    </View>
                   )}
                   {open === m.id && (
                     <View style={{ gap: 8 }}>
@@ -72,7 +85,7 @@ export default function Memories() {
                         ) : (
                           <Btn small style={{ flex: 1 }} icon="pencil" label="Fix" onPress={() => setEdit(m.text)} />
                         )}
-                        <Btn small style={{ flex: 1 }} icon="trash" label="Forget" onPress={() => actions.deleteMemory(m.id)} />
+                        <Btn small style={{ flex: 1 }} icon="trash" label="Forget" onPress={() => forget(m)} />
                       </View>
                     </View>
                   )}
@@ -85,7 +98,7 @@ export default function Memories() {
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 10 }}>
         <Icon name="brain" size={20} color={colors.pencil} />
         <Txt v="small" dim style={{ flex: 1 }}>
-          Stored only on this phone.
+          {beeLinked ? "Stored on this phone. Ones with a bee are shared with your Bee; fixes go back to it." : "Stored only on this phone."}
         </Txt>
       </View>
     </Screen>

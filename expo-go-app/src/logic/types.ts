@@ -62,6 +62,10 @@ export type Settings = {
   bigText: boolean;
   haptics: boolean;
   nudges: boolean;
+  /** Use the FirstDay AWS endpoint (Amazon Bedrock) for smarter reading when signed in. */
+  cloudAi: boolean;
+  /** Send accepted to-dos and memory fixes back to Bee through the brain. */
+  syncToBee: boolean;
 };
 
 export type SessionMode = "learn" | "review" | "change";
@@ -76,7 +80,8 @@ export type Conversation = {
   source: "note" | "bee" | "pasted" | "sample";
   text: string;
   summary: string[];
-  analyzedBy: "phone" | "brain";
+  /** phone = on-device rules, brain = Bedrock via the computer helper, cloud = Bedrock via the AWS endpoint. */
+  analyzedBy: "phone" | "brain" | "cloud";
   beeId?: string;
   packId?: string;
   reviewed?: boolean;
@@ -101,6 +106,18 @@ export type Todo = {
   previousText?: string;
   createdAt: number;
   doneAt?: number;
+  /** Linked Bee to-do (two-way: completing here completes it in Bee). */
+  beeTodoId?: string;
+  /** Bee's own to-do suggestion; accepting or skipping here does the same in Bee. */
+  beeSuggestionId?: string;
+  /** Came from Bee (not written here first). */
+  fromBee?: boolean;
+  /** When this item was linked to Bee; a sync that started earlier can't unlink or delete it. */
+  linkedAt?: number;
+  /** Bee's completed flag as last seen, so only a change in Bee ticks it here. */
+  beeDone?: boolean;
+  /** The due time is Bee's own alarm, so FirstDay doesn't nudge as well. */
+  beeAlarm?: boolean;
 };
 
 export type Memory = {
@@ -113,6 +130,10 @@ export type Memory = {
   reviewed?: boolean;
   previousText?: string;
   at: number;
+  /** Linked Bee fact (two-way: confirm, edit and delete reach Bee). */
+  beeFactId?: string;
+  fromBee?: boolean;
+  linkedAt?: number;
 };
 
 export type ChatMessage = { id: string; role: "me" | "app"; text: string; at: number; sources?: string[] };
@@ -126,7 +147,44 @@ export type SuggestedRule = {
   quote: string;
 };
 
-export type Brain = { url: string; code: string; ai: boolean; bee: boolean };
+export type Brain = {
+  url: string;
+  code: string;
+  ai: boolean;
+  bee: boolean;
+  live?: boolean;
+  /** The brain was started with FIRSTDAY_GO_REQUIRE_ACCOUNT=1, so requests carry the Cognito token. */
+  withToken?: boolean;
+};
+
+/** What the brain read from Bee (the Bee CLI's facts, to-dos, suggestions, daily summary, insights). */
+export type BeeSnapshot = {
+  facts: { id: string; text: string; confirmed: boolean }[] | null;
+  todos: { id: string; text: string; completed: boolean; alarmAt?: number }[] | null;
+  suggestions: { id: string; text: string }[] | null;
+  daily: { date: string; lines: string[] } | null;
+  insights: { id: string; text: string }[] | null;
+  /** True only when the brain saw Bee's whole list, so deletions there can be mirrored here. */
+  complete: { facts: boolean; todos: boolean; suggestions: boolean };
+  failed: string[];
+};
+
+export type BeeInboxItem = { id: string; title: string; at: number };
+
+/** Bee data shown on Today, plus sync status. */
+export type BeeState = {
+  daily: { date: string; lines: string[] } | null;
+  insights: string[];
+  syncedAt: number;
+  /** New Bee conversations the brain saw since you last looked. */
+  inbox: BeeInboxItem[];
+  /** Inbox ids already announced with a notification. */
+  notified: string[];
+  todosChangedAt: number;
+  /** Bee items removed here only ("fact:<id>", "todo:<id>", "sugg:<id>"), so a sync doesn't bring them back. */
+  hidden: string[];
+  lastError?: string;
+};
 
 export type AppState = {
   version: 2;
@@ -142,4 +200,5 @@ export type AppState = {
   suggestedRules: SuggestedRule[];
   brain: Brain | null;
   onboarded: boolean;
+  bee: BeeState;
 };

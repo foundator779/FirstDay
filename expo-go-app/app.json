@@ -5,8 +5,12 @@
     "version": "1.0.0",
     "scheme": "firstdaygo",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "plugins": ["expo-router"],
+    "backgroundColor": "#FBFAF6",
+    "plugins": [
+      "expo-router"
+    ],
     "ios": {
       "supportsTablet": true
     },

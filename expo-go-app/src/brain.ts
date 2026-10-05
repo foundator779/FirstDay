@@ -1,17 +1,35 @@
 import type { Analysis } from "./logic/analyze";
-import type { Brain } from "./logic/types";
+import { getAccessToken } from "./auth";
+import { cleanSnapshot } from "./logic/beeSync";
+import type { BeeInboxItem, BeeSnapshot, Brain } from "./logic/types";
 
-async function call<T>(brain: Pick<Brain, "url" | "code">, path: string, body?: unknown, timeoutMs = 12_000): Promise<T> {
+/**
+ * Where an AI or Bee request goes: the brain on your computer (url + pairing code) or the AWS endpoint.
+ * The Cognito access token is sent only when `withToken` is set: always for the AWS endpoint, and for a
+ * brain only if it was set up to require accounts. It never goes to a brain that doesn't need it.
+ */
+export type Target = { url: string; code?: string; withToken?: boolean };
+
+async function call<T>(brain: Target, path: string, body?: unknown, timeoutMs = 12_000): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
+    const token = brain.withToken ? await getAccessToken().catch(() => undefined) : undefined;
     const res = await fetch(`${brain.url.replace(/\/+$/, "")}${path}`, {
       method: body === undefined ? "GET" : "POST",
-      headers: { "content-type": "application/json", "x-firstday-code": brain.code },
+      headers: {
+        "content-type": "application/json",
+        ...(brain.code ? { "x-firstday-code": brain.code } : {}),
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
     });
-    if (!res.ok) throw new Error(res.status === 401 ? "Wrong pairing code." : `Brain error ${res.status}`);
+    if (!res.ok) {
+      const detail = await res.json().then((j: { error?: unknown }) => (typeof j?.error === "string" ? j.error : "")).catch(() => "");
+      if (res.status === 401 && brain.code && !detail.includes("Sign in")) throw new Error("Wrong pairing code.");
+      throw new Error(detail || `Request failed (${res.status})`);
+    }
     return (await res.json()) as T;
   } finally {
     clearTimeout(timer);
@@ -37,9 +55,9 @@ export function normalizeUrl(input: string): string {
 }
 
 export const brainApi = {
-  health: (b: Pick<Brain, "url" | "code">) => call<{ ok: boolean; ai: boolean; bee: boolean }>(b, "/health", undefined, 8000),
+  health: (b: Target) => call<{ ok: boolean; ai: boolean; bee?: boolean; live?: boolean; accounts?: boolean }>(b, "/health", undefined, 8000),
 
-  async analyze(b: Brain, text: string, now: number): Promise<Analysis> {
+  async analyze(b: Target, text: string, now: number): Promise<Analysis> {
     let zone = "";
     try {
       zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -73,26 +91,57 @@ export const brainApi = {
     };
   },
 
-  async ask(b: Brain, question: string, notes: { id: string; text: string }[]) {
+  async ask(b: Target, question: string, notes: { id: string; text: string }[]) {
     const r = await call<Record<string, unknown>>(b, "/ask", { question, notes }, 20_000);
     const answer = str(r.answer);
     if (!answer) throw new Error("empty");
     return { answer, sourceIds: arr(r.sourceIds).map(str).filter(Boolean) };
   },
 
-  async steps(b: Brain, task: string) {
+  async steps(b: Target, task: string) {
     const r = await call<Record<string, unknown>>(b, "/steps", { task });
     return { steps: arr(r.steps).map(str).filter(Boolean) };
   },
 
-  async grade(b: Brain, input: { situation: string; instruction: string; quote: string; answer: string }) {
+  async grade(b: Target, input: { situation: string; instruction: string; quote: string; answer: string }) {
     const r = await call<Record<string, unknown>>(b, "/grade", input);
     if (typeof r.pass !== "boolean") throw new Error("bad grade");
     return { pass: r.pass, feedback: str(r.feedback) };
   },
 
-  beeList: (b: Brain) => call<{ conversations: { id: string; title: string; at: number }[] }>(b, "/bee/conversations"),
+  beeList: (b: Brain) => call<{ conversations: { id: string; title: string; at: number; ready?: boolean }[] }>(b, "/bee/conversations"),
 
   beeGet: (b: Brain, id: string) =>
     call<{ id: string; title: string; at: number; text: string }>(b, `/bee/conversations/${encodeURIComponent(id)}`),
+
+  // ---- Two-way Bee sync (through the brain's Bee CLI) ----
+  async beeSync(b: Brain): Promise<BeeSnapshot> {
+    return cleanSnapshot(await call<unknown>(b, "/bee/sync", undefined, 45_000));
+  },
+  async beeWrite(b: Brain, path: BeeWritePath, body: Record<string, unknown>): Promise<{ id?: string }> {
+    // Long timeout: on Windows the first write also starts `bee proxy` on the computer.
+    const r = await call<Record<string, unknown>>(b, path, body, 35_000);
+    return typeof r?.id === "string" && r.id ? { id: r.id } : {};
+  },
+  async beeInbox(b: Brain): Promise<{ items: BeeInboxItem[]; todosChangedAt: number; live: boolean }> {
+    const r = await call<Record<string, unknown>>(b, "/bee/inbox", undefined, 8000);
+    const items = arr(r.items).flatMap((x) => {
+      const o = (x ?? {}) as Record<string, unknown>;
+      const id = str(o.id);
+      return id ? [{ id: id.slice(0, 100), title: str(o.title).slice(0, 120) || "Bee conversation", at: Number(o.at) || Date.now() }] : [];
+    });
+    return { items, todosChangedAt: Number(r.todosChangedAt) || 0, live: r.live === true };
+  },
+  beeAck: (b: Brain, ids: string[]) => call<{ ok: boolean }>(b, "/bee/inbox/ack", { ids }),
+  syncPacks: (b: Brain, packs: unknown[]) => call<{ ok: boolean }>(b, "/sync/packs", { packs }),
 };
+
+export type BeeWritePath =
+  | "/bee/facts/confirm"
+  | "/bee/facts/delete"
+  | "/bee/facts/update"
+  | "/bee/facts/create"
+  | "/bee/todos/create"
+  | "/bee/todos/complete"
+  | "/bee/suggestions/accept"
+  | "/bee/suggestions/dismiss";

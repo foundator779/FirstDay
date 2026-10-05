@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { Pressable, View } from "react-native";
 import { friendlyDay, friendlyDue, isSameDay } from "../../src/logic/dates";
 import { nextTraining } from "../../src/logic/training";
@@ -7,7 +7,7 @@ import { Icon } from "../../src/ui/icons";
 import { Btn, IconBtn, Label, Screen, Scribble, Sketch, Txt } from "../../src/ui/kit";
 import { colors } from "../../src/ui/theme";
 
-type Next = { kicker: string; title: string; sub: string; cta: string; go: () => void };
+type Next = { kicker: string; title: string; sub: string; cta: string; go: () => void; dismiss?: () => void };
 
 export default function Today() {
   const { state, actions } = useStore();
@@ -40,12 +40,25 @@ export default function Today() {
     const mode = training.kind === "resume" ? training.mode : training.kind;
     options.push({ kicker: "Work practice", title: pack?.title ?? "Practice", sub: `${label} · about ${Math.max(1, Math.round((training.kind === "resume" ? training.left : training.count) * 0.8))} min`, cta: training.kind === "change" ? "See what changed" : "Start", go: () => router.push(`/session/${training.packId}?mode=${mode}`) });
   }
+  const fromBee = state.bee.inbox.find((i) => !state.conversations.some((c) => c.beeId === i.id));
+  if (fromBee) {
+    options.unshift({
+      kicker: "Just recorded by Bee",
+      title: fromBee.title,
+      sub: state.bee.inbox.length > 1 ? `Turn it into practice while it's fresh? (${state.bee.inbox.length} new)` : "Turn it into practice while it's fresh?",
+      cta: "Bring it in",
+      go: () => router.push({ pathname: "/capture", params: { beeId: fromBee.id, beeTitle: fromBee.title, beeAt: String(fromBee.at) } }),
+      dismiss: () => actions.dismissBeeInbox([fromBee.id]),
+    });
+  }
   if (reviewCount && hour >= 17) options.unshift({ kicker: "Evening review", title: "2-minute check of today", sub: `${reviewCount} card${reviewCount > 1 ? "s" : ""}. Fix anything I got wrong.`, cta: "Review today", go: () => router.push("/review") });
 
   const main = options[0];
   const also = options.slice(1, 4);
   const todays = state.conversations.filter((c) => isSameDay(c.at, now));
   const recent = state.conversations.slice(0, 5);
+
+  if (!state.onboarded) return <Redirect href="/welcome" />;
 
   return (
     <Screen>
@@ -61,15 +74,6 @@ export default function Today() {
         <IconBtn name="sliders" label="Settings" onPress={() => router.push("/settings")} />
       </View>
 
-      {!state.onboarded && (
-        <Sketch seed="welcome" dashed fill={colors.wash} style={{ padding: 18, gap: 10 }}>
-          <Txt v="h2">Hi. One thing at a time.</Txt>
-          <Txt>Tap the big + to capture anything: talk, type, or bring in a Bee conversation.</Txt>
-          <Txt>I'll turn it into to-dos, memories and work practice, then show you just the next thing.</Txt>
-          <Btn small label="Got it" icon="check" onPress={actions.finishOnboarding} />
-        </Sketch>
-      )}
-
       {main ? (
         <Sketch seed="next-up" shadow style={{ padding: 20, gap: 10 }}>
           <Txt v="tiny" dim bold style={{ letterSpacing: 1.2 }}>
@@ -79,6 +83,7 @@ export default function Today() {
           <Scribble width={110} />
           <Txt dim>{main.sub}</Txt>
           <Btn kind="primary" label={main.cta} icon="play" onPress={main.go} />
+          {main.dismiss && <Btn kind="quiet" label="Not now" onPress={main.dismiss} />}
         </Sketch>
       ) : (
         <Sketch seed="clear" shadow style={{ padding: 22, gap: 8, alignItems: "center" }}>
@@ -119,6 +124,22 @@ export default function Today() {
               <Txt key={c.id}>• {c.summary[0] ?? c.title}</Txt>
             ))}
             {todays.length > 3 && <Txt v="small" dim>+ {todays.length - 3} more</Txt>}
+          </Sketch>
+        </View>
+      )}
+
+      {(state.bee.daily || state.bee.insights.length > 0) && (
+        <View style={{ gap: 8 }}>
+          <Label>From your Bee</Label>
+          <Sketch seed="bee-day" fill={colors.wash} style={{ padding: 16, gap: 6 }}>
+            {state.bee.daily?.lines.map((l, i) => (
+              <Txt key={`d${i}`}>• {l}</Txt>
+            ))}
+            {state.bee.insights.map((l, i) => (
+              <Txt key={`i${i}`} v="small" dim>
+                Bee noticed: {l}
+              </Txt>
+            ))}
           </Sketch>
         </View>
       )}

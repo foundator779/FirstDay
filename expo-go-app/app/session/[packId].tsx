@@ -1,10 +1,10 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Animated, Modal, Pressable, TextInput, View } from "react-native";
-import { brainApi } from "../../src/brain";
 import { buzz, hush, say } from "../../src/device";
 import { buildChoices, compareUnderstanding, gradeWords, queueFor, type Understanding } from "../../src/logic/training";
 import type { Rule, SessionMode } from "../../src/logic/types";
+import { useSmartAi } from "../../src/smart";
 import { useStore } from "../../src/store";
 import { characterFor, Face } from "../../src/ui/faces";
 import { Icon } from "../../src/ui/icons";
@@ -16,6 +16,7 @@ type Phase = "card" | "ask" | "right" | "wrong" | "end";
 export default function Session() {
   const params = useLocalSearchParams<{ packId: string; mode?: string }>();
   const { state, actions } = useStore();
+  const smart = useSmartAi();
   const { s, settings } = useUI();
   const mode = (["learn", "review", "change"].includes(params.mode ?? "") ? params.mode : "learn") as SessionMode;
 
@@ -142,13 +143,13 @@ export default function Session() {
     const local = gradeWords(answer, rule);
     let pass = local.pass;
     let note: string | undefined;
-    if (!pass && state.brain?.ai) {
+    if (!pass && smart) {
       setChecking(true);
-      try {
-        const g = await brainApi.grade(state.brain, { situation: rule.situation, instruction: rule.action, quote: rule.quote, answer });
+      const g = await actions.grade({ situation: rule.situation, instruction: rule.action, quote: rule.quote, answer });
+      if (g) {
         pass = g.pass;
         note = g.feedback;
-      } catch {}
+      }
       setChecking(false);
     }
     setFeedback({ hits: local.hits, misses: local.misses, ...(note ? { note } : {}) });

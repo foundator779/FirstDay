@@ -4,3 +4,7 @@ dist/
 expo-env.d.ts
 ios/
 android/
+.env
+# The brain's private state (your confirmed training rules). Never commit.
+brain/.brain-state.json
+brain/.brain-state.json.tmp

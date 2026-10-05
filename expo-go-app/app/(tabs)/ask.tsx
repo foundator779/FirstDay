@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { say } from "../../src/device";
+import { useSmartAi } from "../../src/smart";
 import { useStore } from "../../src/store";
 import { Icon } from "../../src/ui/icons";
 import { Btn, IconBtn, Sketch, Txt, useUI } from "../../src/ui/kit";
@@ -12,6 +13,7 @@ const STARTERS = ["What should I do next?", "What did I talk about today?", "Wha
 
 export default function Ask() {
   const { state, actions } = useStore();
+  const smart = useSmartAi();
   const { s } = useUI();
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState("");
@@ -54,9 +56,9 @@ export default function Ask() {
             {STARTERS.map((q) => (
               <Btn key={q} label={q} small align="left" onPress={() => void send(q)} />
             ))}
-            {!state.brain?.ai && (
+            {!smart && (
               <Txt v="small" dim>
-                Answers come from simple search on your phone. Connect the brain in Settings for smarter answers.
+                Answers come from simple search on your phone. Sign in (Settings) or connect the brain for smarter answers.
               </Txt>
             )}
           </View>
