@@ -1,5 +1,8 @@
 # Demo video plan (under 3 minutes)
 
+> **Use [demo-script.md](demo-script.md) to record.** It replaces this plan with the real Apple Watch + Bee loop,
+> recorded as a clean iPhone screen recording. This page stays for reference.
+
 The rules require the video to show the project **using real Bee data** (mentioning Bee isn't enough), to run on the
 intended platform (an iPhone), to stay under 3 minutes, and to have no copyrighted music or third-party trademarks.
 This plan records the real loop once, live.
@@ -14,6 +17,11 @@ This plan records the real loop once, live.
 3. Phone: Do Not Disturb off (so the "New from Bee" notification shows), Bigger text off, screen recording on
    (Control Center → Screen Recording). Computer: a terminal window with large font for the two shots of it.
 4. Keep the second conversation (the rule change) for the live part of the video.
+5. For the team beat: Rosa's own FirstDay account (the web link on a second phone or a laptop) with the café training
+   shared (**Share with my team**, with "Rosa" typed as the trainer when you saved it), and your phone joined with the code. The coach service is deployed and
+   its URL is built in (rerun `infra/deploy-coach.sh` and `infra/deploy-web.sh` after any code change).
+6. For the voice beat: More → **Quiz me from other apps** → **Make a voice screen link**, opened on a laptop or tablet
+   with the microphone allowed. Say "Quiz me before my shift" once to check it hears you.
 
 ### Conversation 1: "First shift at Juniper Café" (fictional)
 
@@ -33,19 +41,20 @@ This plan records the real loop once, live.
 
 | Time | On screen | Say (voiceover or to camera) |
 | --- | --- | --- |
-| 0:00–0:15 | You, first day at a job (or a title card). Then the FirstDay Go Today screen. | "Your first week at a new job is a firehose. If you have ADHD, remembering twenty little procedures is the hard part. Bee already hears your trainer. FirstDay Go turns what they said into practice." |
-| 0:15–0:35 | Terminal: `bee conversations list` shows "First shift at Juniper Café". Phone: **+ → From my Bee** → that conversation → tick "Everyone agreed" → **Use this conversation**. | "This is my real Bee recording from yesterday. The helper on my computer reads it through the Bee CLI. Nothing is read until I confirm everyone agreed." |
-| 0:35–0:55 | "Got it": to-dos, things to remember, work steps. **Check 3 work steps**: name the training "Juniper Café", then each step appears beside Rosa's exact words. The "maybe" line is a question, not a rule. **Yes, that's what was said** ×3. | "Amazon Bedrock finds every instruction, and each one sits next to Rosa's exact words, so I can trust it. The 'maybe' became a question to ask her, not a rule." |
-| 0:55–1:20 | **Train** → Start. A line-drawn customer: "I'd like to return this cracked mug." Pick a wrong answer → feedback quotes Rosa → retry → right. | "Practice is a role-play. Wrong answers just show what Rosa actually said. No scores, no streaks to lose. Three cards and done." |
-| 1:20–1:40 | **Sort**: "Restock the paper cups by noon tomorrow" → **Now**; "Your shift ends at 4 on Fridays" → keep. Then open the **Bee app** on the phone: the to-do and the fact are there. | "To-dos and memories sort one card at a time. And it's two-way: what I keep here shows up in my Bee." |
-| 1:40–2:15 | Record Conversation 2 with Rosa (cut the wait). Keep FirstDay Go open: Today shows **Just recorded by Bee** and the notification appears. Tap **Bring it in** → tick "Everyone agreed" → **Check 1 work step** → choose the Juniper Café training → **Yes, that's what was said**. | "Rosa just changed a rule. As soon as Bee finishes processing, FirstDay Go knows, live." |
-| 2:15–2:35 | **See what changed**: old vs. new side by side. Answer the drill; the old answer ("grey bin") is now a trap choice. | "The Change Drill shows old versus new, and the old answer becomes a trap, so the habit actually updates." |
-| 2:35–2:50 | Terminal (or any agent chat): `node brain/firstday.mjs quiz --count 1` or ask your agent "Quiz me on my café training". | "My confirmed steps are also an Agent Skill, so any agent can quiz me, using only Rosa's words." |
-| 2:50–2:58 | Today screen: one next thing. | "One thing at a time. FirstDay Go." |
+| 0:00–0:12 | You, first day at a job (or a title card). Then Today: "Get ready for day one." | "Your first week at a new job is a firehose. With ADHD, remembering twenty little procedures is the hard part. Bee already hears your trainer." |
+| 0:12–0:30 | Terminal: `bee conversations list` shows "First shift at Juniper Café". Phone: **+ → From my Bee** → that conversation → tick "I'm OK with FirstDay Go reading this" → **Use this conversation**. | "This is my real Bee recording from yesterday. Nothing is read until I OK it." |
+| 0:30–0:48 | **Check 3 work steps**: each step beside Rosa's exact words → **Yes, that's what was said** ×3. Then the **Questions** tab: the "maybe refunds on Sundays" line. | "Amazon Bedrock finds every instruction, next to Rosa's exact words. The 'maybe' became a question to ask her, never a rule." |
+| 0:48–1:05 | **Train** → Start. A line-drawn customer: "I'd like to return this cracked mug." Wrong answer → feedback quotes Rosa → retry → right. | "Practice is a role-play. Wrong answers just show what Rosa said. No scores, no streaks." |
+| 1:05–1:15 | More → **Sort**: "Your shift ends at 4 on Fridays" → keep. Cut to the **Bee app**: the fact is there. | "And it's two-way: what I keep here goes back to my Bee." |
+| 1:15–1:50 | Record Conversation 2 with Rosa (cut the wait). Today: **Just recorded by Bee** + notification → **Bring it in** → OK → **Check 1 work step** → Juniper Café → **Yes**. **See what changed**: old vs. new; the old answer ("grey bin") is now a trap. | "Rosa just changed a rule. As soon as Bee finishes, FirstDay knows. The old answer becomes a trap, so the habit actually updates." |
+| 1:50–2:10 | Rosa's screen: the training ("4 people joined"), **Send my changes to the team**. Cut to a trainee's phone: "Rosa changed 1 step in Juniper Café" → Change Drill. | "When Rosa trains a whole team, she shares the training with a code. Her change reaches every new hire as the same drill." |
+| 2:10–2:45 | Laptop or tablet: the voice coach. "Quiz me before my shift." It reads a situation; you answer out loud; "Yes, that's it. Rosa said: …". Optional 3-second cut: an AI assistant listing the FirstDay coach tools (label it as a third-party app). | "Before my shift, I can rehearse out loud. It runs on FirstDay's MCP server, so any assistant can quiz me, always in Rosa's words." |
+| 2:45–2:58 | Today: one next thing, "Ready for your shift." | "One thing at a time. FirstDay Go." |
 
 ## Tips
 
 - Cut the Bee processing wait with a jump cut; don't speed up the UI itself.
 - If the notification is slow, show Today refreshing instead (it checks every 45 seconds while open).
-- Don't show your email, the pairing code, or any real conversation other than the fictional script.
+- Don't show your email, the pairing code, a coach key or voice link, or any real conversation other than the fictional script.
+- If you show another company's app (the Bee app, an AI assistant), say it's theirs; you don't need to blur it.
 - Upload to YouTube or Vimeo as **Public** (the rules require it to be publicly visible), and paste the link into Devpost.

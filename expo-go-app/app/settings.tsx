@@ -2,12 +2,14 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Alert, TextInput, View } from "react-native";
 import { useSession } from "../src/auth";
+import { beeCloudAvailable } from "../src/beeCloud";
 import { brainApi, normalizeUrl } from "../src/brain";
 import { cloudTarget } from "../src/cloud";
 import { canNotify } from "../src/device";
 import { friendlyDay } from "../src/logic/dates";
 import type { Brain, Settings } from "../src/logic/types";
 import { useStore } from "../src/store";
+import { confirmAction } from "../src/ui/ask";
 import { Btn, Chip, Label, Screen, Sketch, Toggle, TopBar, Txt, useUI } from "../src/ui/kit";
 import { colors, fonts } from "../src/ui/theme";
 
@@ -129,6 +131,19 @@ export default function SettingsScreen() {
         }}
       />
 
+      {beeCloudAvailable && (
+        <>
+          <Label line>Connect Bee</Label>
+          <Btn
+            small
+            icon="bee"
+            align="left"
+            label={state.brain?.cloudBee ? "Bee connected (no computer) · manage" : "Connect Bee without a computer (preview)"}
+            onPress={() => router.push("/bee-connect")}
+          />
+        </>
+      )}
+
       <Label line>Brain (optional)</Label>
       <Sketch seed="brain" fill={colors.wash} style={{ padding: 16, gap: 8 }}>
         <Txt v="small">
@@ -138,8 +153,12 @@ export default function SettingsScreen() {
         <TextInput value={code} onChangeText={setCode} placeholder="6-digit code" placeholderTextColor={colors.pencil} keyboardType="number-pad" style={field} accessibilityLabel="Pairing code" />
         {busy ? <ActivityIndicator color={colors.ink} /> : <Btn small icon="link" label={state.brain ? "Reconnect" : "Connect"} disabled={!url.trim() || !code.trim()} onPress={() => void connect()} />}
         {!!msg && <Txt v="small">{msg}</Txt>}
-        {state.brain && !msg && <Txt v="small">Connected to {state.brain.url} · AI {state.brain.ai ? "on" : "off"} · Bee {state.brain.bee ? "on" : "off"}</Txt>}
-        {state.brain && <Btn kind="quiet" align="left" label="Disconnect" onPress={() => { actions.setBrain(null); setMsg(""); }} />}
+        {state.brain && !msg && (
+          <Txt v="small">
+            {state.brain.cloudBee ? "Bee is connected through FirstDay's Bee service (no computer)." : `Connected to ${state.brain.url} · AI ${state.brain.ai ? "on" : "off"} · Bee ${state.brain.bee ? "on" : "off"}`}
+          </Txt>
+        )}
+        {state.brain && !state.brain.cloudBee && <Btn kind="quiet" align="left" label="Disconnect" onPress={() => { actions.setBrain(null); setMsg(""); }} />}
       </Sketch>
 
       {state.brain?.bee && (
@@ -162,17 +181,23 @@ export default function SettingsScreen() {
       )}
 
       <Label line>Your data</Label>
-      <Txt v="small" dim>Your conversations, to-dos, memories and practice live on this phone. An account is optional: it only unlocks smarter reading, and nothing you capture is stored in the cloud.</Txt>
+      <Txt v="small" dim>Your conversations, to-dos, memories and practice live on this phone. Each account keeps its own data on this phone. Your account signs you in and unlocks smarter reading; nothing you capture is stored in the cloud.</Txt>
+      <Btn kind="quiet" align="left" icon="list" label="Terms of use" onPress={() => router.push("/terms")} />
       <Btn
         kind="quiet"
         align="left"
         icon="trash"
         label="Erase everything and start fresh"
         onPress={() =>
-          Alert.alert("Erase everything?", "All conversations, to-dos, memories and practice will be deleted.", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Erase", style: "destructive", onPress: () => { actions.resetAll(); router.back(); } },
-          ])
+          confirmAction(
+            "Erase everything?",
+            "All conversations, to-dos, memories and practice will be deleted. Anything you shared through FirstDay (team trainings, Quiz me from other apps) is removed too.",
+            "Erase",
+            () => {
+              actions.resetAll();
+              router.back();
+            },
+          )
         }
       />
     </Screen>

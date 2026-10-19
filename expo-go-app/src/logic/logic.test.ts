@@ -6,6 +6,8 @@ import { askLocally } from "./ask";
 import { cleanSnapshot, EMPTY_BEE, mergeBee, packsForCoach } from "./beeSync";
 import { parseDue } from "./dates";
 import { extract, matchUpdates } from "./extract";
+import { dayKey } from "./text";
+import { moodFromText, namesFromMemories, patternsFor, recurringThemes, reflectionNotes, weekIndex } from "./patterns";
 import { SAMPLE_CONVERSATION, samplePacks } from "./samples";
 import { buildChoices, compareUnderstanding, gradeWords, nextProgress, nextTraining, queueFor } from "./training";
 import type { AppState, BeeSnapshot, Rule } from "./types";
@@ -275,9 +277,83 @@ describe("two-way Bee sync", () => {
 
   it("shares confirmed rules with practice levels for the coach skill", () => {
     const packs = samplePacks(NOW);
-    const rule = packs[0]!.rules[0]!;
+    const rule = packs[0]!.rules[1]!;
     const out = packsForCoach({ packs, progress: { [rule.id]: { level: 3, due: NOW, seen: true, tries: 2, firstTryWins: 2 } } });
-    assert.equal(out[0]!.rules[0]!.level, 3);
-    assert.equal(out[0]!.rules[0]!.quote, rule.quote);
+    assert.equal(out[0]!.rules[1]!.level, 3);
+    assert.equal(out[0]!.rules[1]!.quote, rule.quote);
+  });
+
+  it("gives the coach the new way for a change still waiting for its drill", () => {
+    const packs = samplePacks(NOW);
+    const update = packs[0]!.pendingUpdates[0]!;
+    const out = packsForCoach({ packs, progress: {} }).find((p) => p.id === packs[0]!.id)!;
+    const r = out.rules.find((x) => x.id === update.ruleId)!;
+    assert.equal(r.action, update.newAction);
+    assert.equal(r.quote, update.quote);
+    assert.equal(r.changedFrom, packs[0]!.rules.find((x) => x.id === update.ruleId)!.action, "the old way becomes the trap");
+  });
+});
+
+describe("patterns over time", () => {
+  const D = 86_400_000;
+  const convo = (id: string, daysAgo: number, text: string) => ({
+    id, title: `Chat ${id}`, at: NOW - daysAgo * D, source: "pasted" as const, text, summary: [text.slice(0, 60)], analyzedBy: "phone" as const,
+  });
+
+  it("reads mood from your own lines, with negation", () => {
+    assert.ok((moodFromText("Me: I'm so happy and proud today, thanks!") ?? 0) > 4);
+    assert.ok((moodFromText("Me: I feel stressed and overwhelmed.\nRosa: Great job though!") ?? 5) < 2.5, "only my own lines count");
+    assert.ok((moodFromText("Me: I'm not worried at all.") ?? 0) > 3, "negated worry reads as positive");
+    assert.equal(moodFromText("Me: The meeting is at 3 in room 4."), null);
+  });
+
+  it("counts weeks back from today", () => {
+    assert.equal(weekIndex(NOW, NOW), 0);
+    assert.equal(weekIndex(NOW - 6 * D, NOW), 0);
+    assert.equal(weekIndex(NOW - 7 * D, NOW), 1);
+    assert.equal(weekIndex(NOW - 22 * D, NOW), 3);
+  });
+
+  it("finds a mood trend, a shift in people and recurring themes", () => {
+    const conversations = [
+      convo("a", 0, "Rosa: Restock the espresso beans.\nMe: Thanks, that was fun, I'm happy here."),
+      convo("b", 1, "Rosa: The espresso machine needs cleaning.\nMe: Great, glad to help."),
+      convo("c", 2, "Rosa: Count the till.\nMe: Nice, I love this."),
+      convo("d", 9, "Dana: The espresso order is late.\nMe: I'm stressed and tired."),
+      convo("e", 16, "Dana: Schedule changed.\nMe: I'm worried, this is hard."),
+      convo("f", 23, "Dana: Espresso training tomorrow.\nMe: Feeling anxious and overwhelmed."),
+    ];
+    const p = patternsFor({ conversations, todos: [], memories: [], moods: [] }, NOW);
+    assert.equal(p.mood.trend, "up");
+    const rosa = p.people.find((x) => x.name === "Rosa")!;
+    assert.equal(rosa.thisWeek, 3);
+    assert.equal(rosa.shift, "up");
+    const dana = p.people.find((x) => x.name === "Dana")!;
+    assert.equal(dana.shift, "down");
+    assert.equal(p.themes[0]?.word, "espresso");
+    assert.equal(p.themes[0]?.weeks, 3); // weeks 0, 1 and 3
+    assert.ok(!p.themes.some((t) => /^(rosa|dana)$/.test(t.word)), "names aren't themes");
+  });
+
+  it("prefers your own check-in over the reading of conversations", () => {
+    const conversations = [convo("a", 0, "Me: I'm so happy and excited!")];
+    const moods = [{ day: dayKey(NOW), score: 2 as const, at: NOW }];
+    const today = patternsFor({ conversations, todos: [], memories: [], moods }, NOW).mood.days.at(-1)!;
+    assert.equal(today.source, "check-in");
+    assert.equal(today.score, 2);
+  });
+
+  it("follow-through, names from memories, and notes for the AI", () => {
+    const todos = [
+      { id: "t1", text: "a", bucket: "done" as const, suggested: false, steps: [], createdAt: NOW - D, doneAt: NOW },
+      { id: "t2", text: "b", bucket: "now" as const, suggested: false, steps: [], createdAt: NOW - 2 * D },
+      { id: "t3", text: "c", bucket: "now" as const, suggested: true, steps: [], createdAt: NOW },
+    ];
+    const p = patternsFor({ conversations: [], todos, memories: [], moods: [] }, NOW);
+    assert.deepEqual([p.followThrough.added, p.followThrough.done], [2, 1]);
+    assert.deepEqual(namesFromMemories([{ id: "m", text: "Rosa is your trainer.", kind: "people", suggested: false, at: NOW }]), ["Rosa"]);
+    const notes = reflectionNotes({ conversations: [convo("a", 1, "Me: hi"), { ...convo("s", 1, "x"), source: "sample" as const }], moods: [] }, NOW);
+    assert.deepEqual(notes.map((n) => n.id), ["a"]);
+    assert.equal(recurringThemes([], NOW).length, 0);
   });
 });

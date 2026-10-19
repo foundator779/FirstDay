@@ -28,3 +28,43 @@ test-results/
 .DS_Store
 .idea/
 .vscode/
+
+# Demo video work stays local: raw footage, edits, renders, voiceover, subtitles.
+# (The README's GIF and stills live in docs/images/readme/ and are committed.)
+Video/
+*.mov
+*.MOV
+*.mp4
+*.m4v
+*.wav
+*.mp3
+*.m4a
+*.srt
+
+# Deploy bundles and archives
+*.tgz
+*.zip
+
+# Local copy of docs/images/architecture.svg
+docs/architecture/
+
+# Internal notes, not part of the project. They were committed before, so untrack them once with:
+#   git rm --cached AGENTS.md AmazonRules.txt CompetitingProject.txt Improvement.txt TASKS.md spec.md
+/AGENTS.md
+/AmazonRules.txt
+/CompetitingProject.txt
+/Improvement.txt
+/TASKS.md
+/spec.md
+
+# Windows lockfile breaks npm install on Linux CI (ERESOLVE); CI runs npm install without it
+expo-go-app/package-lock.json
+
+# Markdown: only the README, the friction log and the feedback docs are published.
+# SKILL.md is kept because it is the firstday-coach Agent Skill itself, not documentation.
+*.md
+!/README.md
+!/docs/friction-log.md
+!/docs/submission/product-feedback.md
+!/docs/submission/feature-requests.md
+!/expo-go-app/skills/firstday-coach/SKILL.md

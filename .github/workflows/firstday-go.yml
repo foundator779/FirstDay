@@ -1,0 +1,56 @@
+# Copy this file to .github/workflows/firstday-go.yml at the repo root (GitHub only runs workflows from there).
+# FirstDay Go: every push that touches the app runs its tests, the extraction eval gate, a typecheck,
+# a web + iOS bundle export, and cfn-lint on the AWS templates. No secrets, no AWS access needed.
+name: FirstDay Go checks
+
+on:
+  push:
+    paths: ["expo-go-app/**", ".github/workflows/firstday-go.yml"]
+  pull_request:
+    paths: ["expo-go-app/**", ".github/workflows/firstday-go.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: expo-go-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Logic tests (extraction, Change Drill, team updates, questions, Today, Bee sync merge)
+        run: npm test
+      - name: Brain, Bee service and coach MCP server tests (stand-in Bee CLI, in-memory stores)
+        run: npm run test:node
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Extraction eval (fails if a vague line becomes a rule)
+        run: npm run eval
+      - name: Syntax check of the brain and the Lambda code
+        run: for f in brain/*.mjs infra/*/*.mjs; do node --check "$f"; done
+      - name: Web and iOS bundle export
+        run: |
+          npx expo install react-dom react-native-web @expo/metro-runtime babel-preset-expo
+          npx expo export --platform web --output-dir dist-web
+          npx expo export --platform ios --output-dir dist-ios
+          test -f dist-web/voice.html
+
+  templates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: cfn-lint on the AWS templates
+        run: |
+          pip install cfn-lint
+          cfn-lint --non-zero-exit-code error expo-go-app/infra/*.yaml

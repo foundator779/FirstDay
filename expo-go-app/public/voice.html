@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FirstDay Voice Coach</title>
+<meta name="description" content="Practise your new job out loud before your shift. A voice screen that talks to the FirstDay coach MCP server.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* FirstDay's colourless look: white paper, black ink, a few greys. Black marks what's next. */
+  :root { --paper: #fff; --ink: #161616; --pencil: #6b6b6b; --faint: #c4c4c4; --wash: #f3f3f3; --line: #e6e6e6; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --paper: #121212; --ink: #f2f2f2; --pencil: #a9a9a9; --faint: #4a4a4a; --wash: #1e1e1e; --line: #2a2a2a; }
+  }
+  :root[data-theme="dark"] { --paper: #121212; --ink: #f2f2f2; --pencil: #a9a9a9; --faint: #4a4a4a; --wash: #1e1e1e; --line: #2a2a2a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); }
+  body { font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 19px; line-height: 1.45; }
+  main { max-width: 760px; margin: 0 auto; padding: 20px 16px 120px; display: flex; flex-direction: column; gap: 18px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .pill { background: var(--ink); color: var(--paper); border-radius: 999px; padding: 8px 16px; font-weight: 700; font-size: 13px; letter-spacing: .12em; white-space: nowrap; }
+  .status { font-size: 14px; color: var(--pencil); text-align: right; }
+  .stage { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 10px 0 4px; }
+  .ring { width: min(56vw, 240px); aspect-ratio: 1; border-radius: 50%; border: 3px dotted var(--faint); display: grid; place-items: center; background: none; cursor: pointer; padding: 0; }
+  .ring .core { width: 72%; aspect-ratio: 1; border-radius: 50%; background: var(--ink); color: var(--paper); display: grid; place-items: center; transition: transform .2s; }
+  .ring svg { width: 34%; height: 34%; }
+  .ring.listening { border-style: solid; border-color: var(--ink); }
+  .ring.listening .core { animation: pulse 1.2s ease-in-out infinite; }
+  .ring.speaking .core { transform: scale(.94); }
+  @keyframes pulse { 50% { transform: scale(1.06); } }
+  @media (prefers-reduced-motion: reduce) { .ring.listening .core { animation: none; } }
+  .ring:focus-visible { outline: 3px solid var(--ink); outline-offset: 6px; }
+  .hint { font-size: 22px; font-weight: 700; text-align: center; margin: 0; }
+  .sub { color: var(--pencil); text-align: center; margin: 0; font-size: 16px; }
+  .card { border: 2px solid var(--ink); border-radius: 22px; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .card.soft { border: 2px dotted var(--faint); }
+  .kicker { font-size: 12px; font-weight: 700; letter-spacing: .12em; color: var(--pencil); text-transform: uppercase; margin: 0; }
+  .situation { font-size: 28px; font-weight: 700; line-height: 1.25; margin: 0; }
+  .quote { border-left: 3px solid var(--ink); padding-left: 12px; font-style: italic; margin: 0; }
+  .log { display: flex; flex-direction: column; gap: 8px; }
+  .msg { max-width: 88%; padding: 10px 14px; border-radius: 18px; font-size: 17px; }
+  .msg.app { background: var(--wash); align-self: flex-start; border-bottom-left-radius: 6px; }
+  .msg.me { background: var(--ink); color: var(--paper); align-self: flex-end; border-bottom-right-radius: 6px; }
+  form.say { position: fixed; left: 0; right: 0; bottom: 0; background: var(--paper); border-top: 1px solid var(--line); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  form.say .row { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; }
+  input, button.btn { font: inherit; font-size: 17px; }
+  input { flex: 1; min-width: 0; border: 2px dotted var(--faint); border-radius: 16px; padding: 12px 14px; background: var(--paper); color: var(--ink); }
+  input:focus { outline: none; border-style: solid; border-color: var(--ink); }
+  button.btn { border: 0; border-radius: 16px; padding: 12px 18px; background: var(--ink); color: var(--paper); font-weight: 700; cursor: pointer; }
+  button.btn.plain { background: none; color: var(--ink); border: 2px solid var(--ink); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .chips button { font: inherit; font-size: 15px; font-weight: 700; border: 2px dotted var(--faint); background: none; color: var(--ink); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+  .setup { display: flex; flex-direction: column; gap: 10px; }
+  .setup label { font-size: 14px; font-weight: 700; }
+  .fine { font-size: 13px; color: var(--pencil); text-align: center; margin: 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="pill">FIRSTDAY · VOICE</span>
+    <span class="status" id="status" aria-live="polite"></span>
+  </header>
+
+  <section class="card soft setup" id="setup" hidden>
+    <p class="kicker">Connect</p>
+    <p style="margin:0">In FirstDay Go: <b>More → Quiz me from other apps → Make a voice screen link</b>, then open that link here. Or paste the details:</p>
+    <label for="url">Coach MCP server URL</label>
+    <input id="url" placeholder="https://…lambda-url.us-east-1.on.aws/mcp" autocomplete="off">
+    <label for="key">Key</label>
+    <input id="key" placeholder="fdc_…" autocomplete="off">
+    <button class="btn" id="connect" type="button">Connect</button>
+  </section>
+
+  <section class="stage" id="stage" hidden>
+    <button class="ring" id="ring" type="button" aria-label="Tap and talk">
+      <span class="core" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3.5a2.75 2.75 0 0 0-2.75 2.75v5.5a2.75 2.75 0 0 0 5.5 0v-5.5A2.75 2.75 0 0 0 12 3.5z"/><path d="M6 11.5a6 6 0 0 0 12 0"/><path d="M12 17.5v3"/></svg>
+      </span>
+    </button>
+    <p class="hint" id="hint">Tap and say “Quiz me before my shift”</p>
+    <p class="sub" id="sub">Or: “What changed?” · “What do I do when a customer returns a cracked mug?” · “Questions for my trainer”</p>
+    <div class="chips" id="chips">
+      <button type="button" data-say="Quiz me before my shift">Quiz me</button>
+      <button type="button" data-say="What changed?">What changed</button>
+      <button type="button" data-say="Questions for my trainer">Questions</button>
+    </div>
+  </section>
+
+  <section class="card" id="card" hidden aria-live="polite">
+    <p class="kicker" id="cardKicker"></p>
+    <p class="situation" id="cardSituation"></p>
+    <p class="quote" id="cardQuote" hidden></p>
+  </section>
+
+  <section class="log" id="log" aria-live="polite"></section>
+
+  <p class="fine">A simulated voice assistant built for FirstDay Go, talking to the FirstDay coach MCP server. Not an Amazon product.
+    <a href="#" id="forget" style="color:inherit">Disconnect this screen</a></p>
+</main>
+
+<form class="say" id="sayForm" hidden>
+  <div class="row">
+    <input id="sayInput" placeholder="Type instead of talking…" aria-label="Type what you'd say" autocomplete="off">
+    <button class="btn" type="submit">Say</button>
+  </div>
+</form>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const PROTOCOL = "2025-11-25";
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+    del(k) { try { localStorage.removeItem(k); } catch {} },
+  };
+
+  // ---------- connection details: from the link FirstDay made (#k=…&u=…), never sent to any server in the URL ----------
+  const hash = new URLSearchParams(location.hash.slice(1));
+  if (hash.get("k")) {
+    store.set("fd-coach-key", hash.get("k"));
+    if (hash.get("u")) store.set("fd-coach-url", hash.get("u"));
+    history.replaceState(null, "", location.pathname);
+  }
+  let conn = { url: store.get("fd-coach-url") || "", key: store.get("fd-coach-key") || "" };
+
+  // ---------- a small MCP client (Streamable HTTP, JSON-RPC 2.0) ----------
+  let nextId = 1;
+  let negotiated = "";
+  async function rpc(method, params, notify = false) {
+    const body = notify ? { jsonrpc: "2.0", method, ...(params ? { params } : {}) } : { jsonrpc: "2.0", id: nextId++, method, ...(params ? { params } : {}) };
+    const res = await fetch(conn.url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json, text/event-stream",
+        authorization: `Bearer ${conn.key}`,
+        ...(negotiated ? { "mcp-protocol-version": negotiated } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    if (notify) return null;
+    if (res.status === 401) throw new Error("This screen's key was removed. Make a new voice screen link in FirstDay Go.");
+    if (!res.ok) throw new Error(`The coach answered ${res.status}.`);
+    let msg;
+    if ((res.headers.get("content-type") || "").includes("text/event-stream")) {
+      const text = await res.text();
+      const data = text.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim()).filter(Boolean);
+      msg = data.map((d) => JSON.parse(d)).find((m) => m.id === body.id);
+    } else msg = await res.json();
+    if (msg?.error) throw new Error(msg.error.message || "The coach couldn't do that.");
+    return msg?.result;
+  }
+  async function tool(name, args = {}) {
+    const r = await rpc("tools/call", { name, arguments: args });
+    return { data: r?.structuredContent ?? {}, text: (r?.content ?? []).map((c) => c.text).join("\n"), error: !!r?.isError };
+  }
+  async function connect() {
+    const init = await rpc("initialize", { protocolVersion: PROTOCOL, capabilities: {}, clientInfo: { name: "firstday-voice-coach", title: "FirstDay Voice Coach", version: "1.0.0" } });
+    negotiated = init?.protocolVersion || PROTOCOL;
+    await rpc("notifications/initialized", null, true);
+    const list = await tool("list_trainings");
+    $("status").textContent = "";
+    return list;
+  }
+
+  // ---------- voice: Web Speech API where the browser has it, typing everywhere ----------
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const ring = $("ring");
+  let listening = null;
+  function speak(text) {
+    return new Promise((resolve) => {
+      if (!("speechSynthesis" in window) || !text) return resolve();
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "en-US";
+      u.rate = 0.98;
+      ring.classList.add("speaking");
+      let over = false;
+      const done = () => { if (over) return; over = true; clearTimeout(timer); ring.classList.remove("speaking"); resolve(); };
+      // Some browsers never fire "end"; don't let the conversation hang on it.
+      const timer = setTimeout(done, Math.min(20000, 1500 + text.split(/\s+/).length * 450));
+      u.onend = u.onerror = done;
+      speechSynthesis.speak(u);
+    });
+  }
+  let pendingTyped = null;
+  /** Resolves with what was said (or typed). Typing always works, even while the microphone listens. */
+  function listen() {
+    return new Promise((resolve) => {
+      let finished = false;
+      let said = "";
+      const finish = (v) => {
+        if (finished) return;
+        finished = true;
+        pendingTyped = null;
+        ring.classList.remove("listening");
+        listening = null;
+        resolve(v || "");
+      };
+      pendingTyped = finish;
+      if (!Recognition) { $("sayInput").focus(); return; }
+      const r = new Recognition();
+      r.lang = "en-US";
+      r.interimResults = false;
+      r.maxAlternatives = 1;
+      r.onresult = (e) => { said = e.results[0][0].transcript; };
+      r.onend = () => finish(said);
+      r.onerror = () => {};
+      listening = r;
+      ring.classList.add("listening");
+      $("hint").textContent = "Listening…";
+      try { r.start(); } catch { finish(""); }
+    });
+  }
+  $("sayForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const v = $("sayInput").value.trim();
+    if (!v) return;
+    $("sayInput").value = "";
+    if (pendingTyped) {
+      const mic = listening; // finish() clears `listening`, so stop this recognition explicitly
+      pendingTyped(v);
+      if (mic) { try { mic.abort(); } catch {} }
+    } else void handle(v);
+  });
+
+  // ---------- conversation ----------
+  function log(role, text) {
+    const div = document.createElement("div");
+    div.className = `msg ${role}`;
+    div.textContent = text;
+    $("log").prepend(div);
+  }
+  function card(kicker, situation, quote) {
+    $("card").hidden = !situation;
+    $("cardKicker").textContent = kicker || "";
+    $("cardSituation").textContent = situation || "";
+    $("cardQuote").hidden = !quote;
+    $("cardQuote").textContent = quote ? `“${quote}”` : "";
+  }
+  async function reply(text) {
+    log("app", text);
+    await speak(text);
+  }
+  const idleHint = () => { $("hint").textContent = "Tap and say “Quiz me before my shift”"; };
+
+  let busy = false;
+  async function handle(said) {
+    if (busy || !said) return;
+    busy = true;
+    log("me", said);
+    const s = said.toLowerCase();
+    try {
+      if (/\b(stop|cancel|that's all|that is all|bye)\b/.test(s)) await reply("Okay. Good luck on your shift.");
+      else if (/\b(quiz|test me|practi[cs]e|warm ?up|rehearse)\b/.test(s)) await quiz(s);
+      else if (/\bchang/.test(s)) await changed();
+      else if (/\bquestion/.test(s)) await questions();
+      else if (/\b(what do i do|how do i|what should i do|when a|when someone|if a|if someone)\b/.test(s)) await find(said);
+      else if (/\b(training|list)\b/.test(s)) {
+        const r = await tool("list_trainings");
+        await reply(r.text || "You don't have any trainings yet.");
+      } else await reply("Try: quiz me before my shift. Or: what changed?");
+    } catch (e) {
+      await reply(e instanceof Error ? e.message : "Something went wrong.");
+    }
+    card();
+    busy = false;
+    idleHint();
+  }
+
+  async function quiz(s) {
+    const m = /\b(?:my|the|on)\s+([a-z' ]+?)\s+training\b/.exec(s);
+    const r = await tool("quiz_me", { count: 3, ...(m ? { training: m[1] } : {}) });
+    if (r.error) return reply(r.text);
+    const qs = r.data.questions || [];
+    if (!qs.length) return reply("Nothing to practise yet.");
+    await reply(`${qs.length === 1 ? "One situation" : `${qs.length} situations`} from ${qs[0].trainer}'s ${qs.some((q) => q.sample) ? "fictional sample " : ""}training. Say what you'd do. Say "skip" if you're stuck.`);
+    let wins = 0;
+    for (let i = 0; i < qs.length; i++) {
+      const q = qs[i];
+      const line = q.customerLine ? `${q.customerLine}` : q.situation;
+      card(`Situation ${i + 1} of ${qs.length} · ${q.training}`, q.customerLine ? `“${q.customerLine}”` : q.situation);
+      await reply(`${line} What do you do?`);
+      let tries = 0;
+      for (;;) {
+        $("hint").textContent = Recognition ? "Listening… say what you'd do" : "Type what you'd do";
+        const answer = await listen();
+        if (!answer) { await reply("I didn't catch that. Say it again, or say skip."); if (++tries > 2) break; continue; }
+        log("me", answer);
+        const a = answer.toLowerCase();
+        if (/\b(stop|cancel)\b/.test(a)) { await reply("Okay, stopping here."); return; }
+        if (/\b(repeat|again|say that again)\b/.test(a)) { await reply(`${line} What do you do?`); continue; }
+        if (/\b(skip|don't know|no idea|pass)\b/.test(a)) {
+          card(`Situation ${i + 1} · the answer`, q.answer, q.trainerSaid);
+          await reply(`Here's what to do: ${q.answer} ${q.trainer} said: ${q.trainerSaid}`);
+          break;
+        }
+        const c = await tool("check_answer", { id: q.id, answer });
+        card(c.data.pass ? "Yes, that's it" : c.data.oldWay ? "That's the old way" : "Not quite", q.answer, q.trainerSaid);
+        await reply(c.data.feedback || c.text);
+        if (c.data.pass) { if (tries === 0) wins++; break; }
+        tries++;
+        if (tries >= 2) break;
+        await reply("Want to try once more? Say it in your own words.");
+      }
+    }
+    await reply(`Done. ${wins} of ${qs.length} right first time. No streaks, no scores. The shaky ones come back in FirstDay Go.`);
+  }
+
+  async function changed() {
+    const r = await tool("what_changed");
+    const list = r.data.changed || [];
+    if (!list.length) return reply("Nothing has changed.");
+    for (const c of list.slice(0, 3)) {
+      card(`Changed · ${c.training}`, `Now: ${c.now}`, c.trainerSaid);
+      await reply(`${c.situation} It used to be: ${c.before} Now: ${c.now}`);
+    }
+  }
+
+  async function questions() {
+    const r = await tool("trainer_questions");
+    const qs = r.data.questions || [];
+    await reply(qs.length ? `You still want to ask your trainer: ${qs.slice(0, 3).join(" Also: ")}` : "No open questions for your trainer.");
+  }
+
+  async function find(said) {
+    const r = await tool("find_step", { query: said });
+    const m = (r.data.matches || [])[0];
+    if (!m) return reply("I don't have a step for that. Don't guess: ask your trainer.");
+    card(`From ${m.training}`, m.action, m.trainerSaid);
+    await reply(`${m.action} ${m.trainer} said: ${m.trainerSaid}`);
+  }
+
+  // ---------- wiring ----------
+  ring.addEventListener("click", async () => {
+    if (busy) return;
+    if (listening) { try { listening.stop(); } catch {} return; }
+    if (!Recognition) { $("sayInput").focus(); return; }
+    const said = await listen();
+    if (said) void handle(said);
+    else idleHint();
+  });
+  document.querySelectorAll("#chips button").forEach((b) => b.addEventListener("click", () => void handle(b.dataset.say)));
+  $("forget").addEventListener("click", (e) => {
+    e.preventDefault();
+    store.del("fd-coach-key");
+    store.del("fd-coach-url");
+    location.reload();
+  });
+  $("connect").addEventListener("click", () => {
+    conn = { url: $("url").value.trim(), key: $("key").value.trim() };
+    store.set("fd-coach-url", conn.url);
+    store.set("fd-coach-key", conn.key);
+    void start();
+  });
+
+  async function start() {
+    $("setup").hidden = true;
+    if (!conn.url || !conn.key) { $("setup").hidden = false; return; }
+    $("status").textContent = "Connecting…";
+    try {
+      await connect();
+      $("stage").hidden = false;
+      $("sayForm").hidden = false;
+      if (!Recognition) $("hint").textContent = "This browser can't listen. Type below.";
+    } catch (e) {
+      $("status").textContent = "";
+      $("setup").hidden = false;
+      log("app", e instanceof Error ? e.message : "Couldn't connect.");
+    }
+  }
+  void start();
+})();
+</script>
+</body>
+</html>

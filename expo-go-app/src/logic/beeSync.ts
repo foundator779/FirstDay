@@ -143,13 +143,23 @@ export function cleanSnapshot(raw: unknown): BeeSnapshot {
   };
 }
 
-/** Packs in the shape the brain keeps for the FirstDay coach Agent Skill. */
+/**
+ * Packs in the shape the coach uses (the brain's coach Agent Skill and the coach MCP server in AWS):
+ * the trainer's words, the key words a spoken answer needs, and how solid each step is.
+ */
 export function packsForCoach(state: Pick<AppState, "packs" | "progress">) {
   return state.packs.map((p) => ({
     id: p.id, title: p.title, trainer: p.trainer, sample: p.sample, questions: p.questions,
-    rules: p.rules.map((r) => ({
-      id: r.id, situation: r.situation, action: r.action, quote: r.quote,
-      ...(r.changedFrom ? { changedFrom: r.changedFrom } : {}), level: state.progress[r.id]?.level ?? 0,
-    })),
+    rules: p.rules.map((r) => {
+      // A change still waiting for its Change Drill in the app is already the current way for the coach,
+      // so the voice screen and MCP clients never quiz the old one (and reject it).
+      const u = p.pendingUpdates.find((x) => x.ruleId === r.id);
+      const current = u ? { action: u.newAction, keywords: u.newKeywords.length ? u.newKeywords : r.keywords, quote: u.quote, changedFrom: r.action } : { action: r.action, keywords: r.keywords, quote: r.quote, ...(r.changedFrom ? { changedFrom: r.changedFrom } : {}) };
+      return {
+        id: r.id, situation: r.situation, ...current,
+        ...(r.customerLine ? { customerLine: r.customerLine } : {}),
+        level: u ? 0 : (state.progress[r.id]?.level ?? 0),
+      };
+    }),
   }));
 }

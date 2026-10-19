@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
+import { beeCloudAvailable } from "../src/beeCloud";
 import { brainApi } from "../src/brain";
 import { buzz } from "../src/device";
 import { friendlyDay } from "../src/logic/dates";
@@ -15,7 +16,8 @@ type Result = { id: string };
 
 export default function Capture() {
   // beeId/beeTitle/beeAt arrive from the "New from Bee" banner or notification.
-  const params = useLocalSearchParams<{ mode?: string; beeId?: string; beeTitle?: string; beeAt?: string }>();
+  // ok=1 means you already said yes on Today's card, so it's read straight away.
+  const params = useLocalSearchParams<{ mode?: string; beeId?: string; beeTitle?: string; beeAt?: string; ok?: string }>();
   const { state, actions } = useStore();
   const smart = useSmartAi();
   const { s } = useUI();
@@ -23,15 +25,17 @@ export default function Capture() {
   const [mode, setMode] = useState<Mode>(fromInbox ? "bee" : (params.mode as Mode) || "pick");
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
-  const [busy, setBusy] = useState(false);
+  // Coming from Today's "Yes, read it", show "Reading it…" from the first frame instead of a consent screen.
+  const [busy, setBusy] = useState(() => params.ok === "1" && !!params.beeId && !!state.brain?.bee);
   const [result, setResult] = useState<Result | null>(null);
   const [beeList, setBeeList] = useState<{ id: string; title: string; at: number; ready?: boolean }[] | null>(null);
   const [beeError, setBeeError] = useState("");
-  // A Bee conversation waiting for the learner's consent before it's read.
+  // A Bee conversation waiting for your OK before it's read.
   const [pending, setPending] = useState<{ id: string; title: string; at: number } | null>(
     fromInbox ? { id: fromInbox, title: params.beeTitle || "Bee conversation", at: Number(params.beeAt) || Date.now() } : null,
   );
   const [consent, setConsent] = useState(false);
+  const autoStarted = useRef(false);
 
   useEffect(() => {
     if (mode !== "bee" || !state.brain?.bee || beeList) return;
@@ -49,17 +53,48 @@ export default function Capture() {
     buzz.good();
   };
 
+  /** Reads one Bee conversation you said yes to. One you already brought in just opens. */
+  const importBee = async (p: { id: string }) => {
+    const already = state.conversations.find((c) => c.beeId === p.id);
+    if (already) {
+      actions.dismissBeeInbox([p.id]);
+      router.replace(`/convo/${already.id}`);
+      return;
+    }
+    if (!state.brain) return;
+    setBusy(true);
+    try {
+      const full = await brainApi.beeGet(state.brain, p.id);
+      setPending(null);
+      actions.dismissBeeInbox([full.id]);
+      await finish({ text: full.text, source: "bee", title: full.title, at: full.at, beeId: full.id });
+    } catch (e) {
+      setBusy(false);
+      setPending(null);
+      setBeeError(e instanceof Error ? e.message : "Couldn't load that conversation.");
+    }
+  };
+
+  useEffect(() => {
+    if (params.ok !== "1" || !fromInbox || !state.brain?.bee || autoStarted.current) return;
+    autoStarted.current = true;
+    void importBee({ id: fromInbox });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.ok, fromInbox, state.brain]);
+
   if (result) {
     const convo = state.conversations.find((c) => c.id === result.id);
     const todos = state.todos.filter((t) => t.fromId === result.id).length;
     const memories = state.memories.filter((m) => m.fromId === result.id).length;
     const rules = state.suggestedRules.filter((r) => r.fromId === result.id).length;
+    const questions = state.questions.filter((q) => q.fromId === result.id).length;
+    // Work steps come first: practising them is what the app is for. To-dos and memories can wait in More.
     return (
       <Screen
         footer={
           <>
-            {todos + memories > 0 && <Btn kind="primary" icon="play" label="Sort them now" onPress={() => router.replace("/sort")} />}
-            {rules > 0 && <Btn icon="cap" label={`Check ${rules} work step${rules > 1 ? "s" : ""}`} onPress={() => router.replace(`/confirm?from=${result.id}`)} />}
+            {rules > 0 && <Btn kind="primary" icon="cap" label={`Check ${rules} work step${rules > 1 ? "s" : ""}`} onPress={() => router.replace(`/confirm?from=${result.id}`)} />}
+            {todos + memories > 0 && <Btn kind={rules > 0 ? "plain" : "primary"} icon="play" label={`Sort ${todos + memories} to-do${todos + memories === 1 ? "" : "s"} and memories`} onPress={() => router.replace("/sort")} />}
             <Btn kind="quiet" label="Later. Back to today." onPress={() => router.back()} />
           </>
         }
@@ -74,9 +109,10 @@ export default function Capture() {
           </Txt>
         </View>
         <Sketch seed="found" fill={colors.wash} style={{ padding: 18, gap: 6 }}>
+          <Txt>• {rules} work step{rules === 1 ? "" : "s"} to practise</Txt>
+          {questions > 0 && <Txt>• {questions} question{questions === 1 ? "" : "s"} for your trainer (in Questions)</Txt>}
           <Txt>• {todos} to-do{todos === 1 ? "" : "s"}</Txt>
           <Txt>• {memories} thing{memories === 1 ? "" : "s"} to remember</Txt>
-          <Txt>• {rules} work step{rules === 1 ? "" : "s"} to practise</Txt>
         </Sketch>
         {convo?.summary[0] && <Txt dim>“{convo.summary[0]}”</Txt>}
       </Screen>
@@ -89,7 +125,7 @@ export default function Capture() {
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 14 }}>
           <ActivityIndicator color={colors.ink} />
           <Txt v="h2">Reading it…</Txt>
-          <Txt dim>Finding to-dos, memories and work steps.</Txt>
+          <Txt dim>Finding work steps, questions for your trainer, to-dos and memories.</Txt>
         </View>
       </Screen>
     );
@@ -115,33 +151,14 @@ export default function Capture() {
       <Screen>
         <TopBar title="Capture" onBack={back} close />
         <Option icon="mic" title="Talk or type" sub="A thought, a plan, what someone just told you." onPress={() => setMode("note")} />
-        <Option icon="bee" title="From my Bee" sub={state.brain?.bee ? "Bring in a recorded conversation." : "Connect the brain on your computer first."} onPress={() => setMode("bee")} />
+        <Option icon="bee" title="From my Bee" sub={state.brain?.bee ? "Bring in a recorded conversation." : "Connect your Bee first."} onPress={() => setMode("bee")} />
         <Option icon="chat" title="Paste a transcript" sub="Copied from Bee or anywhere else. Great for training." onPress={() => setMode("paste")} />
       </Screen>
     );
   }
 
   if (mode === "bee" && pending) {
-    const already = state.conversations.find((c) => c.beeId === pending.id);
-    const importIt = async () => {
-      if (already) {
-        actions.dismissBeeInbox([pending.id]);
-        router.replace(`/convo/${already.id}`);
-        return;
-      }
-      if (!state.brain) return;
-      setBusy(true);
-      try {
-        const full = await brainApi.beeGet(state.brain, pending.id);
-        setPending(null);
-        actions.dismissBeeInbox([full.id]);
-        await finish({ text: full.text, source: "bee", title: full.title, at: full.at, beeId: full.id });
-      } catch (e) {
-        setBusy(false);
-        setPending(null);
-        setBeeError(e instanceof Error ? e.message : "Couldn't load that conversation.");
-      }
-    };
+    const importIt = () => importBee(pending);
     return (
       <Screen footer={<Btn kind="primary" icon="check" label="Use this conversation" disabled={!consent} onPress={() => void importIt()} />}>
         <TopBar title="Before we read it" onBack={() => (fromInbox ? router.back() : setPending(null))} />
@@ -155,8 +172,8 @@ export default function Capture() {
           </Txt>
         </Sketch>
         <View style={{ flexDirection: "row", gap: 12, alignItems: "flex-start" }}>
-          <CheckBox label="Everyone agreed" on={consent} onPress={() => setConsent(!consent)} />
-          <Txt style={{ flex: 1 }}>Everyone who speaks in this recording agreed to it being used for my practice.</Txt>
+          <CheckBox label="I agree" on={consent} onPress={() => setConsent(!consent)} />
+          <Txt style={{ flex: 1 }}>I'm OK with FirstDay Go reading this conversation.</Txt>
         </View>
         <Txt v="small" dim>
           {smart === "cloud"
@@ -175,8 +192,9 @@ export default function Capture() {
         <TopBar title="From my Bee" onBack={back} close={!!params.mode} />
         {!state.brain?.bee ? (
           <Sketch seed="no-bee" dashed fill={colors.wash} style={{ padding: 18, gap: 10 }}>
-            <Txt>To bring in Bee conversations, run the small brain helper on your computer (it uses your Bee CLI login), then connect it here.</Txt>
-            <Btn small icon="link" label="Connect the brain" onPress={() => router.push("/settings")} />
+            <Txt>To bring in Bee conversations, connect your Bee account first. No computer needed.</Txt>
+            {beeCloudAvailable && <Btn small icon="link" label="Connect my Bee" onPress={() => router.push("/bee-connect")} />}
+            <Btn small kind="quiet" align="left" label="Or use the helper on a computer (Settings)" onPress={() => router.push("/settings")} />
           </Sketch>
         ) : beeError && !beeList ? (
           <Empty icon="close" text={beeError} />
@@ -194,23 +212,28 @@ export default function Capture() {
               </Sketch>
             )}
             {beeList.map((b) => {
-            const have = state.conversations.some((c) => c.beeId === b.id);
+            const mine = state.conversations.find((c) => c.beeId === b.id);
             return (
               <Pressable
                 key={b.id}
                 accessibilityRole="button"
-                disabled={have || b.ready === false}
+                accessibilityHint={mine ? "Opens the conversation you already brought in" : undefined}
+                disabled={!mine && b.ready === false}
                 onPress={() => {
+                  if (mine) {
+                    router.push(`/convo/${mine.id}`);
+                    return;
+                  }
                   setBeeError("");
                   setConsent(false);
                   setPending({ id: b.id, title: b.title, at: b.at });
                 }}
               >
-                <Sketch seed={b.id} style={{ padding: 14, opacity: have || b.ready === false ? 0.5 : 1 }}>
+                <Sketch seed={b.id} style={{ padding: 14, opacity: !mine && b.ready === false ? 0.5 : 1 }}>
                   <Txt numberOfLines={2}>{b.title}</Txt>
                   <Txt v="small" dim>
                     {friendlyDay(b.at, Date.now())}
-                    {have ? " · already here" : b.ready === false ? " · Bee is still processing" : ""}
+                    {mine ? " · already here, tap to open" : b.ready === false ? " · Bee is still processing" : ""}
                   </Txt>
                 </Sketch>
               </Pressable>

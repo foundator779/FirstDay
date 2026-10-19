@@ -115,6 +115,21 @@ export function useSession(): Session | null {
   );
 }
 
+/** Like useSession, but `undefined` until the saved session has been read, so screens don't flash the sign-in page. */
+export function useSessionStatus(): Session | null | undefined {
+  return useSyncExternalStore(
+    (cb: () => void) => {
+      listeners.add(cb);
+      if (!loaded) void loadSession();
+      return () => {
+        listeners.delete(cb);
+      };
+    },
+    () => (loaded ? current : undefined),
+    () => (loaded ? current : undefined),
+  );
+}
+
 function utf8(bytes: number[]): string {
   let out = "";
   for (let i = 0; i < bytes.length; ) {
@@ -152,7 +167,7 @@ function decodeJwt(token: string): Record<string, unknown> {
   }
 }
 
-type AuthResult = { AccessToken: string; IdToken: string; RefreshToken?: string; ExpiresIn: number };
+export type AuthResult = { AccessToken: string; IdToken: string; RefreshToken?: string; ExpiresIn: number };
 
 function sessionFrom(r: AuthResult, refreshToken: string): Session {
   const id = decodeJwt(r.IdToken);
@@ -234,7 +249,7 @@ export async function getAccessToken(): Promise<string | undefined> {
       AuthParameters: { REFRESH_TOKEN: s.refreshToken },
     });
     if (!r.AuthenticationResult) return undefined;
-    const next = sessionFrom(r.AuthenticationResult, r.AuthenticationResult.RefreshToken ?? s.refreshToken);
+    const next: Session = sessionFrom(r.AuthenticationResult, r.AuthenticationResult.RefreshToken ?? s.refreshToken);
     await save(next);
     return next.accessToken;
   } catch (e) {
@@ -242,6 +257,12 @@ export async function getAccessToken(): Promise<string | undefined> {
     if (e instanceof AuthError && e.code !== "Network") await save(null);
     return undefined;
   }
+}
+
+/** A fresh Cognito ID token (it proves your verified email, e.g. to a trainer you ask to join). */
+export async function getIdToken(): Promise<string | undefined> {
+  if (!(await getAccessToken())) return undefined;
+  return (await loadSession())?.idToken;
 }
 
 export async function signOut() {

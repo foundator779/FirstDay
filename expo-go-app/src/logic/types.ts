@@ -23,6 +23,34 @@ export type RuleUpdate = {
   newAction: string;
   newKeywords: string[];
   quote: string;
+  /** Came from the trainer's team update (not from your own capture). */
+  fromTeam?: boolean;
+};
+
+/**
+ * A training shared through FirstDay's coach service: the trainer (or job coach) shares it with a
+ * join code, and every rule they change later reaches each trainee as a Change Drill.
+ */
+export type TeamLink = {
+  code: string;
+  role: "trainer" | "trainee";
+  /** The service's version this copy matches. */
+  version: number;
+  syncedAt: number;
+  /** Trainer: changed here since the last send to the team. */
+  dirty?: boolean;
+  /** Trainer: how many people are in. */
+  members?: number;
+  /** Trainer: how many people are waiting to be let in. */
+  requests?: number;
+  /** Trainer: "Let anyone with the code in" is on. */
+  open?: boolean;
+  /** Trainee: the trainer stopped sharing (or removed you). This copy stays. */
+  stopped?: boolean;
+  /** Trainee: the trainer removed you from the team. */
+  removed?: boolean;
+  /** Trainee: the steps that came from the team, so steps you added yourself survive an update. */
+  ruleIds?: string[];
 };
 
 export type Pack = {
@@ -39,6 +67,53 @@ export type Pack = {
   questions: string[];
   /** Updates not yet practised. Sample packs ship one so the change drill can be tried. */
   pendingUpdates: RuleUpdate[];
+  /** Set when this training is shared with a team (as trainer) or came from one (as trainee). */
+  team?: TeamLink;
+  /** A practice reminder waiting in Bee (or on this phone). See logic/wrist.ts. */
+  reminder?: PracticeReminder;
+};
+
+/** A practice reminder: a Bee to-do with Bee's alarm (rings on the phone and the Apple Watch), or a phone notification. */
+export type PracticeReminder = {
+  kind: "practise" | "change";
+  via: "bee" | "phone";
+  /** The Bee to-do id, or the phone notification id. */
+  id: string;
+  at: number;
+  createdAt: number;
+  /** The steps to practise before it counts as done. */
+  ruleIds: string[];
+};
+
+/** A training you asked to join: the trainer hasn't let you in yet, or said no. */
+export type TeamRequest = {
+  code: string;
+  title: string;
+  trainer: string;
+  askedAt: number;
+  status: "pending" | "declined";
+};
+
+/** Something vague a trainer said ("maybe allow another day"): asked about, never practised as a rule. */
+export type TrainerQuestion = {
+  id: string;
+  text: string;
+  /** The vague line, word for word. */
+  quote?: string;
+  /** The conversation it came from. */
+  fromId?: string;
+  /** The training it belongs to, when known. */
+  packId?: string;
+  createdAt: number;
+  /** When you said you asked it. */
+  askedAt?: number;
+};
+
+/** "Use my trainings in other apps": the coach MCP server and the voice screen. */
+export type CoachLink = {
+  on: boolean;
+  /** Last time the confirmed rules were sent to the coach service. */
+  pushedAt: number;
 };
 
 export type RuleProgress = {
@@ -136,6 +211,12 @@ export type Memory = {
   linkedAt?: number;
 };
 
+/** Your own 1–5 answer to "How did today feel?" (evening review or Patterns). */
+export type MoodEntry = { day: string; score: 1 | 2 | 3 | 4 | 5; at: number };
+
+/** The AI's written look across recent weeks, kept until you ask again. */
+export type Reflection = { text: string; at: number; sources: string[]; by: "brain" | "cloud" };
+
 export type ChatMessage = { id: string; role: "me" | "app"; text: string; at: number; sources?: string[] };
 
 /** A rule candidate waiting to be sorted into a training pack. */
@@ -155,6 +236,8 @@ export type Brain = {
   live?: boolean;
   /** The brain was started with FIRSTDAY_GO_REQUIRE_ACCOUNT=1, so requests carry the Cognito token. */
   withToken?: boolean;
+  /** Bee through the FirstDay Bee service in AWS (Connect Bee), not a computer on your Wi-Fi. */
+  cloudBee?: boolean;
 };
 
 /** What the brain read from Bee (the Bee CLI's facts, to-dos, suggestions, daily summary, insights). */
@@ -201,4 +284,14 @@ export type AppState = {
   brain: Brain | null;
   onboarded: boolean;
   bee: BeeState;
+  /** Your mood check-ins, oldest first. */
+  moods: MoodEntry[];
+  /** The latest AI look across recent weeks. */
+  reflection: Reflection | null;
+  /** Questions for your trainer, from vague lines in trainings. */
+  questions: TrainerQuestion[];
+  /** Sharing your confirmed rules with other apps (MCP) and the voice screen. Null until turned on. */
+  coach: CoachLink | null;
+  /** Trainings you asked to join that the trainer hasn't let you into. */
+  teamRequests: TeamRequest[];
 };

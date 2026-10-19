@@ -9,6 +9,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { aiHandlers, converseRequest, toolResult } from "../brain/ai.mjs";
+import { loadReal } from "./real.mjs";
 import { report, scoreCase } from "./score.mjs";
 
 const arg = (n) => {
@@ -38,10 +39,13 @@ const ai = aiHandlers(async (task, data, schema) => {
 });
 
 const all = { model, region };
-for (const [name, file] of [["Development set", "./corpus.json"], ["Held-out set", "./heldout.json"]]) {
-  const corpus = JSON.parse(readFileSync(new URL(file, import.meta.url), "utf8"));
+const sets = [["Development set", "./corpus.json"], ["Held-out set", "./heldout.json"]].map(([name, file]) => [name, JSON.parse(readFileSync(new URL(file, import.meta.url), "utf8")).cases]);
+// Real Bee recordings you exported and labeled (eval/real), if any.
+const real = loadReal();
+if (real.length) sets.push(["Real Bee recordings (consented)", real]);
+for (const [name, cases] of sets) {
   const results = [];
-  for (const c of corpus.cases) {
+  for (const c of cases) {
     const out = await ai.analyze({ text: c.transcript, now: "2026-10-04T09:00:00-07:00", timeZone: "America/Phoenix" });
     results.push(scoreCase(c, { rules: out.rules ?? [], questions: out.questions ?? [] }));
     process.stderr.write(".");

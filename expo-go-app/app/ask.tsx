@@ -2,12 +2,12 @@ import { router } from "expo-router";
 import { useRef, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { say } from "../../src/device";
-import { useSmartAi } from "../../src/smart";
-import { useStore } from "../../src/store";
-import { Icon } from "../../src/ui/icons";
-import { Btn, IconBtn, Sketch, TopBar, Txt, useUI } from "../../src/ui/kit";
-import { colors, fonts } from "../../src/ui/theme";
+import { say } from "../src/device";
+import { useSmartAi } from "../src/smart";
+import { useStore } from "../src/store";
+import { Icon } from "../src/ui/icons";
+import { Btn, IconBtn, Sketch, TopBar, Txt, useUI } from "../src/ui/kit";
+import { colors, fonts } from "../src/ui/theme";
 
 const STARTERS = ["What should I do next?", "What did I talk about today?", "What do you remember about me?"];
 
@@ -43,7 +43,7 @@ export default function Ask() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: colors.paper, paddingTop: insets.top }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
-        <TopBar title="Ask" right={state.chat.length > 0 ? <IconBtn name="trash" label="Clear chat" onPress={actions.clearChat} /> : undefined} />
+        <TopBar title="Ask" onBack={() => router.back()} right={state.chat.length > 0 ? <IconBtn name="trash" label="Clear chat" onPress={actions.clearChat} /> : undefined} />
       </View>
       <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 24 }} onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })}>
         <Btn small icon="brain" label={`What I remember about you (${memories})`} onPress={() => router.push("/memories")} />

@@ -1,7 +1,7 @@
 # Accounts (Amazon Cognito)
 
 FirstDay Go accounts use Amazon Cognito in AWS account **237320501162**, region **us-east-1**.
-Accounts are optional: the app works fully without signing in.
+The app opens on a landing page and asks you to create an account or sign in first. Each account keeps its own data on the phone.
 
 ## What's set up
 

@@ -1,12 +1,17 @@
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, TextInput, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 import {
   AuthError, PASSWORD_RULES, authConfigured, confirmSignUp, deleteAccount, forgotPassword, resendSignUpCode,
   resetPassword, signIn, signOut, signUp, useSession,
 } from "../src/auth";
-import { buzz } from "../src/device";
+import { beeCloudApi, beeCloudAvailable } from "../src/beeCloud";
+import { buzz, cancelAllReminders } from "../src/device";
+import { useStore } from "../src/store";
+import { confirmAction } from "../src/ui/ask";
 import { Icon } from "../src/ui/icons";
+import { recordTermsAccepted } from "../src/terms";
+import { TermsSheet } from "../src/ui/TermsSheet";
 import { Btn, Label, Screen, Sketch, TopBar, Txt, useUI } from "../src/ui/kit";
 import { colors, fonts } from "../src/ui/theme";
 
@@ -15,8 +20,11 @@ type Step = "signIn" | "signUp" | "confirm" | "forgot" | "reset";
 /** One step per screen: sign in, create account, confirm email code, forgot / reset password. */
 export default function Account() {
   const session = useSession();
+  const { actions } = useStore();
   const { s } = useUI();
-  const [step, setStep] = useState<Step>("signIn");
+  const params = useLocalSearchParams<{ start?: string }>();
+  const startedOnSignUp = params.start === "signUp";
+  const [step, setStep] = useState<Step>(startedOnSignUp ? "signUp" : "signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -25,12 +33,25 @@ export default function Account() {
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [cooldown, setCooldown] = useState(0);
+  const [termsOpen, setTermsOpen] = useState(false);
+
+  // Signing in (or finishing sign-up) opens the app; signing out goes back to the landing page.
+  const wasSignedIn = useRef(!!session);
+  useEffect(() => {
+    if (!wasSignedIn.current && session) leaveTo("/");
+    wasSignedIn.current = !!session;
+  }, [session]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
     const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [cooldown]);
+
+  const leaveTo = (href: "/" | "/landing") => {
+    if (router.canDismiss()) router.dismissAll();
+    router.replace(href);
+  };
 
   const go = (next: Step, message = "") => {
     setStep(next);
@@ -94,16 +115,15 @@ export default function Account() {
       <Screen
         footer={
           <>
-            <Btn label="Sign out" icon="back" onPress={() => void run(async () => { await signOut(); go("signIn"); })} />
+            <Btn label="Sign out" icon="back" onPress={() => void run(async () => { await signOut(); await cancelAllReminders(); leaveTo("/landing"); })} />
             <Btn
               kind="quiet"
               icon="trash"
               label="Delete my account"
               onPress={() =>
-                Alert.alert("Delete your account?", "This permanently deletes your account. What's saved on this phone stays.", [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Delete", style: "destructive", onPress: () => void run(async () => { await deleteAccount(); go("signIn", "Your account was deleted."); }) },
-                ])
+                confirmAction("Delete your account?", "This permanently deletes your account. What's saved on this phone stays.", "Delete", () =>
+                  void run(async () => { if (beeCloudAvailable) await beeCloudApi.disconnect().catch(() => {}); await actions.forgetCloud(); await deleteAccount(); await cancelAllReminders(); leaveTo("/landing"); }),
+                )
               }
             />
           </>
@@ -246,7 +266,7 @@ export default function Account() {
         }
       >
         <TopBar onBack={() => router.back()} title="Sign in" />
-        <Txt dim>Optional. It backs up your stuff and unlocks the smart helper.</Txt>
+        <Txt dim>Welcome back. Sign in to pick up your notes, to-dos and practice.</Txt>
         <Label>Email</Label>
         {EmailField}
         <Label>Password</Label>
@@ -263,16 +283,13 @@ export default function Account() {
       <Screen
         footer={
           <>
-            {primary("Create account", emailOk && rulesOk, async () => {
-              await signUp(email, password);
-              setCooldown(30);
-              go("confirm", `We sent a 6-digit code to ${email.trim()}.`);
-            })}
+            {/* The terms come first: the account is only created after "I agree". */}
+            {busy ? <ActivityIndicator color={colors.ink} /> : <Btn kind="primary" label="Create account" disabled={!(emailOk && rulesOk)} onPress={() => setTermsOpen(true)} />}
             <Btn kind="quiet" label="I already have an account" onPress={() => go("signIn")} />
           </>
         }
       >
-        <TopBar onBack={() => go("signIn")} title="Create account" />
+        <TopBar onBack={() => (startedOnSignUp ? router.back() : go("signIn"))} title="Create account" />
         <Txt v="small" dim>
           Step 1 of 2
         </Txt>
@@ -282,6 +299,22 @@ export default function Account() {
         {passwordField(true)}
         {Rules}
         {Messages}
+        <Txt v="tiny" dim>
+          Next, you'll read the terms of use and agree to them.
+        </Txt>
+        <TermsSheet
+          visible={termsOpen}
+          onClose={() => setTermsOpen(false)}
+          onAgree={() => {
+            setTermsOpen(false);
+            void run(async () => {
+              await signUp(email, password);
+              await recordTermsAccepted(email);
+              setCooldown(30);
+              go("confirm", `We sent a 6-digit code to ${email.trim()}.`);
+            });
+          }}
+        />
       </Screen>
     );
   }

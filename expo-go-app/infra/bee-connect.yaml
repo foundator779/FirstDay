@@ -1,0 +1,124 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  FirstDay Bee service: connects a FirstDay account to its own Bee account without a computer, by
+  running Bee's official CLI inside AWS Lambda. Pay per use only (Lambda + on-demand DynamoDB, no
+  monthly fees). Only allow-listed FirstDay accounts can use it until OpenToEveryone is "true".
+
+Parameters:
+  CognitoPoolId:
+    Type: String
+    Default: us-east-1_mZfIndG7K
+  CognitoClientId:
+    Type: String
+    Default: 2ml0g4qv3uj1o66do3mm15r7os
+  AllowedEmails:
+    Type: String
+    Default: ""
+    Description: Comma-separated emails of FirstDay accounts allowed to connect Bee (verified email only). Empty = nobody.
+  OpenToEveryone:
+    Type: String
+    AllowedValues: ["false", "true"]
+    Default: "false"
+    Description: Only set "true" after Bee confirms third-party apps may run the CLI server-side for their users.
+
+Rules:
+  OnlyThisAccount:
+    Assertions:
+      - Assert: !Equals [!Ref "AWS::AccountId", "237320501162"]
+        AssertDescription: This stack may only be deployed in AWS account 237320501162.
+
+Resources:
+  Connections:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: firstday-go-bee-connections
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: user
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user
+          KeyType: HASH
+      # Unfinished sign-ins delete themselves after 15 minutes.
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      # Encrypted at rest with an AWS-owned key (no charge). The Bee sign-in inside is also sealed
+      # with a key that only the user's phone holds (infra/bee-lambda/vault.mjs).
+
+  Logs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/firstday-go-bee
+      RetentionInDays: 7
+
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: firstday-go-bee
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !GetAtt Logs.Arn
+              - Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:DeleteItem]
+                Resource: !GetAtt Connections.Arn
+
+  Function:
+    Type: AWS::Lambda::Function
+    DependsOn: Logs
+    Properties:
+      FunctionName: firstday-go-bee
+      Runtime: nodejs22.x
+      # x86_64 to match CloudShell, where the Bee CLI is installed by infra/deploy-bee.sh.
+      Architectures: [x86_64]
+      Handler: index.handler
+      MemorySize: 1024
+      Timeout: 60
+      Role: !GetAtt Role.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref Connections
+          COGNITO_POOL_ID: !Ref CognitoPoolId
+          COGNITO_CLIENT_ID: !Ref CognitoClientId
+          ALLOWED_EMAILS: !Ref AllowedEmails
+          OPEN_TO_EVERYONE: !Ref OpenToEveryone
+          BEE_CLI_PATH: /var/task/bee-cli/bee
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 503, body: '{"error":"Code not uploaded yet: run infra/deploy-bee.sh"}' });
+
+  Url:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt Function.Arn
+      AuthType: NONE
+      Cors:
+        AllowOrigins:
+          - https://d1ypavau8ae868.cloudfront.net
+          - http://firstday-go-web-237320501162.s3-website-us-east-1.amazonaws.com
+        AllowMethods: [GET, POST]
+        AllowHeaders: [authorization, content-type, x-firstday-bee-key]
+        MaxAge: 3600
+
+  PublicUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+Outputs:
+  ServiceUrl:
+    Description: Put this in EXPO_PUBLIC_FIRSTDAY_BEE_URL (and the web build) to show Connect Bee in the app.
+    Value: !GetAtt Url.FunctionUrl

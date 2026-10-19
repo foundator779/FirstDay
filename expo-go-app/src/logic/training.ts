@@ -1,4 +1,4 @@
-import { contentWords, hashString, shuffle, stem } from "./text";
+import { answerWithoutContrast, contentWords, hashString, shuffle, stem, withoutContrast } from "./text";
 import type { AppState, Pack, Rule, RuleProgress, SessionMode } from "./types";
 
 const DAY = 86400_000;
@@ -42,10 +42,13 @@ export function gradeWords(answer: string, rule: Rule): Grade {
   const misses = keys.filter((k) => !said.has(stem(k)));
   const ratio = keys.length ? hits.length / keys.length : 0;
   let pass = ratio >= 0.6;
-  // A change drill must not accept the old answer.
+  // A change drill must not accept the old answer. Words the new rule only mentions to contrast
+  // ("…, not the grey bin") still count as the old way.
   if (pass && rule.changedFrom) {
-    const oldOnly = contentWords(rule.changedFrom).map(stem).filter((w) => !keys.map(stem).includes(w) && !contentWords(rule.action).map(stem).includes(w));
-    if (oldOnly.some((w) => said.has(w))) pass = false;
+    const current = new Set([...keys.map(stem), ...contentWords(withoutContrast(rule.action)).map(stem)]);
+    const oldOnly = contentWords(rule.changedFrom).map(stem).filter((w) => !current.has(w));
+    const meant = new Set(contentWords(answerWithoutContrast(answer)).map(stem));
+    if (oldOnly.some((w) => meant.has(w))) pass = false;
   }
   return { pass, hits, misses };
 }
@@ -146,8 +149,8 @@ export type Understanding = {
  */
 export function compareUnderstanding(intended: string, rule: Rule): Understanding {
   const g = gradeWords(intended, rule);
-  const said = new Set(contentWords(intended).map(stem));
-  const current = new Set(contentWords(rule.action).map(stem));
+  const said = new Set(contentWords(answerWithoutContrast(intended)).map(stem));
+  const current = new Set(contentWords(withoutContrast(rule.action)).map(stem));
   const outdated = rule.changedFrom
     ? contentWords(rule.changedFrom).filter((w) => !current.has(stem(w)) && said.has(stem(w)))
     : [];

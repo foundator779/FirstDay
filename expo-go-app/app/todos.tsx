@@ -1,12 +1,13 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, TextInput, View } from "react-native";
-import { friendlyDue, parseDue } from "../../src/logic/dates";
-import type { Todo } from "../../src/logic/types";
-import { useStore } from "../../src/store";
-import { Icon } from "../../src/ui/icons";
-import { Btn, CheckBox, Chip, Empty, Screen, Sketch, TopBar, Txt, useUI } from "../../src/ui/kit";
-import { colors, fonts } from "../../src/ui/theme";
+import { friendlyDue, parseDue } from "../src/logic/dates";
+import type { Todo } from "../src/logic/types";
+import { useStore } from "../src/store";
+import { confirmAction } from "../src/ui/ask";
+import { Icon } from "../src/ui/icons";
+import { Btn, CheckBox, Chip, Empty, Screen, Sketch, TopBar, Txt, useUI } from "../src/ui/kit";
+import { colors, fonts } from "../src/ui/theme";
 
 const BUCKETS: { key: Todo["bucket"]; label: string }[] = [
   { key: "now", label: "Now" },
@@ -34,7 +35,7 @@ export default function Todos() {
 
   return (
     <Screen>
-      <TopBar title="Do" />
+      <TopBar title="To-dos" onBack={() => router.back()} />
       <View style={{ flexDirection: "row", gap: 8 }}>
         {BUCKETS.map((b) => (
           <Chip key={b.key} label={b.label} on={bucket === b.key} onPress={() => setBucket(b.key)} />
@@ -86,7 +87,22 @@ export default function Todos() {
                   </Txt>
                 )}
               </Pressable>
-              {!done && <Icon name="chevron" size={18} color={colors.pencil} />}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Delete: ${t.text}`}
+                hitSlop={6}
+                onPress={() =>
+                  confirmAction(
+                    "Delete this to-do?",
+                    t.beeTodoId ? "It goes from FirstDay Go. The copy in your Bee stays." : "It goes from FirstDay Go.",
+                    "Delete",
+                    () => actions.deleteTodo(t.id),
+                  )
+                }
+                style={({ pressed }) => ({ width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.5 : 1 })}
+              >
+                <Icon name="trash" size={20} color={done ? colors.onHighlightDim : colors.pencil} />
+              </Pressable>
             </Sketch>
           );
         })

@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Alert, TextInput, View } from "react-native";
+import { TextInput, View } from "react-native";
 import { say } from "../../src/device";
 import { friendlyDay } from "../../src/logic/dates";
 import { useStore } from "../../src/store";
+import { confirmAction } from "../../src/ui/ask";
 import { Btn, IconBtn, Label, Screen, Sketch, TopBar, Txt, useUI } from "../../src/ui/kit";
 import { colors, fonts } from "../../src/ui/theme";
 
@@ -62,6 +63,16 @@ export default function Convo() {
       {suggestedCount > 0 && <Btn kind="primary" icon="play" label={`Sort ${suggestedCount} new thing${suggestedCount > 1 ? "s" : ""}`} onPress={() => router.push("/sort")} />}
       {rules.length > 0 && <Btn icon="cap" label={`Check ${rules.length} work step${rules.length > 1 ? "s" : ""} and practise`} onPress={() => router.push(`/confirm?from=${c.id}`)} />}
 
+      <Btn icon="chat" label={showText ? "Hide the full conversation" : "Show the full conversation"} onPress={() => setShowText(!showText)} />
+      {showText && (
+        <Sketch seed={`txt${c.id}`} style={{ padding: 16, gap: 8 }}>
+          <Txt v="tiny" dim bold style={{ letterSpacing: 1 }}>
+            WORD FOR WORD{c.source === "bee" ? " · FROM BEE" : ""} · SAVED ON THIS PHONE
+          </Txt>
+          <Txt v="small">{c.text}</Txt>
+        </Sketch>
+      )}
+
       {todos.length > 0 && (
         <View style={{ gap: 4 }}>
           <Label line>To-dos</Label>
@@ -83,23 +94,16 @@ export default function Convo() {
         </View>
       )}
 
-      <Btn kind="quiet" align="left" label={showText ? "Hide the full conversation" : "Show the full conversation"} onPress={() => setShowText(!showText)} />
-      {showText && (
-        <Sketch seed={`txt${c.id}`} style={{ padding: 16 }}>
-          <Txt v="small">{c.text}</Txt>
-        </Sketch>
-      )}
-
       <Btn
         kind="quiet"
         icon="trash"
         align="left"
         label="Delete this conversation"
         onPress={() =>
-          Alert.alert("Delete conversation?", "Unsorted suggestions from it go too. Kept to-dos and memories stay.", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Delete", style: "destructive", onPress: () => { actions.deleteConversation(c.id); router.back(); } },
-          ])
+          confirmAction("Delete conversation?", "The word-for-word text goes from this phone. Unsorted suggestions from it go too; kept to-dos, memories and trainings stay.", "Delete", () => {
+            actions.deleteConversation(c.id);
+            router.back();
+          })
         }
       />
     </Screen>

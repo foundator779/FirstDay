@@ -1,5 +1,6 @@
 import { router } from "expo-router";
 import { Pressable, View } from "react-native";
+import { coachAvailable } from "../../src/coachCloud";
 import { dayKey } from "../../src/logic/text";
 import { nextTraining, packStats } from "../../src/logic/training";
 import { useStore } from "../../src/store";
@@ -9,7 +10,7 @@ import { Btn, Dots, Label, Screen, Sketch, Stat, TopBar, Txt } from "../../src/u
 import { colors } from "../../src/ui/theme";
 
 export default function Train() {
-  const { state } = useStore();
+  const { state, actions } = useStore();
   const now = Date.now();
   const next = nextTraining(state, now);
   const nextPack = next.kind !== "done" ? state.packs.find((p) => p.id === next.packId) : undefined;
@@ -27,11 +28,13 @@ export default function Train() {
       <TopBar title="Train" />
       <Txt dim center>Practise your next shift before it happens, using what your trainer actually said.</Txt>
 
-      <View style={{ flexDirection: "row", gap: 8, paddingVertical: 4 }}>
-        <Stat value={todayCount} label="Today" />
-        <Stat value={`${totals.seen}/${totals.total}`} label="Learned" />
-        <Stat value={totals.due} label="Due" />
-      </View>
+      {state.packs.length > 0 && (
+        <View style={{ flexDirection: "row", gap: 8, paddingVertical: 4 }}>
+          <Stat value={todayCount} label="Today" />
+          <Stat value={`${totals.seen}/${totals.total}`} label="Learned" />
+          <Stat value={totals.due} label="Due" />
+        </View>
+      )}
 
       {next.kind !== "done" && nextPack ? (
         <Sketch seed="train-next" fill={colors.ink} radius={24} style={{ padding: 20, gap: 12 }}>
@@ -58,6 +61,14 @@ export default function Train() {
             onPress={() => router.push(`/session/${next.packId}?mode=${next.kind === "resume" ? next.mode : next.kind}`)}
           />
         </Sketch>
+      ) : state.packs.length === 0 ? (
+        <Sketch seed="train-empty" shadow radius={24} style={{ padding: 20, gap: 12 }}>
+          <Txt v="h2">No trainings yet</Txt>
+          <Txt dim>When a trainer or manager explains how things work, capture it. I'll find each step with their exact words and turn it into practice.</Txt>
+          <Btn kind="primary" icon="plus" label="Make a training from a conversation" onPress={() => router.push("/capture")} />
+          {coachAvailable && <Btn icon="link" label="Join my team's training" onPress={() => router.push("/join")} />}
+          <Btn kind="quiet" label="Try a sample training" onPress={actions.addSampleTrainings} />
+        </Sketch>
       ) : (
         <Sketch seed="train-done" style={{ padding: 20, alignItems: "center", gap: 6 }}>
           <Icon name="star" size={40} />
@@ -71,7 +82,20 @@ export default function Train() {
         <Btn icon="bulb" label={`Check ${state.suggestedRules.length} new work step${state.suggestedRules.length > 1 ? "s" : ""}`} onPress={() => router.push("/confirm")} />
       )}
 
-      <Label line>Your trainings</Label>
+      {state.teamRequests.map((r) => (
+        <Sketch key={r.code} seed={`req-${r.code}`} dashed fill={colors.wash} style={{ padding: 16, gap: 8 }}>
+          <Txt v="tiny" dim bold style={{ letterSpacing: 1 }}>
+            {r.title.toUpperCase()}
+          </Txt>
+          <Txt bold>{r.status === "declined" ? `${r.trainer} didn't let you in` : `Waiting for ${r.trainer} to let you in`}</Txt>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            {r.status === "pending" && <Btn small style={{ flex: 1 }} icon="refresh" label="Check now" onPress={() => void actions.checkTeams()} />}
+            <Btn small style={{ flex: 1 }} label={r.status === "pending" ? "Take back" : "OK"} onPress={() => void actions.cancelTeamRequest(r.code)} />
+          </View>
+        </Sketch>
+      ))}
+
+      {state.packs.length > 0 && <Label line>Your trainings</Label>}
       {state.packs.map((p) => {
         const st = packStats(p, state.progress, now);
         return (
@@ -81,10 +105,10 @@ export default function Train() {
                 <Txt v="h2" style={{ flex: 1 }} numberOfLines={1}>
                   {p.title}
                 </Txt>
-                {p.sample && (
+                {(p.sample || p.team) && (
                   <View style={{ borderWidth: 1.5, borderColor: colors.pencil, borderRadius: 10, paddingHorizontal: 8 }}>
                     <Txt v="tiny" dim>
-                      Sample
+                      {p.sample ? "Sample" : p.team?.role === "trainer" ? "Shared" : "Team"}
                     </Txt>
                   </View>
                 )}
@@ -92,14 +116,16 @@ export default function Train() {
               </View>
               <Dots total={st.total} done={st.seen} />
               <Txt v="small" dim>
-                {st.seen}/{st.total} learned{st.due ? ` · ${st.due} due` : ""}{p.pendingUpdates.length ? ` · ${p.pendingUpdates.length} changed` : ""} · from {p.trainer}
+                {st.seen}/{st.total} learned{st.due ? ` · ${st.due} due` : ""}{p.pendingUpdates.length ? ` · ${p.pendingUpdates.length} changed` : ""}
+                {p.team?.role === "trainer" ? ` · shared with ${p.team.members ?? 0} ${p.team.members === 1 ? "person" : "people"}${p.team.dirty ? " · changes to send" : ""}` : ` · from ${p.trainer}`}
               </Txt>
             </Sketch>
           </Pressable>
         );
       })}
 
-      <Btn kind="quiet" icon="plus" label="Make a training from a conversation" onPress={() => router.push("/capture?mode=paste")} />
+      {state.packs.length > 0 && <Btn kind="quiet" icon="plus" label="Make a training from a conversation" onPress={() => router.push("/capture")} />}
+      {state.packs.length > 0 && coachAvailable && <Btn kind="quiet" icon="link" label="Join my team's training" onPress={() => router.push("/join")} />}
     </Screen>
   );
 }

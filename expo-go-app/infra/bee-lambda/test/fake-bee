@@ -1,0 +1,67 @@
+#!/usr/bin/env node
+// Stand-in Bee CLI for tests (the Bee service in infra/bee-lambda and the brain in brain/).
+// Sign-in lives in $HOME/.bee; approval is simulated by a file in $FAKE_BEE_APPROVALS. Every call is logged
+// to $FAKE_BEE_LOG, one line per call, so tests can check exactly what reached Bee.
+// Reply shapes follow what real recordings returned (see services/bee-bridge/src/adapter.ts and its tests):
+// `conversations get --json` wraps the conversation as { conversation, timezone }, the final transcript has
+// realtime: false, and its utterances carry small relative start/end values plus a wall-clock spoken_at.
+const fs = require("fs"), path = require("path");
+const home = process.env.HOME, dir = path.join(home, ".bee"), tok = path.join(dir, "token-prod"), pend = path.join(dir, "pending.json");
+const a = process.argv.slice(2), k = a.slice(0, 2).join(" ");
+fs.appendFileSync(process.env.FAKE_BEE_LOG, JSON.stringify(a) + "\n");
+const out = (o) => process.stdout.write(JSON.stringify(o));
+const text = () => a[a.indexOf("--text") + 1];
+if (a[0] === "--version") { console.log("bee 0.0.0-fake"); process.exit(0); }
+if (a[0] === "login") {
+  if (a.includes("--no-wait")) {
+    fs.mkdirSync(dir, { recursive: true });
+    const code = "C" + Math.random().toString(36).slice(2, 8);
+    fs.writeFileSync(pend, JSON.stringify({ code }));
+    console.log(`Open this link to approve FirstDay CLI access:\n  https://bee.example/approve?code=${code}\n`);
+    process.exit(0);
+  }
+  if (!fs.existsSync(pend)) { console.error("no pending login"); process.exit(1); }
+  const { code } = JSON.parse(fs.readFileSync(pend, "utf8"));
+  if (fs.existsSync(path.join(process.env.FAKE_BEE_APPROVALS, code))) {
+    fs.writeFileSync(tok, "token-1"); fs.unlinkSync(pend); console.log("Signed in."); process.exit(0);
+  }
+  setTimeout(() => process.exit(1), 300); return;
+}
+if (a[0] === "logout") { try { fs.unlinkSync(tok); } catch {} fs.appendFileSync(process.env.FAKE_BEE_LOG, "LOGGED-OUT\n"); process.exit(0); }
+if (!fs.existsSync(tok)) { console.error("Not signed in"); process.exit(1); }
+// Every call "refreshes" the token, so the Bee service must save the new sign-in.
+const n = (Number(String(fs.readFileSync(tok, "utf8")).split("-")[1]) || 1) + 1; const tmp = tok + "." + process.pid; fs.writeFileSync(tmp, "token-" + n); fs.renameSync(tmp, tok);
+const T0 = Date.parse("2026-10-03T16:00:00Z");
+if (k === "conversations list") out({
+  conversations: [
+    { id: 101, start_time: T0, end_time: T0 + 60_000, short_summary: "Bookshop training", state: "COMPLETED" },
+    { id: 102, start_time: T0 + 3_600_000, short_summary: "Still processing", state: "PROCESSING" },
+    ...(fs.existsSync(process.env.FAKE_BEE_NEW || "/nonexistent") ? [{ id: 103, start_time: "2026-10-06T18:00:00Z", short_summary: "Front desk training", state: "COMPLETED" }] : []),
+  ],
+  next_cursor: null,
+  timezone: "UTC",
+});
+else if (k === "conversations get") out({
+  conversation: {
+    id: Number(a[2]), state: "COMPLETED", short_summary: "Bookshop training", start_time: T0, end_time: T0 + 60_000,
+    transcriptions: [
+      { id: 1, realtime: true, utterances: [{ id: 9, speaker: "draft", text: "Realtime draft line", start: 0.1, end: 0.5 }] },
+      { id: 2, realtime: false, utterances: [
+        { id: 12, speaker: { label: "speaker_1", name: "Maya" }, text: "Then tell Sam.", start: 0.2, end: 0.2, spoken_at: T0 + 9_000 },
+        { id: 11, speaker: { label: "speaker_1", name: "Maya" }, text: "Record the kit number in the blue ledger.", start: 0.1, end: 0.4, spoken_at: T0 + 2_000 },
+        { id: 13, speaker: "", text: "   ", start: 0.3, end: 0.3, spoken_at: T0 + 9_000 },
+      ] },
+    ],
+  },
+  timezone: "UTC",
+});
+else if (k === "facts list") out({ facts: [{ id: "f1", text: "Your manager is Dana.", confirmed: false }], next_cursor: null });
+else if (k === "todos list") out({ todos: [{ id: "t1", text: "Order receipt paper", completed: false, alarm_at: "2026-10-08T16:00:00Z" }], next_cursor: null });
+else if (k === "todos suggestions") out({ suggestions: [{ id: "s1", text: "Restock the paper cups" }] });
+else if (k === "daily list") out({ daily: [{ id: "d1", date: "2026-10-06", summary: "## Your day\n- Trained on the café register with Rosa\n- Learned where cracked mugs go" }] });
+else if (k === "insights list") out({ insights: [{ id: "i1", text: "You learn best in short sessions." }] });
+else if (k === "facts confirm" || k === "facts delete" || k === "facts update" || k === "todos complete" || k === "todos dismiss-suggestion") out({ ok: true });
+else if (k === "facts create") out({ fact: { id: "f-new", text: text() } });
+else if (k === "todos create") out({ todo: { id: "t-new", text: text() } });
+else if (k === "todos accept-suggestion") out({ todo: { id: "t-from-" + a[2] } });
+else { console.error("unknown " + a.join(" ")); process.exit(1); }

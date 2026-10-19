@@ -25,26 +25,5 @@ export function saveState(state) {
   renameSync(tmp, STATE_FILE);
 }
 
-const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
-
-/** Keeps only the fields the coach needs, with size limits. */
-export function cleanPacks(input) {
-  if (!Array.isArray(input)) return [];
-  return input.slice(0, 50).map((p) => ({
-    id: str(p?.id, 80),
-    title: str(p?.title, 120) || "Training",
-    trainer: str(p?.trainer, 80) || "Your trainer",
-    sample: p?.sample === true,
-    questions: Array.isArray(p?.questions) ? p.questions.slice(0, 20).map((q) => str(q, 300)).filter(Boolean) : [],
-    rules: Array.isArray(p?.rules)
-      ? p.rules.slice(0, 100).map((r) => ({
-          id: str(r?.id, 80),
-          situation: str(r?.situation, 300),
-          action: str(r?.action, 400),
-          quote: str(r?.quote, 600),
-          ...(str(r?.changedFrom, 400) ? { changedFrom: str(r.changedFrom, 400) } : {}),
-          level: Number.isFinite(r?.level) ? Math.max(0, Math.min(4, Math.round(r.level))) : 0,
-        })).filter((r) => r.situation && r.action)
-      : [],
-  })).filter((p) => p.rules.length);
-}
+// The coach's pack shape (and its size limits) is shared with the coach MCP server in AWS.
+export { cleanPacks } from "./coach.mjs";

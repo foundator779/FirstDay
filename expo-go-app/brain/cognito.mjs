@@ -5,17 +5,42 @@ import { createPublicKey, verify as verifySignature } from "node:crypto";
 const b64url = (s) => Buffer.from(s.replace(/-/g, "+").replace(/_/g, "/"), "base64");
 
 export function cognitoVerifier({ poolId, clientId }) {
+  const check = claimsChecker({ poolId });
+  /** Returns the user's id (sub) for a valid `Authorization: Bearer <access token>` header, else null. */
+  return async function verify(authorization) {
+    const m = /^Bearer\s+(.+)$/i.exec(String(authorization || ""));
+    const claims = m ? await check(m[1]) : null;
+    if (!claims || claims.token_use !== "access") return null;
+    if (clientId && claims.client_id !== clientId) return null;
+    return String(claims.sub);
+  };
+}
+
+/**
+ * Checks a Cognito ID token (same signature checks) and returns { sub, email } when the email is verified, else null.
+ * Used where the service needs to know who someone is, such as a join request a trainer approves.
+ */
+export function cognitoIdVerifier({ poolId, clientId }) {
+  const check = claimsChecker({ poolId });
+  return async function verifyId(idToken) {
+    const claims = typeof idToken === "string" ? await check(idToken) : null;
+    if (!claims || claims.token_use !== "id") return null;
+    if (clientId && claims.aud !== clientId) return null;
+    if (typeof claims.email !== "string" || !(claims.email_verified === true || claims.email_verified === "true")) return null;
+    return { sub: String(claims.sub), email: claims.email.toLowerCase() };
+  };
+}
+
+function claimsChecker({ poolId }) {
   if (!poolId) return async () => null;
   const region = poolId.split("_")[0];
   const issuer = `https://cognito-idp.${region}.amazonaws.com/${poolId}`;
   let jwks = null;
   let fetchedAt = 0;
 
-  /** Returns the user's id (sub) for a valid `Authorization: Bearer <access token>` header, else null. */
-  return async function verify(authorization) {
-    const m = /^Bearer\s+(.+)$/i.exec(String(authorization || ""));
-    if (!m) return null;
-    const [h, p, sig] = m[1].split(".");
+  /** The token's claims when the signature, issuer and expiry are valid, else null. */
+  return async function check(token) {
+    const [h, p, sig] = String(token).split(".");
     if (!h || !p || !sig) return null;
     try {
       const header = JSON.parse(b64url(h).toString());
@@ -33,10 +58,9 @@ export function cognitoVerifier({ poolId, clientId }) {
       if (!jwk) return null;
       const ok = verifySignature("RSA-SHA256", Buffer.from(`${h}.${p}`), createPublicKey({ key: jwk, format: "jwk" }), b64url(sig));
       if (!ok) return null;
-      if (claims.iss !== issuer || claims.token_use !== "access") return null;
-      if (clientId && claims.client_id !== clientId) return null;
+      if (claims.iss !== issuer) return null;
       if (typeof claims.exp !== "number" || claims.exp * 1000 < Date.now()) return null;
-      return String(claims.sub);
+      return claims;
     } catch {
       return null;
     }

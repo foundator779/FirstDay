@@ -37,6 +37,27 @@ const TOKEN = process.env.AWS_BEARER_TOKEN_BEDROCK || "";
 const AI = /^ABSK[A-Za-z0-9+/=]+$/.test(TOKEN);
 const POOL_ID = process.env.FIRSTDAY_GO_COGNITO_POOL_ID || "";
 const REQUIRE_ACCOUNT = process.env.FIRSTDAY_GO_REQUIRE_ACCOUNT === "1";
+// The hosted web version of the app calls this helper straight from the phone's browser, so it needs
+// CORS. Only the app's own web address is allowed (add more, comma-separated, in FIRSTDAY_WEB_ORIGINS);
+// other websites can't call the helper or burn pairing-code tries. The Expo Go app sends no Origin and is unaffected.
+const WEB_ORIGINS = new Set(
+  (process.env.FIRSTDAY_WEB_ORIGINS || "http://firstday-go-web-237320501162.s3-website-us-east-1.amazonaws.com")
+    .split(",")
+    .map((o) => o.trim().replace(/\/+$/, "").toLowerCase())
+    .filter(Boolean),
+);
+function corsHeaders(req) {
+  const origin = String(req.headers.origin || "").toLowerCase();
+  if (!origin || !WEB_ORIGINS.has(origin)) return {};
+  return {
+    "access-control-allow-origin": req.headers.origin,
+    vary: "Origin",
+    "access-control-allow-methods": "GET, POST",
+    "access-control-allow-headers": "content-type, x-firstday-code, authorization",
+    "access-control-max-age": "600",
+    ...(req.headers["access-control-request-private-network"] === "true" ? { "access-control-allow-private-network": "true" } : {}),
+  };
+}
 const verifyUser = cognitoVerifier({ poolId: POOL_ID, clientId: process.env.FIRSTDAY_GO_COGNITO_CLIENT_ID || "" });
 const ai = aiHandlers(AI ? bearerInfer({ region: REGION, model: MODEL, token: TOKEN }) : async () => {
   throw new Error("ai-off");
@@ -128,10 +149,18 @@ function strike(ip) {
 }
 
 const server = createServer(async (req, res) => {
+  const cors = corsHeaders(req);
   const send = (status, data) => {
-    res.writeHead(status, { "content-type": "application/json" });
+    res.writeHead(status, { "content-type": "application/json", ...cors });
     res.end(JSON.stringify(data));
   };
+  // A browser asks first (preflight). Answer it without a code check, and only for the app's own web address.
+  if (req.method === "OPTIONS") {
+    res.writeHead(cors["access-control-allow-origin"] ? 204 : 403, cors);
+    return res.end();
+  }
+  // A request from any other website is refused before it can try a pairing code.
+  if (req.headers.origin && !cors["access-control-allow-origin"]) return send(403, { error: "Not allowed from this website" });
   const ip = req.socket.remoteAddress || "?";
   if (lockedOut(ip)) return send(429, { error: "Too many wrong codes. Try again later." });
   if (!codeOk(req)) {

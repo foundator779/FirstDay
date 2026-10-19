@@ -31,6 +31,8 @@ and whether we'd build with it again. Everything below is what we actually saw w
 - **Timing fields.** Real payloads had small `start`/`end` values, a wall-clock `spoken_at`, zero-length and tied utterances, and a point outside the conversation window. Our first adapter assumed epoch intervals and rejected real data. Documenting the units, origin and guarantees of each field (with one real example) would save others the same detour. (Friction log #1.)
 - **Windows.** The npm-installed CLI is a `.cmd` shim; current Node won't spawn it without a shell, and passing user text through `cmd.exe` isn't safe. A native `bee.exe`, or documenting `bee proxy` as the supported way for programs to write, would help. (Friction log #5.)
 - **Mobile apps need a computer in the middle.** To get Bee data onto a phone app we run a helper next to the CLI. A push or webhook to a developer's own app (with the user's consent) would remove that step.
+- **Reply shapes aren't documented.** The CLI page lists `--json` flags but not what they return. `conversations get` wraps the conversation in `{ conversation }`; our new importer missed that and rejected every real conversation until a test built on the real shape caught it. One example reply per command would prevent this. (Friction log #6.)
+- **Running the CLI on a server.** For "Connect Bee without a computer" we run the CLI in AWS Lambda: the npm package is about 420 MB (we ship only the 37 MB Linux program), and the sign-in lives as files in `~/.bee`, so we restore it per request from a copy sealed with a key on the user's phone. A documented, consented server-side token flow would be simpler and clearer about what's allowed. (Friction log #7, #8.)
 - [EDIT: anything else you hit, e.g. pairing, login, or how long processing took.]
 
 **Onboarding (zero to hello world).** [EDIT: your words. For example: how long from unboxing to the first `bee conversations list` returning your recording, and what slowed you down.]
@@ -72,7 +74,7 @@ and whether we'd build with it again. Everything below is what we actually saw w
 
 **What needs work.**
 - Getting files into CloudShell from an automated session: Upload opens the operating system's file picker, the terminal's output lives in a cross-origin frame (not readable as page text), and there's no CLI command to copy a file in. We typed a base64 bundle in checksummed chunks. (Friction log #4.)
-- Public Function URLs need two resource-policy statements (`lambda:InvokeFunctionUrl`, and `lambda:InvokeFunction` with `--invoked-via-function-url`). We added both up front from the docs and verified them with `get-policy`; a single "public URL" setting in CloudFormation would make this harder to get wrong.
+- Public Function URLs need two resource-policy statements (`lambda:InvokeFunctionUrl`, and `lambda:InvokeFunction` with `--invoked-via-function-url`). We added both up front from the docs and verified them with `get-policy`; a single "public URL" setting in CloudFormation would make this harder to get wrong. (Friction log #10.)
 
 **Onboarding.** CloudShell to a deployed, health-checked endpoint was one script run after the files were in.
 
@@ -82,7 +84,7 @@ and whether we'd build with it again. Everything below is what we actually saw w
 
 ## Amazon Cognito
 
-**What we used it for.** Optional accounts in FirstDay Go: email + password sign-up confirmed once with a 6-digit email code, sign-in with just email and password afterwards, password reset by code, sign-out with refresh-token revocation, and account deletion (App Store requirement). Lite tier. The app calls the Cognito JSON API with plain `fetch` (no Amplify), which keeps Expo Go compatibility. The Lambda and the local helper verify access tokens against the pool's public keys.
+**What we used it for.** Accounts in FirstDay Go (the app opens on sign in / create account): email + password sign-up confirmed once with a 6-digit email code, sign-in with just email and password afterwards, password reset by code, sign-out with refresh-token revocation, and account deletion (App Store requirement). Lite tier. The app calls the Cognito JSON API with plain `fetch` (no Amplify), which keeps Expo Go compatibility. The Lambda and the local helper verify access tokens against the pool's public keys.
 
 **What worked well.**
 - The JSON API (`SignUp`, `ConfirmSignUp`, `InitiateAuth` with `USER_PASSWORD_AUTH` and `REFRESH_TOKEN_AUTH`, `ForgotPassword`, `RevokeToken`, `DeleteUser`) is small enough to call directly from React Native.
@@ -99,7 +101,31 @@ and whether we'd build with it again. Everything below is what we actually saw w
 
 ---
 
+## Amazon DynamoDB, and the coach service (team trainings and the coach MCP server)
+
+**What we used it for.** A second small stack (`infra/coach.yaml`): one Lambda Function URL and one on-demand
+**DynamoDB** table. It stores shared team trainings (a trainer shares with a 6-character code; a changed step reaches
+each trainee as a Change Drill), and, only when a user turns it on, their confirmed steps for FirstDay's **remote MCP
+server** (spec 2025-11-25, Streamable HTTP, six read-only tools and one prompt). Writes use a version number and
+conditional puts, so two trainers' phones can't overwrite each other.
+
+**What worked well.**
+- Single-table design with `pk`/`sk` and conditional `PutItem` covered teams, memberships, per-app keys and coach data
+  with four API calls and no indexes.
+- On-demand billing keeps the idle cost at zero, which matters for a free app judged weeks after it's built.
+- The Lambda Node.js runtime includes the DynamoDB client, so the package is six small files.
+
+**What needs work.**
+- Cognito can't act as the OAuth server for arbitrary MCP clients (no dynamic client registration), so the app issues
+  per-app keys instead. (Friction log #11.)
+
+**Would we build with it again?** Yes: for small shared state behind a Function URL, on-demand DynamoDB is the least
+moving parts we know.
+
+---
+
 ## Non-Amazon tools (for completeness)
 
-- **Expo SDK 57, Expo Go, expo-router:** let us build and test an iPhone app entirely from a Windows PC. Needs work: no speech recognition in Expo Go (we use the keyboard's mic), and Expo Snack's newest SDK lagged ours. (Friction log #7, #8.)
-- **Node.js 22:** `process.loadEnvFile`, `node:test` and built-in `fetch` kept the helper and tests dependency-free.
+- **Expo SDK 57, Expo Go, expo-router:** let us build and test an iPhone app entirely from a Windows PC. Needs work: no speech recognition in Expo Go (we use the keyboard's mic), and Expo Snack's newest SDK lagged ours. (Friction log A2, A3.)
+- **Node.js 22:** `process.loadEnvFile`, `node:test` and built-in `fetch` kept the helper and tests dependency-free. Needs work: `node --test <folder>` doesn't run the folder's tests on Node 22 (it takes glob patterns). (Friction log A6.)
+- **Model Context Protocol (2025-11-25):** a clear, testable spec; we implemented Streamable HTTP by hand (JSON responses, no SSE) in about 300 lines, with tests for version negotiation, tool schemas, errors and the Origin check.

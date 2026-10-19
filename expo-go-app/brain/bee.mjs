@@ -61,8 +61,9 @@ export function toMs(v) {
   return undefined;
 }
 
+/** The first non-empty line, without markdown heading, list or bold markers (Bee's summaries are markdown). */
 export function firstLine(v) {
-  return typeof v === "string" ? v.split("\n").map((x) => x.replace(/^[#*\-\s]+/, "").trim()).find(Boolean) || "" : "";
+  return typeof v === "string" ? v.split("\n").map((x) => x.replace(/^[#*\-\s]+/, "").replace(/\*\*|__/g, "").trim()).find(Boolean) || "" : "";
 }
 
 const textOf = (o, keys) => {
@@ -119,21 +120,27 @@ export async function listConversations(limit = 25) {
  * Mirrors the rules proven on real recordings in services/bee-bridge: use the final (non-realtime)
  * transcript, keep exact text, order by the reported `spoken_at` time when present (else `start`),
  * keep original order for ties, never invent timing.
+ * The real `bee conversations get <id> --json` reply wraps the conversation: { conversation: {...}, timezone }
+ * (services/bee-bridge/src/adapter.ts reads it the same way). A bare conversation object is accepted too.
  */
-export function parseConversation(c, id) {
+export function parseConversation(payload, id) {
+  const c = payload && typeof payload === "object" && payload.conversation && typeof payload.conversation === "object" ? payload.conversation : payload;
   if (!c || String(c.id) !== id) throw new BeeError("bee-mismatch");
   if (!isProcessed(c.state ?? c.status)) throw new BeeError("not-ready");
   const transcriptions = Array.isArray(c.transcriptions) ? c.transcriptions : [];
   const t = transcriptions.filter((x) => x && x.realtime !== true)[0];
   const utterances = Array.isArray(t?.utterances) ? t.utterances : [];
-  const lines = utterances
-    .map((u, i) => ({ u, i }))
-    .filter(({ u }) => typeof u?.text === "string" && u.text.trim())
-    .map(({ u, i }) => ({
-      i,
-      when: Number.isFinite(u.spoken_at) ? u.spoken_at : (toMs(u.start) ?? 0),
-      line: `${speakerName(u.speaker)}: ${u.text.trim()}`,
-    }))
+  const spoken = utterances.map((u, i) => ({ u, i })).filter(({ u }) => typeof u?.text === "string" && u.text.trim());
+  // One clock for the whole conversation, never a mix: Bee's reported `spoken_at` when every line has it
+  // (real recordings had small relative `start` values next to a wall-clock `spoken_at`), else `start`
+  // when every line has one, else Bee's own order.
+  const clock = spoken.every(({ u }) => Number.isFinite(u.spoken_at))
+    ? (u) => u.spoken_at
+    : spoken.every(({ u }) => toMs(u.start) !== undefined)
+      ? (u) => toMs(u.start)
+      : () => 0;
+  const lines = spoken
+    .map(({ u, i }) => ({ i, when: clock(u), line: `${speakerName(u.speaker)}: ${u.text.trim()}` }))
     .sort((a, b) => a.when - b.when || a.i - b.i)
     .map((x) => x.line);
   if (!lines.length) throw new BeeError("not-ready");

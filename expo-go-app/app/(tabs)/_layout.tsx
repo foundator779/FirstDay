@@ -1,16 +1,20 @@
-import { Tabs, router } from "expo-router";
+import { Redirect, Tabs, router } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSignedIn } from "../../src/accountRoot";
 import { buzz } from "../../src/device";
+import { openQuestions } from "../../src/logic/questions";
+import { moreCounts } from "../../src/logic/today";
 import { useStore } from "../../src/store";
 import { Icon, type IconName } from "../../src/ui/icons";
 import { colors, fonts } from "../../src/ui/theme";
 
+// One job: be ready for your next shift. Bee-style extras (to-dos, Ask, memories, patterns) live under More.
 const TABS: { name: string; label: string; icon: IconName }[] = [
   { name: "index", label: "Today", icon: "home" },
-  { name: "todos", label: "Do", icon: "list" },
-  { name: "ask", label: "Ask", icon: "chat" },
   { name: "train", label: "Train", icon: "cap" },
+  { name: "questions", label: "Questions", icon: "chat" },
+  { name: "more", label: "More", icon: "menu" },
 ];
 
 type BarProps = { state: { index: number; routes: { name: string; key: string }[] }; navigation: { navigate: (name: string) => void } };
@@ -18,7 +22,7 @@ type BarProps = { state: { index: number; routes: { name: string; key: string }[
 function Bar({ state, navigation }: BarProps) {
   const insets = useSafeAreaInsets();
   const { state: app } = useStore();
-  const nowCount = app.todos.filter((t) => !t.suggested && t.bucket === "now").length;
+  const badges: Record<string, number> = { questions: openQuestions(app).length, more: moreCounts(app).toSort };
   const current = state.routes[state.index]?.name;
   const tile = (on: boolean, dark?: boolean) => ({
     height: 58,
@@ -30,9 +34,11 @@ function Bar({ state, navigation }: BarProps) {
     borderWidth: 2,
     borderStyle: on || dark ? ("solid" as const) : ("dotted" as const),
     borderColor: on || dark ? colors.ink : colors.faint,
+    paddingHorizontal: 2,
+    overflow: "hidden" as const,
   });
   const caption = (text: string, color: string) => (
-    <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 0.8, color }}>
+    <Text maxFontSizeMultiplier={1.2} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.bodyBold, fontSize: 8.5, letterSpacing: 0.2, color, maxWidth: "100%" }}>
       {text.toUpperCase()}
     </Text>
   );
@@ -43,7 +49,7 @@ function Bar({ state, navigation }: BarProps) {
         key={t.name}
         accessibilityRole="tab"
         accessibilityState={{ selected: on }}
-        accessibilityLabel={t.name === "todos" && nowCount ? `${t.label}, ${nowCount} for now` : t.label}
+        accessibilityLabel={badges[t.name] ? `${t.label}, ${badges[t.name]} waiting` : t.label}
         onPress={() => {
           buzz.tap();
           navigation.navigate(t.name);
@@ -54,6 +60,13 @@ function Bar({ state, navigation }: BarProps) {
           <View style={[tile(on), { opacity: pressed ? 0.6 : 1 }]}>
             <Icon name={t.icon} size={22} strokeWidth={on ? 2.2 : 1.9} color={on ? colors.ink : colors.pencil} />
             {caption(t.label, on ? colors.ink : colors.pencil)}
+            {!!badges[t.name] && (
+              <View style={{ position: "absolute", top: 5, right: 8, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center" }}>
+                <Text maxFontSizeMultiplier={1.1} style={{ fontFamily: fonts.bodyBold, fontSize: 10, color: colors.onHighlight }}>
+                  {badges[t.name]! > 9 ? "9+" : badges[t.name]}
+                </Text>
+              </View>
+            )}
           </View>
         )}
       </Pressable>
@@ -95,6 +108,9 @@ function Bar({ state, navigation }: BarProps) {
 }
 
 export default function TabsLayout() {
+  // Nothing in the app shows until you're signed in: the landing page offers sign in or create account.
+  const signedIn = useSignedIn();
+  if (!signedIn) return <Redirect href="/landing" />;
   return (
     <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <Bar {...(props as unknown as BarProps)} />}>
       {TABS.map((t) => (

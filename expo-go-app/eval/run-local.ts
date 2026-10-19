@@ -6,6 +6,8 @@ import { readFileSync } from "node:fs";
 import { extract } from "../src/logic/extract";
 // @ts-ignore - plain JS module shared with the AI runner
 import { report, scoreCase } from "./score.mjs";
+// @ts-ignore - plain JS module shared with the AI runner
+import { loadReal } from "./real.mjs";
 
 type Case = { id: string; transcript: string; rules: unknown[]; questions: string[]; notRules: string[] };
 const load = (f: string) => (JSON.parse(readFileSync(new URL(f, import.meta.url), "utf8")) as { cases: Case[] }).cases;
@@ -21,6 +23,17 @@ for (const [name, file] of [["Development set", "./corpus.json"], ["Held-out set
   console.log(`${text}\n`);
   if (file === "./corpus.json") devLeaks += summary.vagueLinesTurnedIntoRules;
   all[name] = summary;
+}
+// Real Bee recordings you exported and labeled (eval/real): reported, never tuned on, never gated.
+const real = loadReal() as Case[];
+if (real.length) {
+  const results = real.map((c) => {
+    const { candidates, questions } = extract(c.transcript);
+    return scoreCase(c, { rules: candidates, questions });
+  });
+  const { summary, text } = report("On-phone extractor (no AI), Real Bee recordings (consented)", results);
+  console.log(`${text}\n`);
+  all["Real Bee recordings"] = summary;
 }
 if (process.argv.includes("--json")) console.log(JSON.stringify(all));
 // Regression gate for CI: on the development set, no vague or chatty line may become a rule.

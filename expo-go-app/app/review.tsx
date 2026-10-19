@@ -3,10 +3,12 @@ import { useMemo, useState } from "react";
 import { TextInput, View } from "react-native";
 import { buzz } from "../src/device";
 import { isSameDay } from "../src/logic/dates";
+import { dayKey } from "../src/logic/text";
 import type { Conversation, Memory, Todo } from "../src/logic/types";
 import { useStore } from "../src/store";
 import { Icon } from "../src/ui/icons";
 import { Btn, Label, Quote, Screen, Sketch, TopBar, Txt, useUI } from "../src/ui/kit";
+import { MoodPicker } from "../src/ui/mood";
 import { colors, fonts } from "../src/ui/theme";
 
 type Kind = "convo" | "todo" | "memory";
@@ -29,6 +31,8 @@ export default function Review() {
     [],
   );
   const [i, setI] = useState(0);
+  // Starts with one tap: how did today feel? (feeds Patterns). Skipped if you already answered today.
+  const [askMood, setAskMood] = useState(() => !state.moods.some((m) => m.day === dayKey(now)));
   const [edit, setEdit] = useState<string | null>(null);
   const [last, setLast] = useState<{ kind: Kind; before: Todo | Memory | Conversation; index: number } | null>(null);
 
@@ -42,6 +46,28 @@ export default function Review() {
     setI(i + 1);
   };
 
+  if (askMood) {
+    return (
+      <Screen footer={<Btn kind="quiet" label="Skip" onPress={() => setAskMood(false)} />}>
+        <TopBar onBack={() => router.back()} close title="Evening review" />
+        <View style={{ gap: 18, paddingTop: 40 }}>
+          <Txt v="hero" center>
+            How did today feel?
+          </Txt>
+          <Txt dim center>
+            One tap. Over the weeks, Patterns shows how your days have been going.
+          </Txt>
+          <MoodPicker
+            onPick={(score) => {
+              actions.logMood(score);
+              setTimeout(() => setAskMood(false), 250);
+            }}
+          />
+        </View>
+      </Screen>
+    );
+  }
+
   if (!item || !current) {
     if (item && !current) {
       // Deleted elsewhere; skip it.
@@ -49,7 +75,14 @@ export default function Review() {
       return null;
     }
     return (
-      <Screen footer={<Btn kind="primary" label="Back" onPress={() => router.back()} />}>
+      <Screen
+        footer={
+          <>
+            <Btn kind="primary" label="Back" onPress={() => router.back()} />
+            <Btn kind="quiet" label="See your patterns" onPress={() => router.replace("/patterns")} />
+          </>
+        }
+      >
         <View style={{ alignItems: "center", gap: 10, paddingTop: 70 }}>
           <Icon name="moon" size={60} />
           <Txt v="hero" center>

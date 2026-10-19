@@ -11,20 +11,23 @@ import { colors } from "../src/ui/theme";
 const PAGES: { icon: IconName; title: string; lines: string[] }[] = [
   {
     icon: "star",
-    title: "Hi. One thing at a time.",
-    lines: ["FirstDay Go catches what people tell you.", "Then it shows you only the next thing to do."],
+    title: "Hi. Let's get you ready for your next shift.",
+    lines: ["New job, twenty new procedures. You don't have to hold them all in your head.", "FirstDay Go shows you one next thing at a time."],
   },
   {
-    icon: "plus",
-    title: "Capture anything.",
-    lines: ["Tap the big + and talk, type, or bring in a Bee conversation.", "Messy is fine. I'll find the to-dos and things to remember."],
+    icon: "bee",
+    title: "Bee hears your trainer.",
+    lines: [
+      "Wear your Bee while someone shows you how things work (with their OK). Or tap the big + and type or paste it.",
+      "I find each step, next to their exact words. You check them.",
+    ],
   },
   {
     icon: "cap",
-    title: "Practise your new job.",
+    title: "Practise. Stay current.",
     lines: [
-      "When a trainer explains how things work, I find each step with their exact words.",
-      "You check them, then practise in short rounds. No grades. No streaks to lose.",
+      "Short role-play rounds. No grades. No streaks to lose.",
+      "If your trainer changes a step later, you get a Change Drill: old vs. new, then the new way. Vague things become questions to ask.",
     ],
   },
 ];
@@ -35,10 +38,9 @@ export default function Welcome() {
   const page = PAGES[i]!;
   const last = i === PAGES.length - 1;
 
-  const done = (then?: "/account") => {
+  const done = () => {
     actions.finishOnboarding();
     router.replace("/");
-    if (then) router.push(then);
   };
 
   return (
@@ -46,11 +48,7 @@ export default function Welcome() {
       footer={
         <>
           <Btn kind="primary" icon={last ? "check" : "chevron"} label={last ? "Let's go" : "Next"} onPress={() => (last ? done() : setI(i + 1))} />
-          {last ? (
-            <Btn kind="quiet" label="Sign in for smarter reading (optional)" onPress={() => done("/account")} />
-          ) : (
-            <Btn kind="quiet" label="Skip" onPress={() => done()} />
-          )}
+          {!last && <Btn kind="quiet" label="Skip" onPress={() => done()} />}
         </>
       }
     >

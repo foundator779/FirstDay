@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  FirstDay coach service: team trainings (a trainer shares a training with a join code, lets in each person
+  who asks, and changes reach every member as a Change Drill) and a remote MCP server (spec 2025-11-25, Streamable HTTP) that quizzes a user on
+  their confirmed steps from any MCP client or the voice screen. One Lambda Function URL and one on-demand
+  DynamoDB table: pay per use, no monthly fees. Deploy with infra/deploy-coach.sh.
+
+Parameters:
+  CognitoPoolId:
+    Type: String
+    Default: us-east-1_mZfIndG7K
+  CognitoClientId:
+    Type: String
+    Default: 2ml0g4qv3uj1o66do3mm15r7os
+  WebOrigins:
+    Type: String
+    Default: https://d1ypavau8ae868.cloudfront.net,http://firstday-go-web-237320501162.s3-website-us-east-1.amazonaws.com
+    Description: Comma-separated web pages allowed to call the service from a browser (the app's web version and the voice screen).
+
+Resources:
+  Table:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: firstday-go-coach
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+      # Encrypted at rest with an AWS-owned key (no charge).
+
+  Logs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/firstday-go-coach
+      RetentionInDays: 7
+
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: firstday-go-coach
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !GetAtt Logs.Arn
+              - Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:DeleteItem, dynamodb:Query]
+                Resource: !GetAtt Table.Arn
+
+  Function:
+    Type: AWS::Lambda::Function
+    DependsOn: Logs
+    Properties:
+      FunctionName: firstday-go-coach
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      Handler: index.handler
+      MemorySize: 256
+      Timeout: 15
+      Role: !GetAtt Role.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref Table
+          COGNITO_POOL_ID: !Ref CognitoPoolId
+          COGNITO_CLIENT_ID: !Ref CognitoClientId
+          WEB_ORIGINS: !Ref WebOrigins
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 503, body: '{"error":"Code not uploaded yet: run infra/deploy-coach.sh"}' });
+
+  Url:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt Function.Arn
+      AuthType: NONE
+      Cors:
+        AllowOrigins: !Split [",", !Ref WebOrigins]
+        AllowMethods: [GET, POST, PUT, DELETE]
+        AllowHeaders: [authorization, content-type, accept, mcp-protocol-version, mcp-session-id]
+        MaxAge: 3600
+
+  PublicUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+Outputs:
+  CoachUrl:
+    Description: Put this in EXPO_PUBLIC_FIRSTDAY_COACH_URL (or DEFAULT_URL in src/coachCloud.ts). The MCP server is <url>mcp.
+    Value: !GetAtt Url.FunctionUrl

@@ -1,5 +1,6 @@
 import type { Analysis } from "./logic/analyze";
 import { getAccessToken } from "./auth";
+import { BEE_KEY_HEADER, phoneKey } from "./beeCloud";
 import { cleanSnapshot } from "./logic/beeSync";
 import type { BeeInboxItem, BeeSnapshot, Brain } from "./logic/types";
 
@@ -8,19 +9,27 @@ import type { BeeInboxItem, BeeSnapshot, Brain } from "./logic/types";
  * The Cognito access token is sent only when `withToken` is set: always for the AWS endpoint, and for a
  * brain only if it was set up to require accounts. It never goes to a brain that doesn't need it.
  */
-export type Target = { url: string; code?: string; withToken?: boolean };
+export type Target = { url: string; code?: string; withToken?: boolean; cloudBee?: boolean };
 
 async function call<T>(brain: Target, path: string, body?: unknown, timeoutMs = 12_000): Promise<T> {
+  // The web version served over https can't call a plain-http address on the Wi-Fi (browsers block it).
+  const page = (globalThis as { location?: { protocol?: string } }).location;
+  if (page?.protocol === "https:" && /^http:\/\//i.test(brain.url)) {
+    throw new Error("This https page can't reach the brain on your Wi-Fi. Open the http link of FirstDay Go to connect Bee.");
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const token = brain.withToken ? await getAccessToken().catch(() => undefined) : undefined;
+    const token = brain.withToken || brain.cloudBee ? await getAccessToken().catch(() => undefined) : undefined;
+    // The FirstDay Bee service also needs this phone's key to open your sealed Bee sign-in.
+    const beeKey = brain.cloudBee ? await phoneKey().catch(() => null) : null;
     const res = await fetch(`${brain.url.replace(/\/+$/, "")}${path}`, {
       method: body === undefined ? "GET" : "POST",
       headers: {
         "content-type": "application/json",
         ...(brain.code ? { "x-firstday-code": brain.code } : {}),
         ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(beeKey ? { [BEE_KEY_HEADER]: beeKey } : {}),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,

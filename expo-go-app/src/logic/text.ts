@@ -29,11 +29,27 @@ export function contentWords(text: string): string[] {
   return words(text).filter((w) => w.length > 2 && !STOP.has(w));
 }
 
-/** Up to `max` distinct content words, in order of appearance. */
+/**
+ * The text without its contrast clause: "put it in the blue crate, not the grey bin" -> "put it in the blue crate".
+ * The words after ", not", "instead of" or "rather than" name the old or wrong way, so they're never key words.
+ */
+export function withoutContrast(text: string): string {
+  return text.replace(/(,\s*(?:and\s+)?not\b|\binstead of\b|\brather than\b)[^,.;!?]*/gi, " ");
+}
+
+/**
+ * An answer without anything said only to contrast ("blue crate, not the grey bin", spoken without commas too),
+ * for the old-way check: naming the old way to reject it isn't giving the old answer.
+ */
+export function answerWithoutContrast(text: string): string {
+  return text.replace(/\b(not|instead of|rather than)\b[^,.;!?]*/gi, " ");
+}
+
+/** Up to `max` distinct content words, in order of appearance (never from a contrast clause). */
 export function keywordsFor(text: string, max = 5): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const w of contentWords(text)) {
+  for (const w of contentWords(withoutContrast(text))) {
     const s = stem(w);
     if (seen.has(s)) continue;
     seen.add(s);

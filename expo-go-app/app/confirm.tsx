@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
-import { TextInput, View } from "react-native";
+import { ActivityIndicator, TextInput, View } from "react-native";
 import { buzz } from "../src/device";
 import type { SuggestedRule } from "../src/logic/types";
 import { useStore } from "../src/store";
@@ -31,7 +31,10 @@ export default function Confirm() {
   const [i, setI] = useState(0);
   const [kept, setKept] = useState<SuggestedRule[]>([]);
   const [edit, setEdit] = useState<{ situation: string; action: string } | null>(null);
-  const [outcome, setOutcome] = useState<{ packId: string; updates: number; added: number } | null>(null);
+  const [outcome, setOutcome] = useState<{ packId: string; updates: number; added: number; toTeam: boolean } | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState("");
+  const [sendError, setSendError] = useState("");
 
   const field = { fontFamily: fonts.body, fontSize: s.body, color: colors.ink, borderBottomWidth: 1.5, borderBottomColor: colors.faint, paddingVertical: 10 } as const;
 
@@ -84,7 +87,11 @@ export default function Confirm() {
           </View>
         ) : (
           <Sketch seed="update-note" dashed fill={colors.wash} style={{ padding: 14 }}>
-            <Txt v="small">If a step changes an existing rule, you'll get a Change Drill: old vs. new, then practice with the new way.</Txt>
+            <Txt v="small">
+              {state.packs.find((p) => p.id === target.packId)?.team?.role === "trainer"
+                ? "You share this training with your team. Changed steps update here first; your team gets them as a Change Drill when you send them."
+                : "If a step changes an existing rule, you'll get a Change Drill: old vs. new, then practice with the new way."}
+            </Txt>
           </Sketch>
         )}
       </Screen>
@@ -95,7 +102,32 @@ export default function Confirm() {
     return (
       <Screen
         footer={
-          outcome ? (
+          outcome?.toTeam ? (
+            sending ? (
+              <ActivityIndicator color={colors.ink} />
+            ) : sent ? (
+              <Btn kind="primary" label="Done" onPress={() => router.back()} />
+            ) : (
+              <>
+                <Btn
+                  kind="primary"
+                  icon="refresh"
+                  label="Send to my team now"
+                  onPress={async () => {
+                    setSending(true);
+                    setSendError("");
+                    const r = await actions.sendTeamUpdate(outcome.packId);
+                    setSending(false);
+                    if (r.ok) {
+                      setSent(r.message);
+                      buzz.good();
+                    } else setSendError(r.message);
+                  }}
+                />
+                <Btn kind="quiet" label="Review the training first" onPress={() => router.replace(`/pack/${outcome.packId}`)} />
+              </>
+            )
+          ) : outcome ? (
             <>
               <Btn kind="primary" icon="play" label={outcome.updates ? "See what changed" : "Practise now"} onPress={() => router.replace(`/session/${outcome.packId}?mode=${outcome.updates ? "change" : "learn"}`)} />
               <Btn kind="quiet" label="Later" onPress={() => router.back()} />
@@ -113,9 +145,14 @@ export default function Confirm() {
           {outcome && (
             <Txt dim center>
               {outcome.added} new step{outcome.added === 1 ? "" : "s"}
-              {outcome.updates ? ` · ${outcome.updates} change${outcome.updates > 1 ? "s" : ""} to drill` : ""}
+              {outcome.updates ? ` · ${outcome.updates} change${outcome.updates > 1 ? "s" : ""}${outcome.toTeam ? "" : " to drill"}` : ""}
             </Txt>
           )}
+          {outcome?.toTeam && !sent && (
+            <Txt center>Your team still has the old version. Send it now, and everyone who practised the old way gets a Change Drill.</Txt>
+          )}
+          {!!sent && <Txt center>{sent}</Txt>}
+          {!!sendError && <Txt center bold>{`Couldn't send: ${sendError} Try again, or send it later from the training.`}</Txt>}
         </View>
       </Screen>
     );

@@ -8,17 +8,21 @@
     "tunnel": "expo start --tunnel",
     "ios": "expo start --ios",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/logic/logic.test.ts",
+    "test": "tsx --test \"src/logic/*.test.ts\"",
+    "test:node": "node --test \"brain/test/*.test.mjs\" \"infra/bee-lambda/test/*.test.mjs\" \"infra/coach-lambda/test/*.test.mjs\"",
     "eval": "tsx eval/run-local.ts",
     "eval:bedrock": "node eval/run-bedrock.mjs",
+    "eval:export": "node scripts/eval-export.mjs",
+    "bee:evidence": "tsx scripts/bee-evidence.mts",
     "brain": "node brain/server.mjs",
     "coach": "node brain/firstday.mjs",
-    "check": "npm test && npm run typecheck && npm run eval"
+    "check": "npm test && npm run test:node && npm run typecheck && npm run eval"
   },
   "dependencies": {
     "@expo-google-fonts/atkinson-hyperlegible": "^0.4.0",
     "expo": "~57.0.23",
     "expo-constants": "~57.0.17",
+    "expo-crypto": "~57.0.0",
     "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.3",
     "expo-haptics": "~57.0.0",
@@ -37,6 +41,7 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/react": "19.2.14",
+    "babel-preset-expo": "~57.0.0",
     "tsx": "^4.19.0",
     "typescript": "~6.0.3"
   }
