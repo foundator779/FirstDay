@@ -297,7 +297,7 @@ Build, Ship, Shape: Amazon Developer Hackathon 2026.
 
 **Built during the hackathon.** The submission period runs from August 31 to October 23, 2026. Work started on
 September 10, 2026, and the first commit is from September 24, 2026. That first version was a native FirstDay app
-(`apps/`, `packages/`, `services/`, `supabase/`), kept for reference and not part of this submission. FirstDay Go,
+(`apps/`, `packages/`, `services/`), kept for reference and not part of this submission. FirstDay Go,
 the submitted app in [`expo-go-app/`](expo-go-app/), started on October 3, 2026, and all of it was built during the
 submission period: the screens, step extraction, practice and Change Drills, Bee sync, the Bee service, the coach
 service and MCP server, the voice screen, the Agent Skill, the CloudFormation stacks, the tests and the eval.

@@ -181,7 +181,7 @@ function sessionFrom(r: AuthResult, refreshToken: string): Session {
   };
 }
 
-// ---------- password rules (keep in sync with the user pool policy in AUTH-SETUP.md) ----------
+// ---------- password rules (keep in sync with the Cognito user pool's password policy) ----------
 
 export const PASSWORD_RULES: { label: string; test: (p: string) => boolean }[] = [
   { label: "At least 8 characters", test: (p) => p.length >= 8 },

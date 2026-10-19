@@ -99,7 +99,7 @@ export default function Account() {
         <Sketch seed="no-auth" dashed fill={colors.wash} style={{ padding: 18, gap: 8 }}>
           <Txt>Accounts aren't switched on in this build yet.</Txt>
           <Txt v="small" dim>
-            Add EXPO_PUBLIC_COGNITO_REGION and EXPO_PUBLIC_COGNITO_CLIENT_ID to expo-go-app/.env (see AUTH-SETUP.md), then restart Expo.
+            Add EXPO_PUBLIC_COGNITO_REGION and EXPO_PUBLIC_COGNITO_CLIENT_ID to expo-go-app/.env (see .env.example), then restart Expo.
           </Txt>
         </Sketch>
         <Txt v="small" dim>
