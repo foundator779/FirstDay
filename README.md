@@ -1,21 +1,34 @@
+<div align="center">
+
 # FirstDay Go
 
-[![FirstDay Go checks](https://github.com/foundator779/FirstDay/actions/workflows/firstday-go.yml/badge.svg)](https://github.com/foundator779/FirstDay/actions/workflows/firstday-go.yml)
+**Your trainer's words, ready for your next shift.**
 
-**For the person starting a new job.** With your trainer's OK, Bee hears them. FirstDay Go turns their exact words into
-calm, one-step-at-a-time practice for your next shift, built for people with ADHD. Trainers can join in, and a changed
-step reaches everyone they've trained.
+For the person starting a new job. With your trainer's OK, Bee hears them, and FirstDay Go turns their exact words
+into calm, one-step-at-a-time practice, built for people with ADHD. Trainers can join in, and a changed step reaches
+everyone they've trained.
 
-Bee track · Amazon *Build, Ship, Shape* hackathon 2026 · iPhone (Expo Go) and web · MIT license
+[![FirstDay Go checks](https://github.com/foundator779/FirstDay/actions/workflows/firstday-go.yml/badge.svg)](https://github.com/foundator779/FirstDay/actions/workflows/firstday-go.yml) [![app: live on AWS](https://img.shields.io/badge/app-live%20on%20AWS-161616)](https://d1ypavau8ae868.cloudfront.net) [![Bee data: real · Apple Watch](https://img.shields.io/badge/Bee%20data-real%20%C2%B7%20Apple%20Watch-161616)](#real-bee-data-from-an-apple-watch) [![runs on: iPhone · Expo Go · web](https://img.shields.io/badge/runs%20on-iPhone%20%C2%B7%20Expo%20Go%20%C2%B7%20web-161616)](#run-it-locally) [![AI: Amazon Bedrock · Nova Pro](https://img.shields.io/badge/AI-Amazon%20Bedrock%20%C2%B7%20Nova%20Pro-161616)](#how-its-built-on-aws) [![MCP: 2025-11-25](https://img.shields.io/badge/MCP-2025--11--25-161616)](#how-it-uses-bee) [![tests: 104 automated](https://img.shields.io/badge/tests-104%20automated-161616)](#run-it-locally) [![held-out recall: 85%](https://img.shields.io/badge/held--out%20recall-85%25-161616)](#how-accurate-it-is) [![license: MIT](https://img.shields.io/badge/license-MIT-161616)](LICENSE)
+
+[**Live app**](https://d1ypavau8ae868.cloudfront.net) · [Test it as a judge](#testing-it-as-a-judge) · [Real Bee data](#real-bee-data-from-an-apple-watch) · [Architecture](#how-its-built-on-aws) · [Run it locally](#run-it-locally) · [Accuracy](#how-accurate-it-is) · [Submission checklist](#hackathon-submission)
 
 <!-- When the demo video is public, add its link here:
-**[▶ Watch the 3-minute demo](https://www.youtube.com/watch?v=VIDEO_ID)**
+[**▶ Watch the 3-minute demo**](https://www.youtube.com/watch?v=VIDEO_ID) ·
 -->
 
-<p align="center">
-  <img src="docs/images/readme/demo.gif" width="100%" alt="Clips from the demo: Bee records a café training on an Apple Watch, the same conversation shows up in FirstDay Go, Amazon Bedrock finds the work steps with the trainer's exact words, and a changed rule becomes a Change Drill.">
-</p>
-<p align="center"><sub>Real data, no mock-ups: Bee records the training on an Apple Watch, the same conversation arrives in FirstDay Go, Amazon Bedrock finds the steps, and a changed rule becomes a Change Drill.</sub></p>
+<a href="https://d1ypavau8ae868.cloudfront.net"><img src="docs/images/readme/banner.png" width="100%" alt="FirstDay Go: your trainer's words, ready for your next shift. Bee records a training on an Apple Watch, it arrives in FirstDay Go, and each work step keeps the trainer's exact words."></a>
+
+</div>
+
+- **Live app, free, nothing to install:** [d1ypavau8ae868.cloudfront.net](https://d1ypavau8ae868.cloudfront.net) →
+  **Create account**. It's the same code as the Expo Go iPhone app, hosted on AWS.
+- **Real Bee data, end to end:** on October 18, 2026, Bee recorded a café training on an Apple Watch. Minutes later it
+  was in FirstDay Go, and Amazon Bedrock read it into 3 work steps, 1 question for the trainer and a to-do
+  ([see it](#real-bee-data-from-an-apple-watch)).
+- **Measured, not just demoed:** on workplaces it was never tuned on, it finds 85% of the steps a trainer stated, copies
+  every quote word for word, and turned no vague line into a rule. 104 automated tests run in CI
+  ([accuracy](#how-accurate-it-is)).
+- **Its own MCP server and Agent Skill:** a voice screen or any AI assistant can quiz you in your trainer's words.
 
 | Try it | |
 | --- | --- |
@@ -84,6 +97,11 @@ practise. You use it yourself, on your own Bee, with your trainer's OK: no emplo
 ## Real Bee data from an Apple Watch
 
 Filmed on October 18, 2026 with a real Bee account on an Apple Watch: no simulator, no sample file.
+
+<p align="center">
+  <img src="docs/images/readme/demo.gif" width="100%" alt="Clips from the demo: Bee records a café training on an Apple Watch, the same conversation shows up in FirstDay Go, Amazon Bedrock finds the work steps with the trainer's exact words, and a changed rule becomes a Change Drill.">
+</p>
+<p align="center"><sub>Real data, no mock-ups: Bee records the training on an Apple Watch, the same conversation arrives in FirstDay Go, Amazon Bedrock finds the steps, and a changed rule becomes a Change Drill.</sub></p>
 
 <table>
   <tr>
