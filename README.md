@@ -8,18 +8,18 @@ For the person starting a new job. With your trainer's OK, Bee hears them, and F
 into calm, one-step-at-a-time practice, built for people with ADHD. Trainers can join in, and a changed step reaches
 everyone they've trained.
 
-[![FirstDay Go checks](https://github.com/foundator779/FirstDay/actions/workflows/firstday-go.yml/badge.svg)](https://github.com/foundator779/FirstDay/actions/workflows/firstday-go.yml) [![app: live on AWS](https://img.shields.io/badge/app-live%20on%20AWS-161616)](https://d1ypavau8ae868.cloudfront.net) [![Bee data: real · Apple Watch](https://img.shields.io/badge/Bee%20data-real%20%C2%B7%20Apple%20Watch-161616)](#real-bee-data-from-an-apple-watch) [![runs on: iPhone · Expo Go · web](https://img.shields.io/badge/runs%20on-iPhone%20%C2%B7%20Expo%20Go%20%C2%B7%20web-161616)](#run-it-locally) [![AI: Amazon Bedrock · Nova Pro](https://img.shields.io/badge/AI-Amazon%20Bedrock%20%C2%B7%20Nova%20Pro-161616)](#how-its-built-on-aws) [![MCP: 2025-11-25](https://img.shields.io/badge/MCP-2025--11--25-161616)](#how-it-uses-bee) [![tests: 104 automated](https://img.shields.io/badge/tests-104%20automated-161616)](#run-it-locally) [![held-out recall: 85%](https://img.shields.io/badge/held--out%20recall-85%25-161616)](#how-accurate-it-is) [![license: MIT](https://img.shields.io/badge/license-MIT-161616)](LICENSE)
+[![Demo video on YouTube](https://img.shields.io/badge/demo-watch%20on%20YouTube-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=h5Ks2q6d43c) [![FirstDay Go checks](https://github.com/foundator779/FirstDay/actions/workflows/firstday-go.yml/badge.svg)](https://github.com/foundator779/FirstDay/actions/workflows/firstday-go.yml) [![app: live on AWS](https://img.shields.io/badge/app-live%20on%20AWS-161616)](https://d1ypavau8ae868.cloudfront.net) [![Bee data: real · Apple Watch](https://img.shields.io/badge/Bee%20data-real%20%C2%B7%20Apple%20Watch-161616)](#real-bee-data-from-an-apple-watch) [![runs on: iPhone · Expo Go · web](https://img.shields.io/badge/runs%20on-iPhone%20%C2%B7%20Expo%20Go%20%C2%B7%20web-161616)](#run-it-locally) [![AI: Amazon Bedrock · Nova Pro](https://img.shields.io/badge/AI-Amazon%20Bedrock%20%C2%B7%20Nova%20Pro-161616)](#how-its-built-on-aws) [![MCP: 2025-11-25](https://img.shields.io/badge/MCP-2025--11--25-161616)](#how-it-uses-bee) [![tests: 104 automated](https://img.shields.io/badge/tests-104%20automated-161616)](#run-it-locally) [![held-out recall: 85%](https://img.shields.io/badge/held--out%20recall-85%25-161616)](#how-accurate-it-is) [![license: MIT](https://img.shields.io/badge/license-MIT-161616)](LICENSE)
 
 [**Live app**](https://d1ypavau8ae868.cloudfront.net) · [Test it as a judge](#testing-it-as-a-judge) · [Real Bee data](#real-bee-data-from-an-apple-watch) · [Architecture](#how-its-built-on-aws) · [Run it locally](#run-it-locally) · [Accuracy](#how-accurate-it-is) · [Submission checklist](#hackathon-submission)
 
-<!-- When the demo video is public, add its link here:
-[**▶ Watch the 3-minute demo**](https://www.youtube.com/watch?v=VIDEO_ID) ·
--->
+### [▶ Watch the demo video](https://www.youtube.com/watch?v=h5Ks2q6d43c)
 
-<a href="https://d1ypavau8ae868.cloudfront.net"><img src="docs/images/readme/banner.png" width="100%" alt="FirstDay Go: your trainer's words, ready for your next shift. Bee records a training on an Apple Watch, it arrives in FirstDay Go, and each work step keeps the trainer's exact words."></a>
+<a href="https://www.youtube.com/watch?v=h5Ks2q6d43c"><img src="docs/images/readme/banner.png" width="100%" alt="FirstDay Go: your trainer's words, ready for your next shift. Bee records a training on an Apple Watch, it arrives in FirstDay Go, and each work step keeps the trainer's exact words."></a>
 
 </div>
 
+- **Demo video:** [watch it on YouTube](https://www.youtube.com/watch?v=h5Ks2q6d43c): Bee on an Apple Watch, the same conversation in FirstDay Go, practice and a
+  Change Drill, all with real data.
 - **Live app, free, nothing to install:** [d1ypavau8ae868.cloudfront.net](https://d1ypavau8ae868.cloudfront.net) →
   **Create account**. It's the same code as the Expo Go iPhone app, hosted on AWS.
 - **Real Bee data, end to end:** on October 18, 2026, Bee recorded a café training on an Apple Watch. Minutes later it
@@ -292,8 +292,7 @@ Build, Ship, Shape: Amazon Developer Hackathon 2026.
 | Friction log (optional) | [docs/friction-log.md](docs/friction-log.md): task, steps, expected vs. actual, severity, workaround and suggestion for each entry |
 | Feature requests (optional) | [docs/submission/feature-requests.md](docs/submission/feature-requests.md): each with why it matters and a priority |
 | Open source license | [MIT](LICENSE), shown in the repository's About section |
-
-<!-- Demo video (2:58, public on YouTube): add the link here and at the top once it's uploaded. -->
+| Demo video: under 3 minutes, public on YouTube | [Watch the demo](https://www.youtube.com/watch?v=h5Ks2q6d43c) |
 
 **Built during the hackathon.** The submission period runs from August 31 to October 23, 2026. Work started on
 September 10, 2026, and the first commit is from September 24, 2026. That first version was a native FirstDay app
