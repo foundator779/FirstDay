@@ -29,10 +29,10 @@ and whether we'd build with it again. Everything below is what we actually saw w
 
 **What needs work.**
 - **Timing fields.** Real payloads had small `start`/`end` values, a wall-clock `spoken_at`, zero-length and tied utterances, and a point outside the conversation window. Our first adapter assumed epoch intervals and rejected real data. Documenting the units, origin and guarantees of each field (with one real example) would save others the same detour. (Friction log #1.)
-- **Windows.** The npm-installed CLI is a `.cmd` shim; current Node won't spawn it without a shell, and passing user text through `cmd.exe` isn't safe. A native `bee.exe`, or documenting `bee proxy` as the supported way for programs to write, would help. (Friction log #5.)
+- **Windows.** The npm-installed CLI is a `.cmd` shim; current Node won't spawn it without a shell, and passing user text through `cmd.exe` isn't safe. A native `bee.exe`, or documenting `bee proxy` as the supported way for programs to write, would help. (Friction log #2.)
 - **Mobile apps need a computer in the middle.** To get Bee data onto a phone app we run a helper next to the CLI. A push or webhook to a developer's own app (with the user's consent) would remove that step.
-- **Reply shapes aren't documented.** The CLI page lists `--json` flags but not what they return. `conversations get` wraps the conversation in `{ conversation }`; our new importer missed that and rejected every real conversation until a test built on the real shape caught it. One example reply per command would prevent this. (Friction log #6.)
-- **Running the CLI on a server.** For "Connect Bee without a computer" we run the CLI in AWS Lambda: the npm package is about 420 MB (we ship only the 37 MB Linux program), and the sign-in lives as files in `~/.bee`, so we restore it per request from a copy sealed with a key on the user's phone. A documented, consented server-side token flow would be simpler and clearer about what's allowed. (Friction log #7, #8.)
+- **Reply shapes aren't documented.** The CLI page lists `--json` flags but not what they return. `conversations get` wraps the conversation in `{ conversation }`; our new importer missed that and rejected every real conversation until a test built on the real shape caught it. One example reply per command would prevent this. (Friction log #3.)
+- **Running the CLI on a server.** For "Connect Bee without a computer" we run the CLI in AWS Lambda: the npm package is about 420 MB (we ship only the 37 MB Linux program), and the sign-in lives as files in `~/.bee`, so we restore it per request from a copy sealed with a key on the user's phone. A documented, consented server-side token flow would be simpler and clearer about what's allowed. (Friction log #4, #5.)
 - [EDIT: anything else you hit, e.g. pairing, login, or how long processing took.]
 
 **Onboarding (zero to hello world).** [EDIT: your words. For example: how long from unboxing to the first `bee conversations list` returning your recording, and what slowed you down.]
@@ -49,11 +49,11 @@ and whether we'd build with it again. Everything below is what we actually saw w
 - Forced tool use gave us schema-shaped output every time, with no JSON repair code.
 - The same request body works from Node `fetch` with a Bedrock API key (our local helper), from the AWS SDK in Lambda, and from `aws bedrock-runtime converse --cli-input-json` (our eval runner). One prompt file serves all three.
 - Speed and cost: about 2.7 s and roughly 1,100 input + 225 output tokens per capture, about $0.0016 at Nova Pro's list price.
-- Accuracy where it matters: on transcripts from workplaces it was never tuned on, it found 85% of stated steps at 96% precision, and turned no vague or chatty line into a rule (our on-phone rules found 63–67%).
+- Accuracy where it matters: on transcripts from workplaces it was never tuned on, across three runs it found 88% of stated steps (82–93% per run) at 95% precision, and turned no vague or chatty line into a rule (our on-phone rules found 63%). Its answers vary from run to run, so one run isn't enough to judge it; the failure cases are in docs/ACCURACY.md.
 - In AWS CloudShell, our first Converse call to Nova Pro worked with the console's credentials, no extra setup.
 
 **What needs work.**
-- Structured output guarantees shape, not faithfulness. In one run the action dropped a number that was in the source. A docs example of checking extracted text against its source would help teams avoid trusting valid JSON too much. (Friction log #2.)
+- Structured output guarantees shape, not faithfulness. In one run the action dropped a number that was in the source. A docs example of checking extracted text against its source would help teams avoid trusting valid JSON too much.
 - [EDIT: anything about model access, quotas or the console playground you noticed.]
 
 **Onboarding.** [EDIT: your experience creating the Bedrock API key for the local helper.] From CloudShell, zero to a working Nova Pro call was one command.
@@ -73,8 +73,8 @@ and whether we'd build with it again. Everything below is what we actually saw w
 - CloudShell had the AWS CLI, Node 20, `zip` and `curl` ready, signed in as the console user.
 
 **What needs work.**
-- Getting files into CloudShell from an automated session: Upload opens the operating system's file picker, the terminal's output lives in a cross-origin frame (not readable as page text), and there's no CLI command to copy a file in. We typed a base64 bundle in checksummed chunks. (Friction log #4.)
-- Public Function URLs need two resource-policy statements (`lambda:InvokeFunctionUrl`, and `lambda:InvokeFunction` with `--invoked-via-function-url`). We added both up front from the docs and verified them with `get-policy`; a single "public URL" setting in CloudFormation would make this harder to get wrong. (Friction log #10.)
+- Getting files into CloudShell from an automated session: Upload opens the operating system's file picker, the terminal's output lives in a cross-origin frame (not readable as page text), and there's no CLI command to copy a file in. We typed a base64 bundle in checksummed chunks.
+- Public Function URLs need two resource-policy statements (`lambda:InvokeFunctionUrl`, and `lambda:InvokeFunction` with `--invoked-via-function-url`). We added both up front from the docs and verified them with `get-policy`; a single "public URL" setting in CloudFormation would make this harder to get wrong.
 
 **Onboarding.** CloudShell to a deployed, health-checked endpoint was one script run after the files were in.
 
@@ -92,7 +92,7 @@ and whether we'd build with it again. Everything below is what we actually saw w
 - The Lite tier covers the first 10,000 monthly active users for free.
 
 **What needs work.**
-- `list-user-pools` is regional, so our "does this account already have a pool?" check missed one in another region and we created a duplicate. The console could mention pools in other regions. (Friction log #3.)
+- `list-user-pools` is regional, so our "does this account already have a pool?" check missed one in another region and we created a duplicate. The console could mention pools in other regions.
 - The built-in email sender has a low daily limit, so launch needs Amazon SES set up; the console could flag this when a pool sends verification codes.
 
 **Onboarding.** Creating the pool and app client from the CLI took a few commands. [EDIT: your experience, e.g. how quickly the confirmation email arrived.]
@@ -117,7 +117,7 @@ conditional puts, so two trainers' phones can't overwrite each other.
 
 **What needs work.**
 - Cognito can't act as the OAuth server for arbitrary MCP clients (no dynamic client registration), so the app issues
-  per-app keys instead. (Friction log #11.)
+  per-app keys instead.
 
 **Would we build with it again?** Yes: for small shared state behind a Function URL, on-demand DynamoDB is the least
 moving parts we know.
@@ -126,6 +126,6 @@ moving parts we know.
 
 ## Non-Amazon tools (for completeness)
 
-- **Expo SDK 57, Expo Go, expo-router:** let us build and test an iPhone app entirely from a Windows PC. Needs work: no speech recognition in Expo Go (we use the keyboard's mic), and Expo Snack's newest SDK lagged ours. (Friction log A2, A3.)
-- **Node.js 22:** `process.loadEnvFile`, `node:test` and built-in `fetch` kept the helper and tests dependency-free. Needs work: `node --test <folder>` doesn't run the folder's tests on Node 22 (it takes glob patterns). (Friction log A6.)
+- **Expo SDK 57, Expo Go, expo-router:** let us build and test an iPhone app entirely from a Windows PC. Needs work: no speech recognition in Expo Go (we use the keyboard's mic), and Expo Snack's newest SDK lagged ours.
+- **Node.js 22:** `process.loadEnvFile`, `node:test` and built-in `fetch` kept the helper and tests dependency-free. Needs work: `node --test <folder>` doesn't run the folder's tests on Node 22 (it takes glob patterns).
 - **Model Context Protocol (2025-11-25):** a clear, testable spec; we implemented Streamable HTTP by hand (JSON responses, no SSE) in about 300 lines, with tests for version negotiation, tool schemas, errors and the Origin check.

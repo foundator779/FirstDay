@@ -53,8 +53,11 @@ export default function Today() {
           </Txt>
           {!state.packs.length && (
             <View style={{ alignSelf: "stretch", gap: 8, paddingTop: 6 }}>
-              {beeCloudAvailable && !state.brain?.bee && <Btn kind="primary" icon="bee" label="Connect my Bee" onPress={() => router.push("/bee-connect")} />}
-              <Btn kind={beeCloudAvailable && !state.brain?.bee ? "plain" : "primary"} icon="plus" label="Make a training" onPress={() => router.push("/capture")} />
+              {!state.brain?.bee && (
+                <Btn kind="primary" icon="bee" label="Try a real Bee recording" onPress={() => router.push("/capture?mode=replay")} />
+              )}
+              {beeCloudAvailable && !state.brain?.bee && <Btn icon="bee" label="Connect my Bee" onPress={() => router.push("/bee-connect")} />}
+              <Btn kind={state.brain?.bee ? "primary" : "plain"} icon="plus" label="Make a training" onPress={() => router.push("/capture")} />
               {coachAvailable && <Btn icon="link" label="Join my team's training" onPress={() => router.push("/join")} />}
             </View>
           )}

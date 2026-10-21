@@ -1,8 +1,9 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, TextInput, View } from "react-native";
+import { Pressable, TextInput, View } from "react-native";
 import type { Memory } from "../src/logic/types";
 import { useStore } from "../src/store";
+import { appAlert } from "../src/ui/dialog";
 import { Icon } from "../src/ui/icons";
 import { Btn, Chip, Empty, Label, Quote, Screen, Sketch, TopBar, Txt, useUI } from "../src/ui/kit";
 import { colors, fonts } from "../src/ui/theme";
@@ -27,7 +28,7 @@ export default function Memories() {
 
   const forget = (m: Memory) => {
     if (!m.beeFactId || !beeLinked) return actions.deleteMemory(m.id);
-    Alert.alert("Forget this?", "It also lives in your Bee.", [
+    appAlert("Forget this?", "It also lives in your Bee.", [
       { text: "Cancel", style: "cancel" },
       { text: "Only here", onPress: () => actions.deleteMemory(m.id, false) },
       { text: "Here and in Bee", style: "destructive", onPress: () => actions.deleteMemory(m.id, true) },
@@ -41,7 +42,7 @@ export default function Memories() {
       {suggested > 0 && <Btn small icon="bulb" label={`${suggested} new to check`} onPress={() => router.push("/sort")} />}
 
       <Sketch seed="add-mem" style={{ padding: 12, gap: 10 }}>
-        <TextInput
+        <TextInput underlineColorAndroid="transparent"
           value={draft}
           onChangeText={setDraft}
           placeholder="Tell me something to remember…"
@@ -68,7 +69,7 @@ export default function Memories() {
               <Pressable key={m.id} accessibilityRole="button" accessibilityHint="Shows options" onPress={() => { setOpen(open === m.id ? null : m.id); setEdit(null); }}>
                 <Sketch seed={m.id} style={{ padding: 14, gap: 10 }}>
                   {edit !== null && open === m.id ? (
-                    <TextInput value={edit} onChangeText={setEdit} multiline autoFocus accessibilityLabel="Edit memory" style={{ fontFamily: fonts.body, fontSize: s.body, color: colors.ink }} />
+                    <TextInput underlineColorAndroid="transparent" textAlignVertical="top" value={edit} onChangeText={setEdit} multiline autoFocus accessibilityLabel="Edit memory" style={{ fontFamily: fonts.body, fontSize: s.body, color: colors.ink }} />
                   ) : (
                     <View style={{ flexDirection: "row", gap: 8, alignItems: "flex-start" }}>
                       <Txt style={{ flex: 1 }}>{m.text}</Txt>

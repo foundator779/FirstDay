@@ -4,6 +4,7 @@ import { useSignedIn } from "../src/accountRoot";
 import { Icon, type IconName } from "../src/ui/icons";
 import { AppMark } from "../src/ui/mark";
 import { Btn, Screen, Txt } from "../src/ui/kit";
+import { EdgeOverlay, edge } from "../src/ui/edge";
 import { colors, fonts } from "../src/ui/theme";
 
 const FEATURES: { icon: IconName; label: string }[] = [
@@ -30,7 +31,8 @@ export default function Landing() {
       }
     >
       <View style={{ alignItems: "center", gap: 16, paddingTop: 28 }}>
-        <View style={{ width: 168, height: 168, borderRadius: 84, borderWidth: 2, borderStyle: "dotted", borderColor: colors.faint, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ width: 168, height: 168, borderRadius: 84, ...edge("dotted", colors.faint, 2), alignItems: "center", justifyContent: "center" }}>
+          <EdgeOverlay kind="dotted" color={colors.faint} width={2} radius={84} />
           <AppMark size={112} />
         </View>
         <View style={{ backgroundColor: colors.ink, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 8 }}>
@@ -48,8 +50,9 @@ export default function Landing() {
         {FEATURES.map((f) => (
           <View
             key={f.label}
-            style={{ flex: 1, height: 84, borderRadius: 18, borderWidth: 2, borderStyle: "dotted", borderColor: colors.faint, alignItems: "center", justifyContent: "center", gap: 6 }}
+            style={{ flex: 1, height: 84, borderRadius: 18, ...edge("dotted", colors.faint, 2), alignItems: "center", justifyContent: "center", gap: 6 }}
           >
+            <EdgeOverlay kind="dotted" color={colors.faint} width={2} radius={18} />
             <Icon name={f.icon} size={24} />
             <Text style={{ fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.9, color: colors.ink }}>{f.label.toUpperCase()}</Text>
           </View>

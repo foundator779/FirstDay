@@ -16,7 +16,7 @@ const seen = (level = 2): RuleProgress => ({ level, due: NOW + 86_400_000, seen:
 function state(patch: Partial<AppState> = {}): AppState {
   return {
     version: 2, packs: [], progress: {}, resume: null, today: { date: "", count: 0 }, conversations: [], todos: [], memories: [], chat: [],
-    suggestedRules: [], brain: null, onboarded: true, bee: EMPTY_BEE, moods: [], reflection: null, questions: [], coach: null, teamRequests: [],
+    suggestedRules: [], brain: null, onboarded: true, bee: EMPTY_BEE, moods: [], reflection: null, questions: [], coach: null, teamRequests: [], wins: [],
     settings: { cardsPerSession: 3, answerStyle: "choices", focusMinutes: 0, readAloud: false, bigText: false, haptics: true, nudges: true, cloudAi: true, syncToBee: true },
     ...patch,
   };

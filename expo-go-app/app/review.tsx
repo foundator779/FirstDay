@@ -161,7 +161,7 @@ export default function Review() {
       <Sketch seed={`rv${item.id}`} shadow style={{ padding: 20, gap: 12 }}>
         <Label>{isConvo ? "I summed up" : item.kind === "todo" ? "I made a to-do" : "I remembered"}</Label>
         {edit !== null ? (
-          <TextInput
+          <TextInput underlineColorAndroid="transparent"
             value={edit}
             onChangeText={setEdit}
             multiline

@@ -138,16 +138,12 @@ function TeamPeoplePanel({ code, onChange }: { code: string; onChange: () => voi
   );
 }
 
-/**
- * On your wrist: a practice reminder that FirstDay writes into Bee as a to-do with Bee's alarm, so it rings in the
- * Bee app on the phone and on the Apple Watch. It's checked off in Bee once the steps are practised.
- */
+/** A practice reminder before your next shift: a notification on this phone, cleared once the steps are practised. */
 function WristPanel({ pack }: { pack: Pack }) {
   const { state, actions } = useStore();
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  const bee = !!state.brain?.bee && state.settings.syncToBee;
   const r = pack.reminder;
   if (!pack.rules.length) return null;
   const pick = async (at: number) => {
@@ -162,14 +158,12 @@ function WristPanel({ pack }: { pack: Pack }) {
   const all = r && r.ruleIds.length === 1 ? "that step" : `all ${r?.ruleIds.length ?? 0} steps`;
   return (
     <View style={{ gap: 8 }}>
-      <Label line>On your wrist</Label>
+      <Label line>Practice reminder</Label>
       <Sketch seed="wrist" fill={colors.wash} style={{ padding: 14, gap: 10 }}>
         <Txt v="small">
           {r
-            ? `${r.kind === "change" ? `${pack.trainer}'s change` : "Practice reminder"} ${r.via === "bee" ? "is in Bee" : "is set on this phone"} for ${friendlyDue(r.at, Date.now())}. It's checked off when you've practised ${all}.`
-            : bee
-            ? `Before your next shift, Bee can buzz your Apple Watch: “Practise ${pack.title}”.`
-            : "Get a practice reminder before your next shift. With Bee connected (Settings), it rings on your Apple Watch too."}
+            ? `${r.kind === "change" ? `${pack.trainer}'s change` : "Practice reminder"} ${r.via === "bee" ? "is in Bee" : "is set on this phone"} for ${friendlyDue(r.at, Date.now())}. It's cleared when you've practised ${all}.`
+            : `Get a reminder on this phone before your next shift: “Practise ${pack.title}”.`}
         </Txt>
         {busy ? (
           <ActivityIndicator color={colors.ink} />
@@ -181,7 +175,7 @@ function WristPanel({ pack }: { pack: Pack }) {
           </View>
         ) : (
           <View style={{ flexDirection: "row", gap: 10 }}>
-            <Btn small style={{ flex: 1 }} icon={bee ? "bee" : "timer"} label={r ? "Change the time" : bee ? "Remind me in Bee" : "Remind me"} onPress={() => setPicking(true)} />
+            <Btn small style={{ flex: 1 }} icon="timer" label={r ? "Change the time" : "Remind me"} onPress={() => setPicking(true)} />
             {r && (
               <Btn
                 small

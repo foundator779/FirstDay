@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Line } from "react-native-svg";
+import { EdgeOverlay, edge as edgeStyle, type EdgeKind } from "./edge";
 import { buzz } from "../device";
 import { markWords } from "../logic/training";
 import { useStore } from "../store";
@@ -41,14 +42,21 @@ export function Sketch({ children, style, fill = colors.card, stroke, radius = 2
   const dark = fill === colors.ink;
   const white = fill === colors.card || fill === colors.paper;
   let edge: ViewStyle = {};
+  // Dotted and dashed edges go through edge(), which draws them in SVG on Android so they match iOS.
+  let line: { kind: EdgeKind; color: string; width: number } | null = null;
   if (dark) edge = {};
   else if (shadow) edge = { borderWidth: strokeWidth ?? 2, borderColor: stroke ?? colors.ink, borderStyle: "solid" };
-  else if (dashed) edge = { borderWidth: strokeWidth ?? 1.5, borderColor: stroke ?? colors.pencil, borderStyle: "dashed" };
-  else if (white) edge = { borderWidth: strokeWidth ?? 2, borderColor: stroke ?? colors.faint, borderStyle: "dotted" };
+  else if (dashed) line = { kind: "dashed", color: stroke ?? colors.pencil, width: strokeWidth ?? 1.5 };
+  else if (white) line = { kind: "dotted", color: stroke ?? colors.faint, width: strokeWidth ?? 2 };
   else if (stroke) edge = { borderWidth: strokeWidth ?? 1.5, borderColor: stroke, borderStyle: "solid" };
+  if (line) edge = edgeStyle(line.kind, line.color, line.width);
+  const cornerRadius = (StyleSheet.flatten(style)?.borderRadius as number | undefined) ?? radius;
   return (
     <OnDark.Provider value={dark}>
-      <View style={[{ backgroundColor: fill, borderRadius: radius }, edge, style]}>{children}</View>
+      <View style={[{ backgroundColor: fill, borderRadius: radius }, edge, style]}>
+        {line && <EdgeOverlay kind={line.kind} color={line.color} width={line.width} radius={cornerRadius} />}
+        {children}
+      </View>
     </OnDark.Provider>
   );
 }
@@ -81,7 +89,7 @@ export function Pill({ text }: { text: string }) {
   const { s } = useUI();
   return (
     <View style={{ backgroundColor: colors.ink, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 8, maxWidth: "100%" }}>
-      <Text accessibilityRole="header" numberOfLines={1} maxFontSizeMultiplier={1.4} style={{ fontFamily: fonts.bodyBold, fontSize: s.small - 1, letterSpacing: 1.4, color: colors.onHighlight }}>
+      <Text accessibilityRole="header" numberOfLines={1} maxFontSizeMultiplier={1.4} style={{ fontFamily: fonts.bodyBold, fontSize: s.small - 1, letterSpacing: 1.4, color: colors.onHighlight, includeFontPadding: false }}>
         {text.toUpperCase()}
       </Text>
     </View>
@@ -117,6 +125,8 @@ export function Txt({ children, v = "body", bold, dim, center, style, numberOfLi
           letterSpacing: heading ? -0.3 : 0,
           color: dark ? (dim ? colors.onHighlightDim : colors.onHighlight) : dim ? colors.pencil : colors.ink,
           textAlign: center ? "center" : "left",
+          // Android adds extra space above and below each line unless told not to; iOS never does.
+          includeFontPadding: false,
         },
         style,
       ]}
@@ -255,9 +265,10 @@ export function IconBtn({ name, label, onPress, badge, bare }: { name: IconName;
         alignItems: "center",
         justifyContent: "center",
         opacity: pressed ? 0.5 : 1,
-        ...(bare ? {} : { borderWidth: 2, borderStyle: "dotted" as const, borderColor: dark ? colors.onHighlightDim : colors.faint }),
+        ...(bare ? {} : edgeStyle("dotted", dark ? colors.onHighlightDim : colors.faint, 2)),
       })}
     >
+      {!bare && <EdgeOverlay kind="dotted" color={dark ? colors.onHighlightDim : colors.faint} width={2} radius={22} />}
       <Icon name={name} size={22} />
       {!!badge && (
         <View style={styles.badge}>
@@ -500,7 +511,8 @@ export function Stat({ value, label }: { value: string | number; label: string }
   const { s } = useUI();
   return (
     <View accessible accessibilityLabel={`${label}: ${value}`} style={{ flex: 1, alignItems: "center", gap: 6 }}>
-      <View style={{ width: 74, height: 74, borderRadius: 37, borderWidth: 2, borderStyle: "dotted", borderColor: colors.faint, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ width: 74, height: 74, borderRadius: 37, ...edgeStyle("dotted", colors.faint, 2), alignItems: "center", justifyContent: "center" }}>
+        <EdgeOverlay kind="dotted" color={colors.faint} width={2} radius={37} />
         <Text maxFontSizeMultiplier={1.3} style={{ fontFamily: fonts.bodyBold, fontSize: s.h2 + 2, color: colors.ink }}>
           {value}
         </Text>
@@ -515,7 +527,8 @@ export function Stat({ value, label }: { value: string | number; label: string }
 export function Empty({ icon = "star", text }: { icon?: IconName; text: string }) {
   return (
     <View style={{ alignItems: "center", gap: 12, paddingVertical: 28 }}>
-      <View style={{ width: 84, height: 84, borderRadius: 42, borderWidth: 2, borderStyle: "dotted", borderColor: colors.faint, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ width: 84, height: 84, borderRadius: 42, ...edgeStyle("dotted", colors.faint, 2), alignItems: "center", justifyContent: "center" }}>
+        <EdgeOverlay kind="dotted" color={colors.faint} width={2} radius={42} />
         <Icon name={icon} size={34} color={colors.pencil} strokeWidth={1.7} />
       </View>
       <Txt dim center>

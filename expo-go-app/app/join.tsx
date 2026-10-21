@@ -102,7 +102,7 @@ export default function Join() {
     >
       <TopBar onBack={() => router.back()} close title="Join a team" />
       <Txt v="h2">Type the code your trainer gave you</Txt>
-      <TextInput
+      <TextInput underlineColorAndroid="transparent"
         value={code}
         onChangeText={(t) => setCode(normalizeCode(t))}
         placeholder="K7P2QX"
@@ -116,7 +116,7 @@ export default function Join() {
       />
       <Label>Your name (so your trainer knows it's you)</Label>
       <Sketch seed="join-name" style={{ minHeight: 52, justifyContent: "center" }}>
-        <TextInput
+        <TextInput underlineColorAndroid="transparent"
           value={name}
           onChangeText={setName}
           placeholder="e.g. Sam"

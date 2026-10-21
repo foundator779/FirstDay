@@ -225,7 +225,7 @@ export default function Session() {
           <Txt v="small" dim>
             Get it out of your head. It'll be waiting in Today.
           </Txt>
-          <TextInput
+          <TextInput underlineColorAndroid="transparent"
             value={parkText}
             onChangeText={setParkText}
             autoFocus
@@ -287,7 +287,7 @@ export default function Session() {
               <Txt v="small" bold>
                 In your own words, what will you do?
               </Txt>
-              <TextInput
+              <TextInput underlineColorAndroid="transparent" textAlignVertical="top"
                 value={understand.text}
                 onChangeText={(t) => setUnderstand({ text: t })}
                 placeholder="Type, or use the keyboard mic"
@@ -401,7 +401,7 @@ export default function Session() {
         <Txt v="title">What do you do?</Txt>
         {wordsMode ? (
           <Sketch seed="words" style={{ padding: 14, minHeight: 130 }}>
-            <TextInput
+            <TextInput underlineColorAndroid="transparent"
               value={answer}
               onChangeText={setAnswer}
               multiline

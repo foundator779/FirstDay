@@ -1,9 +1,10 @@
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Linking, View } from "react-native";
+import { ActivityIndicator, Linking, View } from "react-native";
 import { beeCloudApi, BeeCloudError, beeCloudAvailable, cloudBeeBrain, type BeeConnection } from "../src/beeCloud";
 import { friendlyDay } from "../src/logic/dates";
 import { useStore } from "../src/store";
+import { appAlert } from "../src/ui/dialog";
 import { Btn, CheckBox, Label, Screen, Sketch, TopBar, Txt } from "../src/ui/kit";
 import { colors } from "../src/ui/theme";
 
@@ -114,7 +115,7 @@ export default function BeeConnect() {
   };
 
   const disconnect = () =>
-    Alert.alert("Disconnect Bee?", "FirstDay signs out of Bee and deletes your Bee sign-in from its server. What's already on this phone stays.", [
+    appAlert("Disconnect Bee?", "FirstDay signs out of Bee and deletes your Bee sign-in from its server. What's already on this phone stays.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Disconnect",

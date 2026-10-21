@@ -1,7 +1,6 @@
-// "On your wrist": practice reminders that FirstDay Go writes into Bee as a to-do with Bee's own alarm, so it rings
-// in the Bee app on the phone and on the Apple Watch. Without Bee connected, FirstDay schedules its own notification.
-// A trainer's change also lands in Bee right away ("Rosa changed 1 step…"). The to-do is checked off in Bee once
-// you've practised those steps.
+// Practice reminders: a FirstDay notification on this phone before your next shift ("Practise Juniper Café before
+// your shift: 3 steps"), cleared once you've practised those steps. (Reminders an older version wrote into Bee as a
+// to-do are still checked off there.)
 import type { AppState, Pack, PracticeReminder } from "./types";
 
 const steps = (n: number) => `${n} step${n === 1 ? "" : "s"}`;

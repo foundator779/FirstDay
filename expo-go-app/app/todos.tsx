@@ -44,7 +44,7 @@ export default function Todos() {
 
       {bucket !== "done" && (
         <Sketch seed="add-todo" style={{ flexDirection: "row", alignItems: "center", paddingLeft: 14, paddingRight: 6, minHeight: 56 }}>
-          <TextInput
+          <TextInput underlineColorAndroid="transparent"
             value={draft}
             onChangeText={setDraft}
             onSubmitEditing={add}

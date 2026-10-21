@@ -7,6 +7,7 @@ import { openQuestions } from "../../src/logic/questions";
 import { moreCounts } from "../../src/logic/today";
 import { useStore } from "../../src/store";
 import { Icon, type IconName } from "../../src/ui/icons";
+import { EdgeOverlay, edge } from "../../src/ui/edge";
 import { colors, fonts } from "../../src/ui/theme";
 
 // One job: be ready for your next shift. Bee-style extras (to-dos, Ask, memories, patterns) live under More.
@@ -31,9 +32,7 @@ function Bar({ state, navigation }: BarProps) {
     justifyContent: "center" as const,
     gap: 3,
     backgroundColor: dark ? colors.ink : colors.card,
-    borderWidth: 2,
-    borderStyle: on || dark ? ("solid" as const) : ("dotted" as const),
-    borderColor: on || dark ? colors.ink : colors.faint,
+    ...(on || dark ? { borderWidth: 2, borderStyle: "solid" as const, borderColor: colors.ink } : edge("dotted", colors.faint, 2)),
     paddingHorizontal: 2,
     overflow: "hidden" as const,
   });
@@ -58,6 +57,7 @@ function Bar({ state, navigation }: BarProps) {
       >
         {({ pressed }) => (
           <View style={[tile(on), { opacity: pressed ? 0.6 : 1 }]}>
+            {!on && <EdgeOverlay kind="dotted" color={colors.faint} width={2} radius={16} />}
             <Icon name={t.icon} size={22} strokeWidth={on ? 2.2 : 1.9} color={on ? colors.ink : colors.pencil} />
             {caption(t.label, on ? colors.ink : colors.pencil)}
             {!!badges[t.name] && (

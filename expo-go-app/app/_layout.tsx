@@ -7,6 +7,7 @@ import { ActivityIndicator, View } from "react-native";
 import { onNotificationTap } from "../src/device";
 import { AccountStore, useSignedIn } from "../src/accountRoot";
 import { useStore } from "../src/store";
+import { DialogHost } from "../src/ui/dialog";
 import { colors } from "../src/ui/theme";
 
 function Loading() {
@@ -57,6 +58,7 @@ export default function RootLayout() {
         <Stack.Screen name="join" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
         <Stack.Screen name="session/[packId]" options={{ gestureEnabled: false }} />
       </Stack>
+      <DialogHost />
     </AccountStore>
   );
 }

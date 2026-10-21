@@ -5,13 +5,14 @@ import { beeCloudAvailable } from "../src/beeCloud";
 import { brainApi } from "../src/brain";
 import { buzz } from "../src/device";
 import { friendlyDay } from "../src/logic/dates";
+import { REAL_RECORDINGS, realRecording } from "../src/logic/replays";
 import { AI_LABEL, useSmartAi } from "../src/smart";
 import { useStore } from "../src/store";
 import { Icon } from "../src/ui/icons";
 import { Btn, CheckBox, Empty, Screen, Sketch, TopBar, Txt, useUI } from "../src/ui/kit";
 import { colors, fonts } from "../src/ui/theme";
 
-type Mode = "pick" | "note" | "paste" | "bee";
+type Mode = "pick" | "note" | "paste" | "bee" | "replay";
 type Result = { id: string };
 
 export default function Capture() {
@@ -35,6 +36,8 @@ export default function Capture() {
     fromInbox ? { id: fromInbox, title: params.beeTitle || "Bee conversation", at: Number(params.beeAt) || Date.now() } : null,
   );
   const [consent, setConsent] = useState(false);
+  // A real Bee recording saved in the app, waiting for your OK before it's replayed.
+  const [replayPick, setReplayPick] = useState<string | null>(null);
   const autoStarted = useRef(false);
 
   useEffect(() => {
@@ -88,13 +91,15 @@ export default function Capture() {
     const memories = state.memories.filter((m) => m.fromId === result.id).length;
     const rules = state.suggestedRules.filter((r) => r.fromId === result.id).length;
     const questions = state.questions.filter((q) => q.fromId === result.id).length;
+    const wins = state.wins.filter((w) => w.fromId === result.id && w.suggested).length;
     // Work steps come first: practising them is what the app is for. To-dos and memories can wait in More.
     return (
       <Screen
         footer={
           <>
             {rules > 0 && <Btn kind="primary" icon="cap" label={`Check ${rules} work step${rules > 1 ? "s" : ""}`} onPress={() => router.replace(`/confirm?from=${result.id}`)} />}
-            {todos + memories > 0 && <Btn kind={rules > 0 ? "plain" : "primary"} icon="play" label={`Sort ${todos + memories} to-do${todos + memories === 1 ? "" : "s"} and memories`} onPress={() => router.replace("/sort")} />}
+            {wins > 0 && <Btn kind={rules > 0 ? "plain" : "primary"} icon="star" label={`Keep ${wins} win${wins > 1 ? "s" : ""} for my record`} onPress={() => router.replace("/record")} />}
+            {todos + memories > 0 && <Btn kind={rules > 0 || wins > 0 ? "plain" : "primary"} icon="play" label={`Sort ${todos + memories} to-do${todos + memories === 1 ? "" : "s"} and memories`} onPress={() => router.replace("/sort")} />}
             <Btn kind="quiet" label="Later. Back to today." onPress={() => router.back()} />
           </>
         }
@@ -111,6 +116,7 @@ export default function Capture() {
         <Sketch seed="found" fill={colors.wash} style={{ padding: 18, gap: 6 }}>
           <Txt>• {rules} work step{rules === 1 ? "" : "s"} to practise</Txt>
           {questions > 0 && <Txt>• {questions} question{questions === 1 ? "" : "s"} for your trainer (in Questions)</Txt>}
+          {wins > 0 && <Txt>• {wins} win{wins === 1 ? "" : "s"} for your record (praise, word for word)</Txt>}
           <Txt>• {todos} to-do{todos === 1 ? "" : "s"}</Txt>
           <Txt>• {memories} thing{memories === 1 ? "" : "s"} to remember</Txt>
         </Sketch>
@@ -153,6 +159,95 @@ export default function Capture() {
         <Option icon="mic" title="Talk or type" sub="A thought, a plan, what someone just told you." onPress={() => setMode("note")} />
         <Option icon="bee" title="From my Bee" sub={state.brain?.bee ? "Bring in a recorded conversation." : "Connect your Bee first."} onPress={() => setMode("bee")} />
         <Option icon="chat" title="Paste a transcript" sub="Copied from Bee or anywhere else. Great for training." onPress={() => setMode("paste")} />
+        <Option icon="bee" title="Replay a real Bee recording" sub="Recorded on an Apple Watch on Oct 18. No Bee needed." onPress={() => setMode("replay")} />
+      </Screen>
+    );
+  }
+
+  if (mode === "replay") {
+    const rec = replayPick ? realRecording(replayPick) : undefined;
+    const when = (at: number) => new Date(at).toLocaleString([], { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+    if (rec) {
+      return (
+        <Screen
+          footer={
+            <Btn
+              kind="primary"
+              icon="check"
+              label="Replay it"
+              disabled={!consent}
+              onPress={() => void finish({ text: rec.text, source: "bee", title: rec.title, at: rec.recordedAt, replayId: rec.id })}
+            />
+          }
+        >
+          <TopBar title="Before we read it" onBack={() => setReplayPick(null)} />
+          <Sketch seed={`replay-${rec.id}`} style={{ padding: 16, gap: 4 }}>
+            <Txt v="tiny" dim bold>
+              REPLAY OF A REAL BEE RECORDING
+            </Txt>
+            <Txt v="h2">{rec.title}</Txt>
+            <Txt v="small" dim>
+              Recorded by Bee on an Apple Watch · {when(rec.recordedAt)}
+            </Txt>
+          </Sketch>
+          <Txt>{rec.about}</Txt>
+          <Sketch seed={`replay-text-${rec.id}`} dashed fill={colors.wash} style={{ padding: 14, gap: 2 }}>
+            <Txt v="tiny" dim bold>
+              BEE'S TRANSCRIPT, WORD FOR WORD
+            </Txt>
+            {rec.text.split("\n").map((line, i) => (
+              <Txt key={i} v="small">
+                {line}
+              </Txt>
+            ))}
+          </Sketch>
+          <View style={{ flexDirection: "row", gap: 12, alignItems: "flex-start" }}>
+            <CheckBox label="I agree" on={consent} onPress={() => setConsent(!consent)} />
+            <Txt style={{ flex: 1 }}>I'm OK with FirstDay Go reading this conversation.</Txt>
+          </View>
+          <Txt v="small" dim>
+            {smart === "cloud"
+              ? "Bee's transcript is saved in the app, so this works without a Bee. Amazon Bedrock reads it now, live, through your FirstDay account, the same way as a new Bee conversation."
+              : "Bee's transcript is saved in the app, so this works without a Bee. Sign in to have Amazon Bedrock read it; until then it's read on this phone."}
+          </Txt>
+        </Screen>
+      );
+    }
+    return (
+      <Screen>
+        <TopBar title="Real Bee recordings" onBack={back} close={!!params.mode} />
+        <Txt dim>
+          Recorded by Bee on an Apple Watch on October 18, 2026, the day we filmed the demo. Replay one to see the whole path with real
+          data, without a Bee of your own. Nothing is prepared in advance: Amazon Bedrock reads it when you say yes.
+        </Txt>
+        {REAL_RECORDINGS.map((r) => {
+          const mine = state.conversations.find((c) => c.replayId === r.id);
+          return (
+            <Pressable
+              key={r.id}
+              accessibilityRole="button"
+              accessibilityHint={mine ? "Opens the replay you already did" : undefined}
+              onPress={() => {
+                if (mine) {
+                  router.push(`/convo/${mine.id}`);
+                  return;
+                }
+                setConsent(false);
+                setReplayPick(r.id);
+              }}
+            >
+              <Sketch seed={r.id} style={{ padding: 14, gap: 4 }}>
+                <Txt v="tiny" dim bold>
+                  REAL · APPLE WATCH · {when(r.recordedAt).toUpperCase()}
+                </Txt>
+                <Txt v="h2">{r.title}</Txt>
+                <Txt v="small" dim>
+                  {mine ? "Already here, tap to open" : r.about}
+                </Txt>
+              </Sketch>
+            </Pressable>
+          );
+        })}
       </Screen>
     );
   }
@@ -260,7 +355,7 @@ export default function Capture() {
     >
       <TopBar title={isPaste ? "Paste a transcript" : "Talk or type"} onBack={back} close={!!params.mode} />
       {isPaste ? (
-        <TextInput
+        <TextInput underlineColorAndroid="transparent"
           value={title}
           onChangeText={setTitle}
           placeholder="Name it (optional), e.g. Front desk training"
@@ -272,7 +367,7 @@ export default function Capture() {
         <Txt dim>Tap the mic key on your keyboard and just talk. Messy is fine.</Txt>
       )}
       <Sketch seed={mode} style={{ padding: 14, minHeight: 260 }}>
-        <TextInput
+        <TextInput underlineColorAndroid="transparent"
           value={text}
           onChangeText={setText}
           autoFocus={!isPaste}

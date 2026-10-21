@@ -33,6 +33,7 @@ export function scoreCase(c, predicted) {
   const used = new Set();
   let matched = 0;
   let updatesFound = 0;
+  const missed = [];
   for (const e of c.rules) {
     let best = -1;
     let bestScore = 0;
@@ -49,11 +50,16 @@ export function scoreCase(c, predicted) {
       used.add(best);
       matched++;
       if (e.update && rules[best].isUpdate) updatesFound++;
+    } else {
+      missed.push({ keywords: e.action, closest: best >= 0 ? rules[best].action : null, coverage: Math.round(bestScore * 100) });
     }
   }
   const transcript = String(c.transcript).toLowerCase().replace(/\s+/g, " ");
   const verbatim = rules.filter((p) => p.quote && transcript.includes(normalize(p.quote))).length;
-  const leaks = c.notRules.filter((k) => rules.some((p) => tokens(`${p.situation ?? ""} ${p.action} ${p.quote ?? ""}`).includes(stem(k.toLowerCase())))).length;
+  const leaked = c.notRules.filter((k) => rules.some((p) => tokens(`${p.situation ?? ""} ${p.action} ${p.quote ?? ""}`).includes(stem(k.toLowerCase()))));
+  const leaks = leaked.length;
+  // Predicted steps that matched nothing the trainer said: extra, merged or wrong.
+  const extra = rules.filter((_, i) => !used.has(i)).map((p) => ({ situation: p.situation ?? "", action: p.action, quote: p.quote ?? "" }));
   const questionsFound = c.questions.filter((k) => questions.some((q) => tokens(q).includes(stem(k.toLowerCase())))).length;
   return {
     id: c.id,
@@ -66,6 +72,7 @@ export function scoreCase(c, predicted) {
     questionsFound,
     leaks,
     verbatim,
+    details: { missed, extra, leaked },
   };
 }
 
@@ -101,5 +108,16 @@ export function report(name, results) {
     "",
     ...results.map((r) => `  ${r.id.padEnd(18)} matched ${r.matched}/${r.expected}, predicted ${r.predicted}${r.leaks ? `, LEAKED ${r.leaks}` : ""}`),
   ];
+  // --details: every miss, so failure cases can be read and published (docs/ACCURACY.md).
+  if (typeof process !== "undefined" && process.argv.includes("--details")) {
+    for (const r of results) {
+      const d = r.details;
+      if (!d || (!d.missed.length && !d.extra.length && !d.leaked.length)) continue;
+      lines.push("", `  ${r.id}:`);
+      for (const m of d.missed) lines.push(`    MISSED  [${m.keywords.join(", ")}]  closest: ${m.closest ? `"${m.closest}" (${m.coverage}%)` : "none"}`);
+      for (const x of d.extra) lines.push(`    EXTRA   "${x.situation} -> ${x.action}"  quote: "${x.quote}"`);
+      for (const k of d.leaked) lines.push(`    VAGUE LINE MADE A RULE  (${k})`);
+    }
+  }
   return { summary: s, text: lines.join("\n") };
 }

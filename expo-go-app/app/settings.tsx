@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Alert, TextInput, View } from "react-native";
+import { ActivityIndicator, TextInput, View } from "react-native";
 import { useSession } from "../src/auth";
 import { beeCloudAvailable } from "../src/beeCloud";
 import { brainApi, normalizeUrl } from "../src/brain";
@@ -10,6 +10,7 @@ import { friendlyDay } from "../src/logic/dates";
 import type { Brain, Settings } from "../src/logic/types";
 import { useStore } from "../src/store";
 import { confirmAction } from "../src/ui/ask";
+import { appAlert } from "../src/ui/dialog";
 import { Btn, Chip, Label, Screen, Sketch, Toggle, TopBar, Txt, useUI } from "../src/ui/kit";
 import { colors, fonts } from "../src/ui/theme";
 
@@ -125,7 +126,7 @@ export default function SettingsScreen() {
         on={st.nudges}
         onChange={async (v) => {
           if (v && !(await canNotify())) {
-            Alert.alert("Notifications are off", "Turn them on for Expo Go in iPhone Settings to get nudges.");
+            appAlert("Notifications are off", "Turn on notifications for FirstDay Go in your phone's Settings to get nudges.");
           }
           set({ nudges: v });
         }}
@@ -149,8 +150,8 @@ export default function SettingsScreen() {
         <Txt v="small">
           Run <Txt v="small" bold>node brain/server.mjs</Txt> on your computer. It adds smarter AI (Amazon Bedrock) and your real Bee conversations. Keys stay on the computer. Type the address and code it prints:
         </Txt>
-        <TextInput value={url} onChangeText={setUrl} placeholder="192.168.1.20:8790" placeholderTextColor={colors.pencil} autoCapitalize="none" autoCorrect={false} keyboardType="url" style={field} accessibilityLabel="Brain address" />
-        <TextInput value={code} onChangeText={setCode} placeholder="6-digit code" placeholderTextColor={colors.pencil} keyboardType="number-pad" style={field} accessibilityLabel="Pairing code" />
+        <TextInput underlineColorAndroid="transparent" value={url} onChangeText={setUrl} placeholder="192.168.1.20:8790" placeholderTextColor={colors.pencil} autoCapitalize="none" autoCorrect={false} keyboardType="url" style={field} accessibilityLabel="Brain address" />
+        <TextInput underlineColorAndroid="transparent" value={code} onChangeText={setCode} placeholder="6-digit code" placeholderTextColor={colors.pencil} keyboardType="number-pad" style={field} accessibilityLabel="Pairing code" />
         {busy ? <ActivityIndicator color={colors.ink} /> : <Btn small icon="link" label={state.brain ? "Reconnect" : "Connect"} disabled={!url.trim() || !code.trim()} onPress={() => void connect()} />}
         {!!msg && <Txt v="small">{msg}</Txt>}
         {state.brain && !msg && (

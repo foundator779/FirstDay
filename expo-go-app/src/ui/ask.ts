@@ -1,7 +1,9 @@
-import { Alert, Platform } from "react-native";
+import { Platform } from "react-native";
+import { appAlert } from "./dialog";
 
 /**
- * "Are you sure?" that works everywhere: a native alert on the phone, the browser's confirm on the web
+ * "Are you sure?" that works everywhere: a native alert on iPhone, the app's own dialog on Android, the browser's
+ * confirm on the web
  * (React Native Web's Alert does nothing, so destructive buttons would silently do nothing there).
  */
 export function confirmAction(title: string, message: string, confirmLabel: string, onConfirm: () => void) {
@@ -10,7 +12,7 @@ export function confirmAction(title: string, message: string, confirmLabel: stri
     if (!ask || ask(`${title}\n\n${message}`)) onConfirm();
     return;
   }
-  Alert.alert(title, message, [
+  appAlert(title, message, [
     { text: "Cancel", style: "cancel" },
     { text: confirmLabel, style: "destructive", onPress: onConfirm },
   ]);

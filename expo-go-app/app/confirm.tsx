@@ -82,8 +82,8 @@ export default function Confirm() {
         </View>
         {target.kind === "new" ? (
           <View style={{ gap: 6 }}>
-            <TextInput value={title} onChangeText={setTitle} placeholder="Name, e.g. Front desk" placeholderTextColor={colors.pencil} style={field} accessibilityLabel="Training name" />
-            <TextInput value={trainer} onChangeText={setTrainer} placeholder="Who taught you? (optional)" placeholderTextColor={colors.pencil} style={field} accessibilityLabel="Trainer" />
+            <TextInput underlineColorAndroid="transparent" value={title} onChangeText={setTitle} placeholder="Name, e.g. Front desk" placeholderTextColor={colors.pencil} style={field} accessibilityLabel="Training name" />
+            <TextInput underlineColorAndroid="transparent" value={trainer} onChangeText={setTrainer} placeholder="Who taught you? (optional)" placeholderTextColor={colors.pencil} style={field} accessibilityLabel="Trainer" />
           </View>
         ) : (
           <Sketch seed="update-note" dashed fill={colors.wash} style={{ padding: 14 }}>
@@ -187,13 +187,13 @@ export default function Confirm() {
       <Sketch seed={r.id} shadow style={{ padding: 20, gap: 14 }}>
         <Label>When</Label>
         {edit ? (
-          <TextInput value={edit.situation} onChangeText={(t) => setEdit({ ...edit, situation: t })} multiline style={field} accessibilityLabel="Situation" />
+          <TextInput underlineColorAndroid="transparent" textAlignVertical="top" value={edit.situation} onChangeText={(t) => setEdit({ ...edit, situation: t })} multiline style={field} accessibilityLabel="Situation" />
         ) : (
           <Txt v="h2">{r.situation}</Txt>
         )}
         <Label>You</Label>
         {edit ? (
-          <TextInput value={edit.action} onChangeText={(t) => setEdit({ ...edit, action: t })} multiline style={field} accessibilityLabel="Action" />
+          <TextInput underlineColorAndroid="transparent" textAlignVertical="top" value={edit.action} onChangeText={(t) => setEdit({ ...edit, action: t })} multiline style={field} accessibilityLabel="Action" />
         ) : (
           <Txt v="title">{r.action}</Txt>
         )}

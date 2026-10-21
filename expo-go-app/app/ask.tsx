@@ -92,7 +92,7 @@ export default function Ask() {
       </ScrollView>
       <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
         <Sketch seed="ask-input" style={{ flexDirection: "row", alignItems: "center", paddingLeft: 14, paddingRight: 6, minHeight: 56 }}>
-          <TextInput
+          <TextInput underlineColorAndroid="transparent"
             value={draft}
             onChangeText={setDraft}
             onSubmitEditing={() => void send(draft)}

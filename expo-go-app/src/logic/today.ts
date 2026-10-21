@@ -3,7 +3,7 @@ import { openQuestions } from "./questions";
 import { nextTraining, packStats } from "./training";
 import type { AppState } from "./types";
 
-export type NextKind = "bee" | "change" | "steps" | "practice" | "questions" | "team" | "start";
+export type NextKind = "bee" | "change" | "steps" | "practice" | "questions" | "team" | "wins" | "start";
 
 export type NextThing = {
   kind: NextKind;
@@ -123,6 +123,18 @@ export function nextThings(state: AppState, now: number): NextThing[] {
       sub: "Things that were said vaguely. Ask, so you don't guess.",
       cta: "See them",
       href: "/questions",
+    });
+  }
+
+  const wins = (state.wins ?? []).filter((w) => w.suggested).length;
+  if (wins) {
+    out.push({
+      kind: "wins",
+      kicker: "For your record",
+      title: `${plural(wins, "win")} to keep`,
+      sub: "Praise from a conversation, word for word. Keep it for your next review.",
+      cta: "See it",
+      href: "/record",
     });
   }
 

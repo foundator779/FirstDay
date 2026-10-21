@@ -147,7 +147,7 @@ export default function Account() {
 
   const EmailField = (
     <Sketch seed="f-email" style={{ minHeight: 56, justifyContent: "center" }}>
-      <TextInput
+      <TextInput underlineColorAndroid="transparent"
         value={email}
         onChangeText={setEmail}
         placeholder="you@email.com"
@@ -166,7 +166,7 @@ export default function Account() {
   // A function returning an element (not a component), so the input keeps focus while typing.
   const passwordField = (isNew: boolean) => (
     <Sketch seed={isNew ? "f-newpass" : "f-pass"} style={{ minHeight: 56, flexDirection: "row", alignItems: "center", paddingRight: 8 }}>
-      <TextInput
+      <TextInput underlineColorAndroid="transparent"
         value={password}
         onChangeText={setPassword}
         placeholder={isNew ? "New password" : "Password"}
@@ -205,7 +205,7 @@ export default function Account() {
 
   const CodeField = (
     <Sketch seed="f-code" fill={colors.highlightSoft} style={{ minHeight: 64, justifyContent: "center" }}>
-      <TextInput
+      <TextInput underlineColorAndroid="transparent"
         value={code}
         onChangeText={(t) => setCode(t.replace(/\D/g, "").slice(0, 6))}
         placeholder="123456"

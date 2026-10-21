@@ -9,10 +9,26 @@
     "userInterfaceStyle": "light",
     "backgroundColor": "#FFFFFF",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#161616"
+        }
+      ]
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.firstdaygo.app"
+    },
+    "android": {
+      "package": "com.firstdaygo.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#161616"
+      },
+      "softwareKeyboardLayoutMode": "resize"
     },
     "experiments": {
       "typedRoutes": false

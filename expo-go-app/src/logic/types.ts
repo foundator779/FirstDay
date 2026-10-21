@@ -73,7 +73,7 @@ export type Pack = {
   reminder?: PracticeReminder;
 };
 
-/** A practice reminder: a Bee to-do with Bee's alarm (rings on the phone and the Apple Watch), or a phone notification. */
+/** A practice reminder: a notification on this phone (`via: "bee"` only for ones an older version put in Bee). */
 export type PracticeReminder = {
   kind: "practise" | "change";
   via: "bee" | "phone";
@@ -158,6 +158,8 @@ export type Conversation = {
   /** phone = on-device rules, brain = Bedrock via the computer helper, cloud = Bedrock via the AWS endpoint. */
   analyzedBy: "phone" | "brain" | "cloud";
   beeId?: string;
+  /** A replay of a real Bee recording saved in the app (see logic/replays.ts), not a live Bee read. */
+  replayId?: string;
   packId?: string;
   reviewed?: boolean;
   previousSummary?: string[];
@@ -269,6 +271,30 @@ export type BeeState = {
   lastError?: string;
 };
 
+/** A win on your record (logic/wins.ts): praise heard in a conversation, or something you learned here. */
+export type Win = {
+  id: string;
+  kind: "praise" | "practice";
+  /** One line: the exact quote for praise, what you did for practice. */
+  text: string;
+  /** Exact words from the conversation (praise). */
+  quote?: string;
+  /** Who said it: you confirm it (Bee labels every speaker "Unknown"). */
+  who?: string;
+  at: number;
+  /** The conversation it came from (praise) or the training (practice). */
+  fromId?: string;
+  packId?: string;
+  /** Where a praise line came from: a Bee conversation, or something pasted or typed. */
+  source?: "bee" | "pasted" | "note" | "sample";
+  /** From a replayed real Bee recording. */
+  replay?: boolean;
+  /** Found in a conversation and not kept yet: it isn't on your record until you keep it. */
+  suggested: boolean;
+  /** For practice milestones, so each one is recorded once. */
+  key?: string;
+};
+
 export type AppState = {
   version: 2;
   packs: Pack[];
@@ -294,4 +320,6 @@ export type AppState = {
   coach: CoachLink | null;
   /** Trainings you asked to join that the trainer hasn't let you into. */
   teamRequests: TeamRequest[];
+  /** My record: wins for your reviews and promotions. */
+  wins: Win[];
 };

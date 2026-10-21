@@ -67,7 +67,15 @@ expo-go-app/package-lock.json
 !/docs/friction-log.md
 !/docs/submission/product-feedback.md
 !/docs/submission/feature-requests.md
+!/docs/ACCURACY.md
+!/docs/user-test/README.md
+!/expo-go-app/eval/results/*.md
 !/expo-go-app/skills/firstday-coach/SKILL.md
 
 # Notes and old docs kept locally, not published
 archive/
+
+# App binaries: share them through GitHub Releases, not the repo
+*.apk
+*.aab
+*.ipa

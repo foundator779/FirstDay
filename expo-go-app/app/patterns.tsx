@@ -7,6 +7,7 @@ import { useSmartAi } from "../src/smart";
 import { useStore } from "../src/store";
 import { Btn, Empty, Label, Screen, Sketch, Stat, TopBar, Txt } from "../src/ui/kit";
 import { MoodPicker } from "../src/ui/mood";
+import { EdgeOverlay, edge } from "../src/ui/edge";
 import { colors, fonts } from "../src/ui/theme";
 
 /**
@@ -96,7 +97,8 @@ export default function Patterns() {
           <Label line>Keeps coming up</Label>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {p.themes.map((t) => (
-              <View key={t.word} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, borderWidth: 2, borderStyle: "dotted", borderColor: colors.faint }}>
+              <View key={t.word} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, ...edge("dotted", colors.faint, 2) }}>
+                <EdgeOverlay kind="dotted" color={colors.faint} width={2} radius={18} />
                 <Text style={{ fontFamily: fonts.bodyBold, fontSize: 15, color: colors.ink }}>{t.word}</Text>
                 <Text style={{ fontFamily: fonts.body, fontSize: 12, color: colors.pencil }}>
                   {t.weeks} of 4 weeks · {t.mentions} chats

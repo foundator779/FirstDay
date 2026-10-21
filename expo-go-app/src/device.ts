@@ -1,6 +1,7 @@
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
 import * as Speech from "expo-speech";
+import { Platform } from "react-native";
 
 // ---------- Read aloud ----------
 export function say(text: string, onDone?: () => void) {
@@ -41,9 +42,29 @@ function ensureHandler() {
 
 ensureHandler();
 
+// Android needs a notification channel, and Android 13+ only shows the permission prompt once one exists.
+const CHANNEL = "reminders";
+let channelReady: Promise<void> | null = null;
+function ensureChannel(): Promise<void> {
+  if (Platform.OS !== "android") return Promise.resolve();
+  channelReady ??= Notifications.setNotificationChannelAsync(CHANNEL, {
+    name: "Reminders and training updates",
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 180],
+    lightColor: "#161616",
+  }).then(
+    () => undefined,
+    () => {
+      channelReady = null;
+    },
+  );
+  return channelReady;
+}
+
 export async function canNotify(): Promise<boolean> {
   try {
     ensureHandler();
+    await ensureChannel();
     const current = await Notifications.getPermissionsAsync();
     if (current.granted) return true;
     const asked = await Notifications.requestPermissionsAsync();
@@ -59,7 +80,7 @@ export async function remind(title: string, body: string, at: number): Promise<s
   try {
     return await Notifications.scheduleNotificationAsync({
       content: { title, body },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at) },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at), channelId: CHANNEL },
     });
   } catch {
     return undefined;
@@ -70,7 +91,10 @@ export async function remind(title: string, body: string, at: number): Promise<s
 export async function notifyNow(title: string, body: string, data?: Record<string, string>) {
   if (!(await canNotify())) return;
   try {
-    await Notifications.scheduleNotificationAsync({ content: { title, body, ...(data ? { data } : {}) }, trigger: null });
+    await Notifications.scheduleNotificationAsync({
+      content: { title, body, ...(data ? { data } : {}) },
+      trigger: Platform.OS === "android" ? { channelId: CHANNEL } : null,
+    });
   } catch {}
 }
 

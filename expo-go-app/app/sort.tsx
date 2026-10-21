@@ -110,7 +110,7 @@ export default function Sort() {
           {todo ? "KEEP THIS TO-DO?" : "REMEMBER THIS?"}
         </Txt>
         {editing !== null ? (
-          <TextInput
+          <TextInput underlineColorAndroid="transparent" textAlignVertical="top"
             value={editing}
             onChangeText={setEditing}
             autoFocus

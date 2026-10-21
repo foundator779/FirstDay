@@ -36,10 +36,21 @@ export default function More() {
   const { state } = useStore();
   const c = moreCounts(state);
   const reviewable = state.conversations.length > 0;
+  const kept = state.wins.filter((w) => !w.suggested).length;
+  const waiting = state.wins.filter((w) => w.suggested).length;
 
   return (
     <Screen>
       <TopBar title="More" />
+
+      <Label line>Your record</Label>
+      <Row
+        icon="star"
+        title="My record"
+        sub={kept ? `${kept} win${kept === 1 ? "" : "s"}, word for word · for your reviews and promotions` : "Praise and what you've learned, dated and word for word, for your reviews"}
+        href="/record"
+        badge={waiting}
+      />
 
       {coachAvailable && (
         <>

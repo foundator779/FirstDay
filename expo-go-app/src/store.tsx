@@ -15,8 +15,9 @@ import { applyDirect, applyTeamUpdate, normalizeCode, packFromTeam, toWire, upda
 import { dayKey, keywordsFor, uid } from "./logic/text";
 import { nextProgress } from "./logic/training";
 import type {
-  AppState, Brain, ChatMessage, Conversation, Memory, MoodEntry, Pack, PracticeReminder, Reflection, Resume, Settings, SuggestedRule, Todo,
+  AppState, Brain, ChatMessage, Conversation, Memory, MoodEntry, Pack, PracticeReminder, Reflection, Resume, Settings, SuggestedRule, Todo, Win,
 } from "./logic/types";
+import { practiceWins, praiseWins } from "./logic/wins";
 import { REFLECTION_QUESTION, reflectionNotes } from "./logic/patterns";
 import { friendlyDue } from "./logic/dates";
 import { reminderDone, reminderText } from "./logic/wrist";
@@ -45,8 +46,11 @@ function applyAnalysis(state: AppState, convo: Conversation, a: Analysis, now: n
     id: uid("mem"), text: m.text, kind: m.kind, suggested: true, fromId: convo.id, quote: m.quote, at: now,
   }));
   const rules: SuggestedRule[] = a.rules.map((r) => ({ id: uid("sr"), fromId: convo.id, situation: r.situation, action: r.action, quote: r.quote }));
+  // Praise and thanks for you go to My record as suggestions. Bee doesn't name speakers: guess your latest trainer.
+  const wins = praiseWins(convo.text, convo, state.packs[0]?.trainer && state.packs[0].trainer !== "Your trainer" ? state.packs[0].trainer : "", now);
   return {
     ...state,
+    wins: [...wins, ...state.wins],
     conversations: [convo, ...state.conversations],
     todos: [...todos, ...state.todos],
     memories: [...memories, ...state.memories],
@@ -77,6 +81,7 @@ function initialState(now: number): AppState {
     questions: [],
     coach: null,
     teamRequests: [],
+    wins: [],
   };
 }
 
@@ -87,11 +92,12 @@ function migrate(raw: unknown, now: number): AppState {
     ...initialState(now), ...s, settings: { ...DEFAULT_SETTINGS, ...s.settings }, bee: { ...EMPTY_BEE, ...s.bee },
     questions: Array.isArray(s.questions) ? s.questions : [], coach: s.coach ?? null,
     teamRequests: Array.isArray(s.teamRequests) ? s.teamRequests : [],
+    wins: Array.isArray(s.wins) ? s.wins : [],
   } as AppState;
   return migrateQuestions(state, now);
 }
 
-export type CaptureInput = { text: string; source: Conversation["source"]; title?: string; at?: number; beeId?: string };
+export type CaptureInput = { text: string; source: Conversation["source"]; title?: string; at?: number; beeId?: string; replayId?: string };
 
 function makeActions(
   get: () => AppState,
@@ -320,8 +326,6 @@ function makeActions(
           changedPacks++;
           const message = updateMessage(r.pack.trainer, r.pack.title, r);
           if (message && get().settings.nudges) void notifyNow(r.drills ? "Your trainer changed a step" : "Training updated", message, { packId: p.id });
-          // On your wrist: the change also lands in Bee, with an alarm a minute from now.
-          if (r.drills) void setReminder(p.id, "change", now() + 60_000, r.pack.pendingUpdates.map((u) => u.ruleId));
         }
         if (changedPacks) pushPacksSoon();
       } catch {
@@ -335,8 +339,8 @@ function makeActions(
     return checkingTeams;
   }
 
-  // ---------- On your wrist: practice reminders in Bee (logic/wrist.ts) ----------
-  /** Removes a training's reminder: checks the Bee to-do off, or cancels the phone notification. */
+  // ---------- Practice reminders (logic/wrist.ts) ----------
+  /** Removes a training's reminder: cancels the phone notification (or checks off one an older version put in Bee). */
   async function clearReminder(packId: string) {
     const r = get().packs.find((p) => p.id === packId)?.reminder;
     if (!r) return;
@@ -345,37 +349,17 @@ function makeActions(
     else await beeWrite("/bee/todos/complete", { id: r.id });
   }
 
-  /**
-   * Writes a practice reminder into Bee as a to-do with Bee's own alarm at `at`, so it rings in the Bee app on the
-   * phone and on the Apple Watch. Without Bee, a practice reminder becomes a FirstDay notification on this phone;
-   * a change reminder is Bee-only (the phone already shows the change).
-   */
+  /** A practice reminder: a FirstDay notification on this phone at `at`, cleared once the steps are practised. */
   async function setReminder(packId: string, kind: PracticeReminder["kind"], at: number, ruleIds: string[]): Promise<{ ok: boolean; message: string; via?: "bee" | "phone" }> {
     const pack = get().packs.find((p) => p.id === packId);
     if (!pack || !ruleIds.length) return { ok: false, message: "This training has no steps to practise yet." };
     const text = reminderText(pack, kind, ruleIds.length);
     const createdAt = now();
-    const brain = get().brain;
-    if (brain?.bee && get().settings.syncToBee) {
-      const r = await beeWrite("/bee/todos/create", { text, alarmAt: at });
-      if (r?.id) {
-        hide(`todo:${r.id}`); // FirstDay's own reminder: not a new to-do to bring back from Bee
-        await clearReminder(packId);
-        const id = r.id;
-        patchPack(packId, (p) => ({ ...p, reminder: { kind, via: "bee", id, at, createdAt, ruleIds } }));
-        return { ok: true, via: "bee", message: `In Bee for ${friendlyDue(at, now())}. Bee reminds you on your phone and Apple Watch.` };
-      }
-    }
-    if (kind === "change") return { ok: false, message: get().bee.lastError ?? "Bee isn't connected." };
     const id = await remind(`Practise ${pack.title}`, text, at);
     if (!id) return { ok: false, message: "Allow notifications for FirstDay Go to get practice reminders." };
     await clearReminder(packId);
     patchPack(packId, (p) => ({ ...p, reminder: { kind, via: "phone", id, at, createdAt, ruleIds } }));
-    return {
-      ok: true,
-      via: "phone",
-      message: `FirstDay will remind you ${friendlyDue(at, now())}.${brain?.bee ? "" : " Connect Bee to get it on your Apple Watch too."}`,
-    };
+    return { ok: true, via: "phone", message: `FirstDay will remind you ${friendlyDue(at, now())}.` };
   }
 
   async function scheduleFor(todo: Todo) {
@@ -511,7 +495,7 @@ function makeActions(
       return { ok: true, message: req?.status === "pending" ? "Request taken back." : "" };
     },
     checkTeams: checkTeamsNow,
-    /** On your wrist: a practice reminder in Bee (phone and Apple Watch) for this training, at `at`. */
+    /** A practice reminder on this phone for this training, at `at`. */
     remindPractice(packId: string, at: number) {
       const pack = get().packs.find((p) => p.id === packId);
       return setReminder(packId, "practise", at, pack?.rules.map((r) => r.id) ?? []);
@@ -567,6 +551,7 @@ function makeActions(
         summary: a.summary.length ? a.summary : sentencesOf(text).slice(0, 1),
         analyzedBy: by,
         ...(input.beeId ? { beeId: input.beeId } : {}),
+        ...(input.replayId ? { replayId: input.replayId } : {}),
       };
       set((s) => applyAnalysis(s, convo, a, now()));
       return convo.id;
@@ -892,12 +877,18 @@ function makeActions(
       }
       set((s) => {
         const t = dayKey(now());
-        return {
-          ...s,
-          progress: { ...s.progress, [ruleId]: nextProgress(s.progress[ruleId], firstTry, now()) },
-          today: { date: t, count: (s.today.date === t ? s.today.count : 0) + 1 },
-        };
+        const progress = { ...s.progress, [ruleId]: nextProgress(s.progress[ruleId], firstTry, now()) };
+        // My record: a training fully practised, or a changed step answered the new way.
+        const won = practiceWins({ packs: s.packs, progress, wins: s.wins }, ruleId, firstTry, now());
+        return { ...s, progress, today: { date: t, count: (s.today.date === t ? s.today.count : 0) + 1 }, ...(won.length ? { wins: [...won, ...s.wins] } : {}) };
       });
+    },
+    /** My record: keep a suggested win (with who said it), or let it go. */
+    keepWin(id: string, who: string) {
+      set((s) => ({ ...s, wins: s.wins.map((w) => (w.id === id ? { ...w, suggested: false, who: who.trim() || undefined } : w)) }));
+    },
+    dropWin(id: string) {
+      set((s) => ({ ...s, wins: s.wins.filter((w) => w.id !== id) }));
     },
     setResume(resume: Resume | null) {
       set((s) => ({ ...s, resume }));
