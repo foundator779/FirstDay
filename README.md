@@ -8,9 +8,9 @@ For the person starting a new job. With your trainer's OK, Bee hears them, and F
 into calm, one-step-at-a-time practice, built for people with ADHD. Trainers can join in, and a changed step reaches
 everyone they've trained.
 
-[![Demo video on YouTube](https://img.shields.io/badge/demo-watch%20on%20YouTube-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=h5Ks2q6d43c) [![FirstDay Go checks](https://github.com/foundator779/FirstDay/actions/workflows/firstday-go.yml/badge.svg)](https://github.com/foundator779/FirstDay/actions/workflows/firstday-go.yml) [![app: live on AWS](https://img.shields.io/badge/app-live%20on%20AWS-161616)](https://d1ypavau8ae868.cloudfront.net) [![Bee data: real · Apple Watch](https://img.shields.io/badge/Bee%20data-real%20%C2%B7%20Apple%20Watch-161616)](#real-bee-data-from-an-apple-watch) [![runs on: iPhone · Expo Go · web](https://img.shields.io/badge/runs%20on-iPhone%20%C2%B7%20Expo%20Go%20%C2%B7%20web-161616)](#run-it-locally) [![AI: Amazon Bedrock · Nova Pro](https://img.shields.io/badge/AI-Amazon%20Bedrock%20%C2%B7%20Nova%20Pro-161616)](#how-its-built-on-aws) [![MCP: 2025-11-25](https://img.shields.io/badge/MCP-2025--11--25-161616)](#how-it-uses-bee) [![tests: 104 automated](https://img.shields.io/badge/tests-104%20automated-161616)](#run-it-locally) [![held-out recall: 85%](https://img.shields.io/badge/held--out%20recall-85%25-161616)](#how-accurate-it-is) [![license: MIT](https://img.shields.io/badge/license-MIT-161616)](LICENSE)
+[![Demo video on YouTube](https://img.shields.io/badge/demo-watch%20on%20YouTube-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=h5Ks2q6d43c) [![FirstDay Go checks](https://github.com/foundator779/FirstDay/actions/workflows/firstday-go.yml/badge.svg)](https://github.com/foundator779/FirstDay/actions/workflows/firstday-go.yml) [![app: live on AWS](https://img.shields.io/badge/app-live%20on%20AWS-161616)](https://d1ypavau8ae868.cloudfront.net) [![Bee data: real · Apple Watch](https://img.shields.io/badge/Bee%20data-real%20%C2%B7%20Apple%20Watch-161616)](#real-bee-data-from-an-apple-watch) [![runs on: Android · iPhone · web](https://img.shields.io/badge/runs%20on-Android%20%C2%B7%20iPhone%20%C2%B7%20web-161616)](#run-it-locally) [![AI: Amazon Bedrock · Nova Pro](https://img.shields.io/badge/AI-Amazon%20Bedrock%20%C2%B7%20Nova%20Pro-161616)](#how-its-built-on-aws) [![MCP: 2025-11-25](https://img.shields.io/badge/MCP-2025--11--25-161616)](#how-it-uses-bee) [![tests: 114 automated](https://img.shields.io/badge/tests-114%20automated-161616)](#run-it-locally) [![held-out recall: 88%, 3 runs](https://img.shields.io/badge/held--out%20recall-88%25%20(3%20runs)-161616)](docs/ACCURACY.md) [![license: MIT](https://img.shields.io/badge/license-MIT-161616)](LICENSE)
 
-[**Live app**](https://d1ypavau8ae868.cloudfront.net) · [Test it as a judge](#testing-it-as-a-judge) · [Real Bee data](#real-bee-data-from-an-apple-watch) · [Architecture](#how-its-built-on-aws) · [Run it locally](#run-it-locally) · [Accuracy](#how-accurate-it-is) · [Submission checklist](#hackathon-submission)
+[**Live app**](https://d1ypavau8ae868.cloudfront.net) · [Test it as a judge](#testing-it-as-a-judge) · [Real Bee data](#real-bee-data-from-an-apple-watch) · [Architecture](#how-its-built-on-aws) · [Run it locally](#run-it-locally) · [Accuracy and failures](docs/ACCURACY.md) · [Submission checklist](#hackathon-submission)
 
 ### [▶ Watch the demo video](https://www.youtube.com/watch?v=h5Ks2q6d43c)
 
@@ -24,17 +24,25 @@ everyone they've trained.
   **Create account**. It's the same code as the Expo Go iPhone app, hosted on AWS.
 - **Real Bee data, end to end:** on October 18, 2026, Bee recorded a café training on an Apple Watch. Minutes later it
   was in FirstDay Go, and Amazon Bedrock read it into 3 work steps, 1 question for the trainer and a to-do
-  ([see it](#real-bee-data-from-an-apple-watch)).
-- **Measured, not just demoed:** on workplaces it was never tuned on, it finds 85% of the steps a trainer stated, copies
-  every quote word for word, and turned no vague line into a rule. 104 automated tests run in CI
-  ([accuracy](#how-accurate-it-is)).
+  ([see it](#real-bee-data-from-an-apple-watch)). **Run it yourself, no Bee needed:** in the app, **Try a real Bee
+  recording** replays Bee's own transcript of it, and Amazon Bedrock reads it live in your account.
+- **My record, for your reviews:** praise and thanks Bee hears ("Great job handling that refund this morning") go
+  on your record word for word, with the date, once you keep them, next to what you learned here ("Learned all 3
+  steps of Juniper Café"). At review time, **Copy for my review** gives you dated proof in other people's words.
+- **Measured, with its failures published:** on workplaces it was never tuned on, Amazon Bedrock found 88% of the
+  steps a trainer stated across three runs (82–93%), copied every quote word for word, and turned no vague line into
+  a rule. Every kind of mistake it made is listed in [Accuracy and failure cases](docs/ACCURACY.md). 114 automated
+  tests run in CI.
 - **Its own MCP server and Agent Skill:** a voice screen or any AI assistant can quiz you in your trainer's words.
 
 | Try it | |
 | --- | --- |
 | **App, no install** | https://d1ypavau8ae868.cloudfront.net → **Create account** (free: email, password, accept the terms, 6-digit code) |
+| **Android app** | [Download the APK](https://github.com/foundator779/FirstDay/releases/latest) from the latest release, allow **Install unknown apps** for your browser, then open it. Same look and features as the iPhone app |
+| **On iPhone** | Use the app above in Safari → Share → **Add to Home Screen**, or Expo Go (see [Run it locally](#run-it-locally)) |
 | **Voice coach** | https://d1ypavau8ae868.cloudfront.net/voice.html (make its link in the app: More → Quiz me from other apps) |
 | **MCP server** | `https://xexduccr223pex3iuq4lqe5kfe0utyxs.lambda-url.us-east-1.on.aws/mcp` (spec 2025-11-25, Streamable HTTP, key from the app) |
+| **Real Bee data, no Bee needed** | In the app: **Today** → **Try a real Bee recording** (two real Apple Watch recordings, read live by Amazon Bedrock) |
 | **Step-by-step testing** | [Testing it as a judge](#testing-it-as-a-judge), just below |
 
 ## Testing it as a judge
@@ -49,8 +57,15 @@ end of the judging period. It isn't a private site and there's no shared login: 
 2. **Practise, then see a rule change.** Read the three welcome screens, then **Train** → **Try a sample training**.
    Open **Library welcome desk** → **Start** and practise each step once. Back on **Today**, its trainer has "changed" a
    rule: the **Change Drill** shows old vs. new, and the old answer is now a trap choice.
-3. **Turn a training conversation into steps.** **Capture** → **Paste a transcript**, paste this, tap **Find the
-   steps**, then **Check work steps**:
+3. **Real Bee data, read live.** On **Today**, tap **Try a real Bee recording** (or **Capture** → **Replay a real
+   Bee recording**) → **Cafe Shift Procedures and Updates**. It's Bee's own transcript of the training in the demo,
+   recorded on an Apple Watch on October 18, 2026, saved in the app so you don't need a Bee. Tick **I agree** →
+   **Replay it**: Amazon Bedrock reads it now, in your account, and finds the work steps, a question for the trainer
+   and a to-do. **Check work steps**, name the training "Juniper Café" with trainer **Rosa**, and practise it once.
+   Then replay **Rosa's quick update** (recorded 18 minutes later), add its step to **Juniper Café**, and Today shows
+   a Change Drill for the cracked-mug rule.
+   *Or paste your own:* **Capture** → **Paste a transcript**, paste this, tap **Find the steps**, then **Check work
+   steps**:
    ```
    Rosa: When a customer brings back a cracked mug, check the receipt first, then put the mug in the grey bin.
    If someone orders oat milk, write OAT on the lid in capitals.
@@ -75,16 +90,27 @@ end of the judging period. It isn't a private site and there's no shared login: 
    in Chrome, Edge or Safari on a laptop and say "Quiz me before my shift". Or **Make a key for an AI assistant** and
    add the MCP server to one, for example
    `claude mcp add --transport http firstday-coach <url>/mcp --header "Authorization: Bearer <key>"`.
-6. **Amazon Bedrock.** **Settings** → **Check it works** says Amazon Bedrock answered.
-7. **Real Bee data** needs your own Bee (wearable or Apple Watch) and the Bee CLI on a computer: see
-   [Run it locally](#run-it-locally). The demo above uses the no-computer route, which is open only to the owner's
-   account until Bee confirms server-side use.
+6. **My record.** **Capture** → **Paste a transcript**, paste
+   `Rosa: Great job handling that refund this morning. You checked the receipt and used the blue crate, exactly right.`
+   → **Find the steps** → **Keep 1 win for my record**. Type **Rosa** under "Who said it?" → **Keep it**. Your
+   practice from step 3 is on the record too ("Learned all 3 steps of Juniper Café"). **Copy for my review** gives you
+   the dated list. (**More** → **My record** opens it any time.)
+7. **Amazon Bedrock.** **Settings** → **Check it works** says Amazon Bedrock answered.
+8. **Your own Bee.** Step 3 replays real recordings so anyone can test. Live Bee data from your own Bee (wearable or
+   Apple Watch) needs the Bee CLI on a computer: see [Run it locally](#run-it-locally). The no-computer route in the
+   demo is open only to the owner's account until Bee confirms server-side use.
 
 
 ## The problem
 
-A trainer explains twenty small procedures in an hour ("damaged returns go in the grey bin, scan them first, then
-tell Sam") and a new hire is expected to remember them. With ADHD, working memory is exactly what gives out, and the
+**Kuto, 26, has ADHD and starts at a café on Tuesday.** At 9:10 his trainer, Rosa, walks him through twenty small
+rules while the espresso machine screams. One of them: when a customer brings back a cracked mug, check the receipt
+first, then the gray bin. At 2 pm a customer hands Kuto a cracked mug, and he can't remember whether to check the
+receipt or which bin. He asks Rosa again, for the third time that day. The mug isn't the cost; looking like he
+can't be trusted with the job in week one is. Six months later, at his review, the praise he got in passing is
+gone too. (Kuto is an illustration, not one of our testers.)
+
+A trainer explains twenty small procedures in an hour and a new hire is expected to remember them. With ADHD, working memory is exactly what gives out, and the
 cost is looking incompetent in week one. Bee already hears that conversation; FirstDay Go makes it something you can
 practise. You use it yourself, on your own Bee, with your trainer's OK: no employer has to buy anything.
 
@@ -94,9 +120,27 @@ practise. You use it yourself, on your own Bee, with your trainer's OK: no emplo
 - ADHD is linked to 35 days of lost work performance a year ([Kessler et al., 2005](https://hcp.hms.harvard.edu/publication/prevalence-and-effects-adult-attention-deficithyperactivity-disorder-work-performance)), and only 52% of adults with ADHD were employed vs. 72% without ([Biederman et al., 2006](https://scholars.mssm.edu/en/publications/functional-impairments-in-adults-with-self-reports-of-diagnosed-a-2/)).
 - Food-service workers quit at 4.2% a month, twice the all-jobs rate, so new first days come constantly ([BLS JOLTS, 2025](https://www.bls.gov/news.release/jolts.t22.htm)). Each replacement costs an employer about $5,475 to hire ([SHRM, 2025](https://www.shrm.org/about/press-room/shrm-releases-2025-benchmarking-reports--how-does-your-organizat)).
 
+## You stay in control
+
+Recording a coworker needs care, so every step needs a person's yes:
+
+- **Bee records only with the trainer's OK,** and FirstDay Go reads a Bee conversation only after you say yes to that
+  conversation (**Yes, read it**).
+- **Nothing becomes a work step until you confirm it,** next to the trainer's exact words: **Yes, that's what was
+  said**, **Fix it** or **Not a rule**.
+- **A "maybe" never becomes a rule.** It goes to Questions, to ask the trainer.
+- **Nobody joins a team until the trainer lets them in** (or turns on **Let anyone with the code in**), and a change
+  reaches the team only when the trainer sends it.
+- **Transcripts are saved only on your phone.** Amazon Bedrock reads them through your account and doesn't store them.
+- **Your record is yours.** Praise goes on it only when you keep it, it stays on your device, and nothing is shared
+  with your employer unless you copy it.
+
 ## Real Bee data from an Apple Watch
 
-Filmed on October 18, 2026 with a real Bee account on an Apple Watch: no simulator, no sample file.
+Filmed on October 18, 2026 with a real Bee account on an Apple Watch: no simulator, no sample file. **Replay it
+yourself:** the app keeps Bee's transcripts of both recordings (**Today** → **Try a real Bee recording**), so anyone
+can run them through the live Bedrock path without a Bee. They're labelled as replays everywhere they appear
+([`src/logic/replays.ts`](expo-go-app/src/logic/replays.ts)).
 
 <p align="center">
   <img src="docs/images/readme/demo.gif" width="100%" alt="Clips from the demo: Bee records a café training on an Apple Watch, the same conversation shows up in FirstDay Go, Amazon Bedrock finds the work steps with the trainer's exact words, and a changed rule becomes a Change Drill.">
@@ -121,7 +165,8 @@ The app has one job, **getting you ready for your next shift**, and shows one ne
 - **Work steps from real conversations.** Each instruction the trainer gave sits beside their exact words. You confirm it before it becomes practice. Vague lines ("maybe refunds on Sundays") become questions to ask, never rules.
 - **Role-play practice.** A line-drawn customer describes a situation; feedback always quotes the trainer. No scores, no streaks to lose. Spaced review brings steps back after 1, 3, 7 and 14 days.
 - **Change Drill.** When a rule changes, you see old vs. new and the old answer becomes a trap choice, so the habit actually updates.
-- **On your wrist.** FirstDay Go writes a Bee to-do ("Practise Juniper Café before your shift: 3 steps") with Bee's alarm, so it rings on your Apple Watch, and checks it off once you've practised.
+- **Practice reminder.** Pick a time to practise before your shift ("Practise Juniper Café before your shift: 3 steps"); it clears once you've practised.
+- **My record.** Praise and thanks heard in a Bee conversation ("Great job…", "Thanks for covering…") are found on your phone and suggested for your record, word for word and dated; you keep each one and say who said it, because Bee labels every speaker "Unknown". What you learn here is added as it happens ("Learned all 3 steps of Juniper Café", "Picked up Rosa's change"). **Copy for my review** turns it into a dated list for a self-review or a promotion conversation ([`src/logic/wins.ts`](expo-go-app/src/logic/wins.ts)).
 - **Your trainer can join in.** A trainer or job coach shares a training with a 6-character code and lets each person in (or turns on **Let anyone with the code in**). When they send a change, everyone who practised the old way gets a Change Drill and a notification.
 - **Quiz me anywhere.** Your confirmed steps power a remote MCP server. An Alexa-style voice screen, or any AI assistant that speaks MCP, quizzes you in your trainer's words.
 - **Built on Bee's data, under More:** to-dos, memories, Ask, an evening review and patterns, all synced both ways with Bee.
@@ -204,8 +249,10 @@ The templates are in [`expo-go-app/infra/`](expo-go-app/infra/); deploy steps ar
 
 ## Run it locally
 
-**You need:** Git, Node.js 22 or newer, and an iPhone with **Expo Go** from the App Store, on the same Wi-Fi as the
-computer. Windows, macOS and Linux all work.
+**You need:** Git, Node.js 22 or newer, and an iPhone or Android phone with **Expo Go**, on the same Wi-Fi as the
+computer. Windows, macOS and Linux all work. The app uses Expo SDK 57: if the Expo Go in your phone's app store doesn't
+open it yet, use Android, the web app, or `npx eas-cli@latest go --sdk-version 57.0.0` (an Expo Go build for your own
+TestFlight, which needs an Apple Developer account).
 
 1. **Get the code and start the app.**
 
@@ -241,7 +288,7 @@ computer. Windows, macOS and Linux all work.
 4. **Check it works.**
 
    ```bash
-   npm test            # 65 logic tests
+   npm test            # 75 logic tests
    npm run test:node   # 39 integration tests: brain + stand-in Bee CLI, Bee service, coach service and MCP server
    npm run typecheck
    npm run eval        # step-finding accuracy (results below)
@@ -254,27 +301,47 @@ computer. Windows, macOS and Linux all work.
    `infra/deploy-web.sh` (the web app). Point the app at your stacks with the `EXPO_PUBLIC_*` values in
    `.env.example`. Everything is pay per use; each script's usage is in the comments at its top.
 
+6. **Build the Android app (optional).** Release builds run on Expo's build service (EAS), so you don't need Android
+   Studio:
+
+   ```bash
+   npm install -g eas-cli
+   eas login                                  # a free Expo account
+   eas init                                   # links the project to your account (once)
+   eas build -p android --profile preview     # an .apk you can install or share
+   ```
+
+   The Android app looks and works like the iPhone app: dotted edges are drawn in SVG (`src/ui/edge.tsx`), dialogs
+   use the app's own style (`src/ui/dialog.tsx`), and reminders have their own channel and notification icon.
+   `eas build -p android --profile production` makes the Play Store bundle. iPhone release builds need an Apple
+   Developer account (`eas build -p ios`, then `eas submit -p ios` for TestFlight).
+
 ## How accurate it is
 
 A wrong step is worse than a missing one, because you'd practise the wrong thing. So the eval measures both, plus
 whether vague talk ("maybe", "I think") wrongly becomes a rule. It uses 25 fictional training transcripts: a
 development set of 15 workplaces that the on-phone rules were tuned on, and a held-out set of 10 new workplaces
-written after tuning. A step counts as found when it covers at least 75% of the expected step's key words.
+written after tuning. A step counts as found when it covers at least 75% of the expected step's key words. Bedrock's
+answers vary from run to run, so we ran it three times (October 19, 2026) and report all three.
 
 | Reader | Held-out set (new workplaces) | Precision | Recall | Vague lines made into rules | Quotes word for word |
 |---|---|---|---|---|---|
-| Amazon Bedrock, Nova Pro | 10 workplaces, 27 steps | **95.8%** | **85.2%** | **0 of 4** | 100% |
-| On-phone rules (offline) | 10 workplaces, 27 steps | 94.7% | 66.7% | 1 of 4 | 100% |
+| Amazon Bedrock, Nova Pro, 3 runs pooled | 10 workplaces, 27 steps each run | **94.7%** | **87.7%** | **0 of 12** | 100% |
+| Amazon Bedrock, range across the runs | | 91.7–96.2% | 81.5–92.6% | 0 every run | 100% |
+| On-phone rules (offline) | 10 workplaces, 27 steps | 94.4% | 63.0% | 1 of 4 | 100% |
 
-- **Bedrock generalises much better** at the same precision, so signed-in captures are read by Bedrock. The app
-  falls back to on-phone rules offline, and every step is shown with its quote and must be confirmed, because the
-  rules miss about a third.
+- **Where it fails, published:** [Accuracy and failure cases](docs/ACCURACY.md) lists every kind of mistake, with real
+  outputs. The main ones: half of a two-part rule ("free until 1 pm; after that $20" became "charge $20 after 1 pm"),
+  a key detail lost in an update ("seven calendar days" became "seven days"), and steps said as facts ("Tours start
+  every hour") missed. That's why every step is shown with its quote and must be confirmed.
+- **The real Bee recording** (the café training) gave 3 of 3 steps, 1 question and 1 to-do. One recording shows the
+  path works on real Bee data; it isn't an accuracy figure.
 - On the development set the on-phone rules reach 100% precision and 92.1% recall, with no vague line made a rule.
   CI fails if that ever changes. The held-out set is reported, never gated, so it stays honest.
-- **Cost and speed:** about 1,114 input and 225 output tokens per capture, 2.7 seconds, about **$0.0016** at Nova
+- **Cost and speed:** about 1,114 input and 230 output tokens per capture, about 3 seconds, about **$0.0016** at Nova
   Pro's launch price. Nothing runs or bills while nobody uses the app.
-- Rerun it: `npm run eval` (on-phone, no network) or `node eval/run-bedrock.mjs` (Bedrock, with your AWS CLI
-  credentials), in `expo-go-app/`.
+- Rerun it: `npm run eval` (on-phone, no network) or `node eval/run-bedrock.mjs --details` (Bedrock, with your AWS
+  CLI credentials), in `expo-go-app/`. `--details` prints every miss.
 
 ## Hackathon submission
 
@@ -289,7 +356,7 @@ Build, Ship, Shape: Amazon Developer Hackathon 2026.
 | Setup and run instructions | [Run it locally](#run-it-locally) |
 | Testing instructions and judge access | [Testing it as a judge](#testing-it-as-a-judge): free, public, your own account |
 | Product feedback for each tool | [docs/submission/product-feedback.md](docs/submission/product-feedback.md) |
-| Friction log (optional) | [docs/friction-log.md](docs/friction-log.md): task, steps, expected vs. actual, severity, workaround and suggestion for each entry |
+| Friction log (optional) | [docs/friction-log.md](docs/friction-log.md): 9 entries on integrating Bee, in Trag's friction log template (BLUF and grade, persona, pros and cons). Each entry has task, steps, expected vs. actual, severity, workaround and recommendation |
 | Feature requests (optional) | [docs/submission/feature-requests.md](docs/submission/feature-requests.md): each with why it matters and a priority |
 | Open source license | [MIT](LICENSE), shown in the repository's About section |
 | Demo video: under 3 minutes, public on YouTube | [Watch the demo](https://www.youtube.com/watch?v=h5Ks2q6d43c) |
