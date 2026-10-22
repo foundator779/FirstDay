@@ -343,6 +343,38 @@ answers vary from run to run, so we ran it three times (October 19, 2026) and re
 - Rerun it: `npm run eval` (on-phone, no network) or `node eval/run-bedrock.mjs --details` (Bedrock, with your AWS
   CLI credentials), in `expo-go-app/`. `--details` prints every miss.
 
+## What people said
+
+Written feedback from people who used FirstDay Go during the hackathon, quoted as they wrote it.
+
+> **Anslem U.**
+>
+> *What I liked:* First Day is useful during Scrum standups because important details, blockers, and action items can
+> easily get lost in fast-moving spoken conversations. It helps reinforce key information by turning explanations and
+> conversations into a more structured learning experience. I see potential for using it to retain important technical
+> decisions and make sure everyone understands what was discussed.
+>
+> *Overall:* I find First Day useful for Scrum standups and spoken conversations where important details can easily get
+> lost or forgotten. I would like to use it to help capture key takeaways, blockers, and action items so the team can
+> stay aligned and avoid missing important information.
+
+> **Huy M.**
+>
+> *What I liked:* The Train feature was useful for reviewing what was discussed or suggested throughout the week, making
+> it easier to revisit important ideas and avoid forgetting useful information. The latest personal achievement
+> documentation feature was a nice addition. It helps me keep track of what I accomplished and makes it easier to
+> document my contributions over time. Having these features in one place makes First Day useful for both reviewing
+> conversations and reflecting on personal progress.
+>
+> *Overall:* I found the Train feature helpful for looking back at what was said or suggested throughout the week and
+> refreshing my memory on important details. The latest update for documenting personal achievements was also a nice
+> touch, giving me an easy way to keep track of my accomplishments and contributions over time. These features make
+> First Day useful for both retaining information and documenting my progress.
+
+**What we take from it.** Both found value beyond a first day at a new job: in the conversations a team has every week
+(standups, decisions, blockers), and in keeping a record of their own work (**My record**). That's the next audience we
+want to test with. Two people is a first signal, not a study.
+
 ## Hackathon submission
 
 Build, Ship, Shape: Amazon Developer Hackathon 2026.

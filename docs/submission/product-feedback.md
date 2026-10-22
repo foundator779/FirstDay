@@ -1,11 +1,10 @@
 # Product feedback
 
 Devpost asks, for each tool, API or SDK: what we used it for, what worked well, what needs work, how onboarding went,
-and whether we'd build with it again. Everything below is what we actually saw while building. Lines marked
-`[EDIT: …]` are yours to fill in or confirm (your own first-time experience with the device, for example).
+and whether we'd build with it again. Everything below is what we actually saw while building.
 
 **Primary track:** Bee (Wearable AI).
-**Mini challenges:** [EDIT: none, or "AWS Builder" if you want it considered; the AWS section below already answers its question.]
+**Mini challenges:** AWS Builder (the AWS sections below say which services we used and how).
 
 ---
 
@@ -25,7 +24,6 @@ and whether we'd build with it again. Everything below is what we actually saw w
 - Read and write commands mirror each other (list / confirm / update / delete), so two-way sync was a small amount of code.
 - Facts, to-do suggestions and insights are genuinely useful product data, not just transcripts. They let us mirror most of the Bee app.
 - Processed vs. still-processing state is visible, so we can wait for the final transcript instead of guessing.
-- [EDIT: anything about the device itself: battery, comfort, transcription quality on your recordings.]
 
 **What needs work.**
 - **Timing fields.** Real payloads had small `start`/`end` values, a wall-clock `spoken_at`, zero-length and tied utterances, and a point outside the conversation window. Our first adapter assumed epoch intervals and rejected real data. Documenting the units, origin and guarantees of each field (with one real example) would save others the same detour. (Friction log #1.)
@@ -33,11 +31,11 @@ and whether we'd build with it again. Everything below is what we actually saw w
 - **Mobile apps need a computer in the middle.** To get Bee data onto a phone app we run a helper next to the CLI. A push or webhook to a developer's own app (with the user's consent) would remove that step.
 - **Reply shapes aren't documented.** The CLI page lists `--json` flags but not what they return. `conversations get` wraps the conversation in `{ conversation }`; our new importer missed that and rejected every real conversation until a test built on the real shape caught it. One example reply per command would prevent this. (Friction log #3.)
 - **Running the CLI on a server.** For "Connect Bee without a computer" we run the CLI in AWS Lambda: the npm package is about 420 MB (we ship only the 37 MB Linux program), and the sign-in lives as files in `~/.bee`, so we restore it per request from a copy sealed with a key on the user's phone. A documented, consented server-side token flow would be simpler and clearer about what's allowed. (Friction log #4, #5.)
-- [EDIT: anything else you hit, e.g. pairing, login, or how long processing took.]
+- **Apple Watch specifics.** To-do alarms written through the CLI didn't buzz on the Watch, every speaker in a transcript comes back as "Unknown", and the final transcript only arrives after the conversation ends. (Friction log #7, #8, #9.)
 
-**Onboarding (zero to hello world).** [EDIT: your words. For example: how long from unboxing to the first `bee conversations list` returning your recording, and what slowed you down.]
+**Onboarding (zero to hello world).** First time with the Bee CLI and with Bee on an Apple Watch. Signing in took minutes: `bee login` prints an approval link, you approve it in the Bee app, and `bee conversations list --json` showed a new recording minutes after Bee finished processing it. What slowed us down came after hello world: guessing the JSON reply shapes and timing fields cost us a broken importer, and running the CLI on a server needed a workaround.
 
-**Would we build with it again?** [EDIT: Yes/No and why. Our draft: Yes. The CLI's JSON output and symmetric read/write commands made a real two-way integration possible in days, and facts and insights are a richer surface than any other wearable we've tried.]
+**Would we build with it again?** Yes. The CLI's JSON output and symmetric read/write commands made a real two-way integration possible in days, and facts and insights are a richer surface than a plain transcript. Documented reply shapes and a server-side sign-in route would make it much faster for the next team.
 
 ---
 
@@ -54,9 +52,8 @@ and whether we'd build with it again. Everything below is what we actually saw w
 
 **What needs work.**
 - Structured output guarantees shape, not faithfulness. In one run the action dropped a number that was in the source. A docs example of checking extracted text against its source would help teams avoid trusting valid JSON too much.
-- [EDIT: anything about model access, quotas or the console playground you noticed.]
 
-**Onboarding.** [EDIT: your experience creating the Bedrock API key for the local helper.] From CloudShell, zero to a working Nova Pro call was one command.
+**Onboarding.** From CloudShell, zero to a working Nova Pro call was one command with the console's credentials.
 
 **Would we build with it again?** Yes: Converse plus forced tool use is the simplest reliable structured-output path we've used, and Nova Pro's price makes per-capture analysis affordable for a free app.
 
@@ -95,7 +92,7 @@ and whether we'd build with it again. Everything below is what we actually saw w
 - `list-user-pools` is regional, so our "does this account already have a pool?" check missed one in another region and we created a duplicate. The console could mention pools in other regions.
 - The built-in email sender has a low daily limit, so launch needs Amazon SES set up; the console could flag this when a pool sends verification codes.
 
-**Onboarding.** Creating the pool and app client from the CLI took a few commands. [EDIT: your experience, e.g. how quickly the confirmation email arrived.]
+**Onboarding.** Creating the pool and app client from the CLI took a few commands.
 
 **Would we build with it again?** Yes, for email + password accounts that need to work without a heavy client SDK.
 
